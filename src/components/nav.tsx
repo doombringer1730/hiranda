@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState, useEffect } from 'react'
-import { BookOpen, CheckSquare, Star, Play, Library, LogOut, Menu, Settings } from 'lucide-react'
-import { logout } from '@/app/(auth)/actions'
+import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings } from 'lucide-react'
+
+
 
 const links = [
   { href: '/',            label: 'Memories',    icon: BookOpen    },
@@ -17,7 +18,6 @@ const links = [
 export default function Nav() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const touchStartX = useRef(0)
 
   // Swipe detection on document
@@ -60,11 +60,13 @@ export default function Nav() {
             )
           })}
         </nav>
-        <form action={logout}>
-          <button type="submit" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-stone-500 hover:text-red-400 hover:bg-stone-800 transition-colors w-full">
-            <LogOut size={18} /> Sign out
-          </button>
-        </form>
+        <Link href="/settings"
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+            pathname === '/settings' ? 'bg-amber-900/40 text-amber-300' : 'text-stone-400 hover:text-amber-100 hover:bg-stone-800'
+          }`}
+        >
+          <Settings size={18} /> Settings
+        </Link>
       </aside>
 
       {/* ── Mobile: hamburger button ── */}
@@ -105,28 +107,15 @@ export default function Nav() {
             )
           })}
 
-          {/* Gear / settings */}
-          <div className="relative mt-2">
-            <button
-              onClick={() => setSettingsOpen(v => !v)}
-              className="flex items-center justify-center w-10 h-10 rounded-xl text-stone-500 hover:text-amber-300 hover:bg-stone-800 transition-colors"
-              title="Settings"
-            >
-              <Settings size={20} />
-            </button>
-
-            {settingsOpen && (
-              <div className="absolute bottom-12 left-0 bg-stone-800 border border-stone-700 rounded-xl overflow-hidden w-32 shadow-xl">
-                <form action={logout}>
-                  <button type="submit"
-                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-stone-300 hover:text-red-400 hover:bg-stone-700 transition-colors"
-                  >
-                    <LogOut size={15} /> Sign out
-                  </button>
-                </form>
-              </div>
-            )}
-          </div>
+          {/* Gear → Settings page */}
+          <Link href="/settings"
+            className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors mt-2 ${
+              pathname === '/settings' ? 'bg-amber-900/50 text-amber-400' : 'text-stone-500 hover:text-amber-300 hover:bg-stone-800'
+            }`}
+            title="Settings"
+          >
+            <Settings size={20} />
+          </Link>
         </nav>
       </aside>
     </>
