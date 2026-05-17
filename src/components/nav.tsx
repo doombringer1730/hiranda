@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState, useEffect } from 'react'
-import { BookOpen, CheckSquare, Star, Play, Library, LogOut, Menu } from 'lucide-react'
+import { BookOpen, CheckSquare, Star, Play, Library, LogOut, Menu, Settings } from 'lucide-react'
 import { logout } from '@/app/(auth)/actions'
 
 const links = [
@@ -17,6 +17,7 @@ const links = [
 export default function Nav() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const touchStartX = useRef(0)
 
   // Swipe detection on document
@@ -84,14 +85,12 @@ export default function Nav() {
 
       {/* ── Mobile: icon-only drawer ── */}
       <aside
-        className={`md:hidden fixed top-0 left-0 h-full w-16 bg-stone-900 border-r border-stone-800 z-50 flex flex-col items-center py-6 gap-2 transition-transform duration-300 ${
+        className={`md:hidden fixed top-0 left-0 h-full w-16 bg-stone-900 border-r border-stone-800 z-50 flex flex-col items-center py-6 transition-transform duration-300 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="mb-6">
-          <span className="font-serif text-amber-500 text-lg">H</span>
-        </div>
-        <nav className="flex flex-col items-center gap-1 flex-1 w-full">
+        {/* Icons pushed to bottom */}
+        <nav className="flex flex-col items-center gap-1 mt-auto w-full px-3">
           {links.map(({ href, icon: Icon, label }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
             return (
@@ -105,15 +104,30 @@ export default function Nav() {
               </Link>
             )
           })}
+
+          {/* Gear / settings */}
+          <div className="relative mt-2">
+            <button
+              onClick={() => setSettingsOpen(v => !v)}
+              className="flex items-center justify-center w-10 h-10 rounded-xl text-stone-500 hover:text-amber-300 hover:bg-stone-800 transition-colors"
+              title="Settings"
+            >
+              <Settings size={20} />
+            </button>
+
+            {settingsOpen && (
+              <div className="absolute bottom-12 left-0 bg-stone-800 border border-stone-700 rounded-xl overflow-hidden w-32 shadow-xl">
+                <form action={logout}>
+                  <button type="submit"
+                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-stone-300 hover:text-red-400 hover:bg-stone-700 transition-colors"
+                  >
+                    <LogOut size={15} /> Sign out
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
         </nav>
-        <form action={logout}>
-          <button type="submit"
-            className="flex items-center justify-center w-10 h-10 rounded-xl text-stone-600 hover:text-red-400 hover:bg-stone-800 transition-colors"
-            title="Sign out"
-          >
-            <LogOut size={20} />
-          </button>
-        </form>
       </aside>
     </>
   )
