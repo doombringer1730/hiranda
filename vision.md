@@ -95,11 +95,11 @@ Think a late-night café — warm amber light, dark wood, soft and unhurried. Th
 
 ## Build Phases
 
-### Phase 1 — Foundation
-- [ ] Scaffold Next.js project
-- [ ] Set up Supabase (DB + storage)
-- [ ] Deploy skeleton to Vercel
-- [ ] Define DB schema for all core features
+### Phase 1 — Foundation ✓
+- [x] Scaffold Next.js project
+- [x] Set up Supabase (DB + storage)
+- [x] Deploy skeleton to Vercel
+- [x] Define DB schema for all core features
 
 ### Phase 2 — Core Features
 - [ ] Memories + journal entries (CRUD)
