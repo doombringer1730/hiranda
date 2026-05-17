@@ -11,19 +11,50 @@ export async function createWatchSession(title: string, storagePath: string) {
 
   const { data: session, error } = await supabase
     .from('watch_sessions')
-    .insert({ title, storage_path: storagePath, created_by: user.id })
+    .insert({ title, storage_path: storagePath, source_type: 'upload', created_by: user.id })
     .select()
     .single()
 
   if (error || !session) return { error: error?.message ?? 'Failed to create session' }
-
   revalidatePath('/watch')
   return { sessionId: session.id }
 }
 
-export async function deleteWatchSession(id: string, storagePath: string) {
+export async function createWatchSessionFromUrl(title: string, url: string) {
   const supabase = await createClient()
-  await supabase.storage.from('videos').remove([storagePath])
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: session, error } = await supabase
+    .from('watch_sessions')
+    .insert({ title, storage_path: '', source_type: 'url', source_url: url, created_by: user.id })
+    .select()
+    .single()
+
+  if (error || !session) return { error: error?.message ?? 'Failed to create session' }
+  revalidatePath('/watch')
+  return { sessionId: session.id }
+}
+
+export async function createWatchSessionLocal(title: string, filename: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: session, error } = await supabase
+    .from('watch_sessions')
+    .insert({ title, storage_path: '', source_type: 'local', source_hint: filename, created_by: user.id })
+    .select()
+    .single()
+
+  if (error || !session) return { error: error?.message ?? 'Failed to create session' }
+  revalidatePath('/watch')
+  return { sessionId: session.id }
+}
+
+export async function deleteWatchSession(id: string, storagePath: string | null) {
+  const supabase = await createClient()
+  if (storagePath) await supabase.storage.from('videos').remove([storagePath])
   await supabase.from('watch_sessions').delete().eq('id', id)
   revalidatePath('/watch')
   redirect('/watch')
