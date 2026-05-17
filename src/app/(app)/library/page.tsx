@@ -16,6 +16,8 @@ export default function LibraryPage() {
   const [author, setAuthor] = useState('')
   const [epubFile, setEpubFile] = useState<File | null>(null)
   const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const [extracting, setExtracting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -43,6 +45,42 @@ export default function LibraryPage() {
       })
     )
     setBooks(withCovers)
+  }
+
+  async function handleEpubChange(file: File) {
+    setEpubFile(file)
+    setExtracting(true)
+    setTitle('')
+    setAuthor('')
+    setCoverFile(null)
+    setCoverPreview(null)
+
+    try {
+      const ePub = (await import('epubjs')).default
+      const arrayBuffer = await file.arrayBuffer()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const book = ePub(arrayBuffer as any)
+      await book.ready
+
+      const metadata = await book.loaded.metadata
+      if (metadata.title) setTitle(metadata.title)
+      if (metadata.creator) setAuthor(metadata.creator)
+
+      const coverUrl = await book.coverUrl()
+      if (coverUrl) {
+        setCoverPreview(coverUrl)
+        const res = await fetch(coverUrl)
+        const blob = await res.blob()
+        const ext = blob.type.includes('png') ? 'png' : 'jpg'
+        setCoverFile(new File([blob], `cover.${ext}`, { type: blob.type || 'image/jpeg' }))
+      }
+
+      book.destroy()
+    } catch {
+      // Metadata extraction failed — user can fill in manually
+    }
+
+    setExtracting(false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -96,28 +134,76 @@ export default function LibraryPage() {
           <h3 className="font-serif text-lg text-amber-200">Add a book</h3>
           {error && <p className="text-red-400 text-sm bg-red-950/30 rounded-xl px-4 py-3">{error}</p>}
 
-          <input type="text" required placeholder="Title" value={title} onChange={e => setTitle(e.target.value)}
-            className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors" />
-
-          <input type="text" placeholder="Author" value={author} onChange={e => setAuthor(e.target.value)}
-            className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors" />
-
           <div className="flex flex-col gap-1">
             <label className="text-stone-400 text-xs uppercase tracking-widest">EPUB file</label>
-            <input type="file" required accept=".epub,application/epub+zip" onChange={e => setEpubFile(e.target.files?.[0] ?? null)}
-              className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-amber-900/40 file:text-amber-300 file:text-sm cursor-pointer" />
+            <input
+              type="file"
+              required
+              accept=".epub,application/epub+zip"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleEpubChange(f) }}
+              className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-amber-900/40 file:text-amber-300 file:text-sm cursor-pointer"
+            />
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-stone-400 text-xs uppercase tracking-widest">Cover image (optional)</label>
-            <input type="file" accept="image/*" onChange={e => setCoverFile(e.target.files?.[0] ?? null)}
-              className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-amber-900/40 file:text-amber-300 file:text-sm cursor-pointer" />
-          </div>
+          {extracting && (
+            <div className="flex items-center gap-2 text-stone-400 text-sm">
+              <Loader2 size={14} className="animate-spin" /> Reading book metadata…
+            </div>
+          )}
 
-          <button type="submit" disabled={saving || !epubFile || !title.trim()}
-            className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2">
-            {saving ? <><Loader2 size={16} className="animate-spin" /> Uploading…</> : 'Add to library'}
-          </button>
+          {(epubFile && !extracting) && (
+            <>
+              <div className="flex gap-4">
+                {coverPreview && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={coverPreview} alt="cover" className="w-16 aspect-[2/3] object-cover rounded-lg flex-shrink-0" />
+                )}
+                <div className="flex flex-col gap-3 flex-1">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Title"
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Author"
+                    value={author}
+                    onChange={e => setAuthor(e.target.value)}
+                    className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-stone-400 text-xs uppercase tracking-widest">
+                  {coverPreview ? 'Replace cover (optional)' : 'Cover image (optional)'}
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={e => {
+                    const f = e.target.files?.[0]
+                    if (f) {
+                      setCoverFile(f)
+                      setCoverPreview(URL.createObjectURL(f))
+                    }
+                  }}
+                  className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-amber-900/40 file:text-amber-300 file:text-sm cursor-pointer"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving || !title.trim()}
+                className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2"
+              >
+                {saving ? <><Loader2 size={16} className="animate-spin" /> Uploading…</> : 'Add to library'}
+              </button>
+            </>
+          )}
         </form>
       )}
 
@@ -131,7 +217,7 @@ export default function LibraryPage() {
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
         {books.map((book) => (
           <Link key={book.id} href={`/library/${book.id}`} className="flex flex-col gap-2 group">
-            <div className="aspect-[2/3] rounded-xl overflow-hidden bg-stone-800 border border-stone-700 group-hover:border-amber-700 transition-colors flex items-center justify-center">
+            <div className="aspect-[2/3] rounded-xl overflow-hidden bg-stone-800 border border-stone-700 group-hover:border-amber-700 transition-colors">
               {book.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={book.coverUrl} alt={book.title} className="w-full h-full object-cover" />
