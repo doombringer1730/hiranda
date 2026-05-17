@@ -3,16 +3,15 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState, useEffect } from 'react'
-import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings } from 'lucide-react'
-
-
+import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine } from 'lucide-react'
 
 const links = [
   { href: '/',            label: 'Memories',    icon: BookOpen    },
+  { href: '/journal',     label: 'Journal',     icon: PenLine     },
   { href: '/todos',       label: 'Todos',       icon: CheckSquare },
   { href: '/bucket-list', label: 'Bucket List', icon: Star        },
   { href: '/watch',       label: 'Watch',       icon: Play        },
-  { href: '/library',    label: 'Library',     icon: Library     },
+  { href: '/library',     label: 'Library',     icon: Library     },
 ]
 
 export default function Nav() {
