@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState, useEffect } from 'react'
 import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X } from 'lucide-react'
+import { SidebarTimer } from './couple-timer'
 
 const links = [
   { href: '/',            label: 'Memories',    icon: BookOpen      },
@@ -82,6 +83,7 @@ export default function Nav() {
             return <NavLink key={href} href={href} label={label} icon={Icon} active={active} />
           })}
         </nav>
+        <SidebarTimer />
         <NavLink href="/settings" label="Settings" icon={Settings} active={pathname === '/settings'} />
       </aside>
 
@@ -95,16 +97,16 @@ export default function Nav() {
       </button>
 
       {/* ── Mobile: backdrop ── */}
-      <div
-        onClick={() => setOpen(false)}
-        className={`md:hidden fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40 transition-opacity duration-300 ${
-          open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
-      />
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          className="md:hidden fixed inset-0 bg-black/60 z-40"
+        />
+      )}
 
       {/* ── Mobile: full drawer ── */}
       <aside
-        className={`md:hidden fixed top-0 left-0 h-full w-64 bg-stone-900 border-r border-stone-800/60 z-50 flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-2xl ${
+        className={`md:hidden fixed top-0 left-0 h-full w-64 bg-stone-900 border-r border-stone-800/60 z-50 flex flex-col transition-transform duration-300 ease-out shadow-2xl ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
