@@ -51,3 +51,15 @@ export async function toggleTimer(show: boolean) {
 
   revalidatePath('/settings')
 }
+
+export async function updateDisplayName(name: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  await supabase
+    .from('profiles')
+    .upsert({ id: user.id, display_name: name.trim() })
+
+  revalidatePath('/settings')
+}

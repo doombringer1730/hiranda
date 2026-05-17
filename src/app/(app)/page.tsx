@@ -1,15 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
+import { getProfileMap } from '@/lib/profiles'
 import Link from 'next/link'
 import { Plus, Camera } from 'lucide-react'
 
 export default async function HomePage() {
   const supabase = await createClient()
 
-  const { data: memories } = await supabase
-    .from('memories')
-    .select('*, photos(id, storage_path)')
-    .order('happened_at', { ascending: false })
-    .limit(20)
+  const [{ data: memories }, profiles] = await Promise.all([
+    supabase
+      .from('memories')
+      .select('*, photos(id, storage_path)')
+      .order('happened_at', { ascending: false })
+      .limit(20),
+    getProfileMap(),
+  ])
 
   return (
     <div className="px-4 pt-8 max-w-2xl mx-auto">
@@ -50,6 +54,9 @@ export default async function HomePage() {
                       {new Date(memory.happened_at).toLocaleDateString('en-US', {
                         year: 'numeric', month: 'long', day: 'numeric'
                       })}
+                      {profiles.get(memory.created_by) && (
+                        <span className="text-stone-600"> · {profiles.get(memory.created_by)}</span>
+                      )}
                     </p>
                     {memory.body && (
                       <p className="text-stone-400 text-sm mt-2 line-clamp-2">{memory.body}</p>

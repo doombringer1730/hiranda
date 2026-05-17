@@ -3,8 +3,17 @@ import { headers } from 'next/headers'
 import SettingsClient from './settings-client'
 import { logout } from '@/app/(auth)/actions'
 import { LogOut } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 
 export default async function SettingsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', user!.id)
+    .single()
+
   const couple = await getOrCreateCouple()
 
   const headersList = await headers()
@@ -17,6 +26,13 @@ export default async function SettingsPage() {
       <h2 className="font-serif text-3xl text-amber-100 mb-8">Settings</h2>
 
       <div className="flex flex-col gap-4">
+
+        {/* Your name */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">Your name</h3>
+          <p className="text-stone-500 text-sm mb-4">Shown on things you add across the app.</p>
+          <SettingsClient type="name" displayName={profile?.display_name ?? ''} />
+        </section>
 
         {/* Invite link */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">

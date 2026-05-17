@@ -1,13 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
+import { getProfileMap } from '@/lib/profiles'
 import { addTodo, toggleTodo, deleteTodo } from './actions'
 import { Plus, Trash2, ClipboardList } from 'lucide-react'
 
 export default async function TodosPage() {
   const supabase = await createClient()
-  const { data: todos } = await supabase
-    .from('todos')
-    .select('*')
-    .order('created_at', { ascending: true })
+  const [{ data: todos }, profiles] = await Promise.all([
+    supabase.from('todos').select('*').order('created_at', { ascending: true }),
+    getProfileMap(),
+  ])
 
   const open = todos?.filter(t => !t.completed) ?? []
   const done = todos?.filter(t => t.completed) ?? []
@@ -41,7 +42,7 @@ export default async function TodosPage() {
 
       <div className="flex flex-col gap-2">
         {open.map((todo) => (
-          <TodoRow key={todo.id} todo={todo} />
+          <TodoRow key={todo.id} todo={todo} name={profiles.get(todo.created_by)} />
         ))}
       </div>
 
@@ -50,7 +51,7 @@ export default async function TodosPage() {
           <p className="text-stone-600 text-xs uppercase tracking-widest mb-3">Done</p>
           <div className="flex flex-col gap-2 opacity-50">
             {done.map((todo) => (
-              <TodoRow key={todo.id} todo={todo} />
+              <TodoRow key={todo.id} todo={todo} name={profiles.get(todo.created_by)} />
             ))}
           </div>
         </div>
@@ -59,7 +60,7 @@ export default async function TodosPage() {
   )
 }
 
-function TodoRow({ todo }: { todo: { id: string; text: string; completed: boolean } }) {
+function TodoRow({ todo, name }: { todo: { id: string; text: string; completed: boolean }; name?: string }) {
   return (
     <div className="flex items-center gap-3 bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 group">
       <form action={toggleTodo.bind(null, todo.id, !todo.completed)}>
@@ -75,6 +76,7 @@ function TodoRow({ todo }: { todo: { id: string; text: string; completed: boolea
       <span className={`flex-1 text-sm ${todo.completed ? 'line-through text-stone-600' : 'text-amber-50'}`}>
         {todo.text}
       </span>
+      {name && <span className="text-stone-600 text-xs flex-shrink-0">{name}</span>}
       <form action={deleteTodo.bind(null, todo.id)} className="opacity-0 group-hover:opacity-100 transition-opacity">
         <button type="submit" className="text-stone-600 hover:text-red-400 transition-colors p-1">
           <Trash2 size={15} />

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getProfileMap } from '@/lib/profiles'
 import { addBucketItem, completeBucketItem, deleteBucketItem } from './actions'
 import { Plus, Trash2, Star, CheckCircle2 } from 'lucide-react'
 
@@ -21,10 +22,10 @@ const categoryColour: Record<Category, string> = {
 
 export default async function BucketListPage() {
   const supabase = await createClient()
-  const { data: items } = await supabase
-    .from('bucket_list')
-    .select('*')
-    .order('created_at', { ascending: false })
+  const [{ data: items }, profiles] = await Promise.all([
+    supabase.from('bucket_list').select('*').order('created_at', { ascending: false }),
+    getProfileMap(),
+  ])
 
   const open = items?.filter(i => !i.completed) ?? []
   const done = items?.filter(i => i.completed) ?? []
@@ -68,7 +69,7 @@ export default async function BucketListPage() {
 
       <div className="flex flex-col gap-3">
         {open.map((item) => (
-          <BucketRow key={item.id} item={item} />
+          <BucketRow key={item.id} item={item} name={profiles.get(item.created_by)} />
         ))}
       </div>
 
@@ -77,7 +78,7 @@ export default async function BucketListPage() {
           <p className="text-stone-600 text-xs uppercase tracking-widest mb-3">Done ✓</p>
           <div className="flex flex-col gap-3 opacity-50">
             {done.map((item) => (
-              <BucketRow key={item.id} item={item} done />
+              <BucketRow key={item.id} item={item} done name={profiles.get(item.created_by)} />
             ))}
           </div>
         </div>
@@ -86,7 +87,7 @@ export default async function BucketListPage() {
   )
 }
 
-function BucketRow({ item, done = false }: { item: { id: string; title: string; category: Category }; done?: boolean }) {
+function BucketRow({ item, done = false, name }: { item: { id: string; title: string; category: Category }; done?: boolean; name?: string }) {
   const colour = categoryColour[item.category] ?? categoryColour.other
   return (
     <div className="flex items-center gap-3 bg-stone-900 border border-stone-800 rounded-xl px-4 py-3.5 group">
@@ -102,6 +103,7 @@ function BucketRow({ item, done = false }: { item: { id: string; title: string; 
       <span className={`flex-1 text-sm ${done ? 'line-through text-stone-600' : 'text-amber-50'}`}>
         {item.title}
       </span>
+      {name && <span className="text-stone-600 text-xs flex-shrink-0">{name}</span>}
       <span className={`text-xs border px-2 py-0.5 rounded-full flex-shrink-0 ${colour}`}>
         {categoryLabel[item.category] ?? item.category}
       </span>

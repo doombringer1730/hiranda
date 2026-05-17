@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getProfileMap } from '@/lib/profiles'
 import Link from 'next/link'
 import { Plus, PenLine, Camera } from 'lucide-react'
 
@@ -16,11 +17,14 @@ const MOOD_LABELS: Record<string, string> = {
 export default async function JournalPage() {
   const supabase = await createClient()
 
-  const { data: entries } = await supabase
-    .from('journal_entries')
-    .select('*, journal_photos(id)')
-    .order('created_at', { ascending: false })
-    .limit(40)
+  const [{ data: entries }, profiles] = await Promise.all([
+    supabase
+      .from('journal_entries')
+      .select('*, journal_photos(id)')
+      .order('created_at', { ascending: false })
+      .limit(40),
+    getProfileMap(),
+  ])
 
   return (
     <div className="px-4 pt-8 max-w-2xl mx-auto">
@@ -55,6 +59,9 @@ export default async function JournalPage() {
                   {new Date(entry.created_at).toLocaleDateString('en-US', {
                     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
                   })}
+                  {profiles.get(entry.created_by) && (
+                    <span className="text-stone-600"> · {profiles.get(entry.created_by)}</span>
+                  )}
                 </p>
                 {entry.mood && (
                   <span className="text-xs bg-amber-900/40 text-amber-400 px-2.5 py-0.5 rounded-full flex-shrink-0">
