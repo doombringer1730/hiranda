@@ -1,23 +1,67 @@
 'use client'
 
-import { useActionState, useEffect, useState } from 'react'
-import { uploadMovie } from './actions'
+import { useEffect, useRef, useState } from 'react'
+import { createWatchSession } from './actions'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Play, Film, Plus, Loader2 } from 'lucide-react'
+import { Play, Film, Plus, Loader2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 type WatchSession = { id: string; title: string; created_at: string }
 
 export default function WatchPage() {
-  const [state, formAction, pending] = useActionState(uploadMovie, null)
   const [sessions, setSessions] = useState<WatchSession[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [title, setTitle] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('watch_sessions').select('id, title, created_at').order('created_at', { ascending: false })
+    supabase
+      .from('watch_sessions')
+      .select('id, title, created_at')
+      .order('created_at', { ascending: false })
       .then(({ data }) => setSessions(data ?? []))
   }, [])
+
+  async function handleUpload(e: React.FormEvent) {
+    e.preventDefault()
+    if (!file || !title.trim()) return
+
+    setUploading(true)
+    setError(null)
+
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setError('Not logged in'); setUploading(false); return }
+
+    const ext = file.name.split('.').pop() ?? 'mp4'
+    const path = `${user.id}/${Date.now()}.${ext}`
+
+    // Upload directly from browser — no server size limit
+    const { error: uploadError } = await supabase.storage
+      .from('videos')
+      .upload(path, file, { contentType: file.type })
+
+    if (uploadError) {
+      setError(uploadError.message)
+      setUploading(false)
+      return
+    }
+
+    const result = await createWatchSession(title.trim(), path)
+    if ('error' in result) {
+      setError(result.error ?? 'Something went wrong')
+      setUploading(false)
+      return
+    }
+
+    router.push(`/watch/${result.sessionId}`)
+  }
 
   return (
     <div className="px-4 pt-8 max-w-2xl mx-auto">
@@ -27,36 +71,51 @@ export default function WatchPage() {
           onClick={() => setShowForm(v => !v)}
           className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
         >
-          <Plus size={16} /> Upload
+          {showForm ? <X size={16} /> : <Plus size={16} />}
+          {showForm ? 'Cancel' : 'Upload'}
         </button>
       </div>
 
       {showForm && (
-        <form action={formAction} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-8 flex flex-col gap-4">
+        <form onSubmit={handleUpload} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-8 flex flex-col gap-4">
           <h3 className="font-serif text-lg text-amber-200">Upload a movie</h3>
-          {state?.error && (
-            <p className="text-red-400 text-sm bg-red-950/30 rounded-xl px-4 py-3">{state.error}</p>
+
+          {error && (
+            <p className="text-red-400 text-sm bg-red-950/30 rounded-xl px-4 py-3">{error}</p>
           )}
+
           <input
-            name="title"
             type="text"
             required
+            value={title}
+            onChange={e => setTitle(e.target.value)}
             className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
             placeholder="Movie title"
           />
+
           <input
-            name="video"
+            ref={fileRef}
             type="file"
             required
-            accept="video/*"
+            accept="video/mp4,video/quicktime,video/mov,video/avi,video/mkv,video/webm,video/x-matroska"
+            onChange={e => setFile(e.target.files?.[0] ?? null)}
             className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-amber-900/40 file:text-amber-300 file:text-sm cursor-pointer"
           />
+
+          {file && (
+            <p className="text-stone-500 text-xs -mt-2">
+              {file.name} — {(file.size / 1024 / 1024).toFixed(1)} MB
+            </p>
+          )}
+
           <button
             type="submit"
-            disabled={pending}
+            disabled={uploading || !file || !title.trim()}
             className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2"
           >
-            {pending ? <><Loader2 size={16} className="animate-spin" /> Uploading…</> : 'Upload & watch'}
+            {uploading
+              ? <><Loader2 size={16} className="animate-spin" /> Uploading…</>
+              : 'Upload & watch'}
           </button>
         </form>
       )}
