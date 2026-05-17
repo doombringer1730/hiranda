@@ -206,3 +206,30 @@ create policy "Authenticated users can delete watch sessions"
 
 -- insert into storage.buckets (id, name, public) values ('photos', 'photos', false);
 -- insert into storage.buckets (id, name, public) values ('videos', 'videos', false);
+
+
+-- ─────────────────────────────────────────
+-- WATCHLIST
+-- ─────────────────────────────────────────
+
+create table watchlist (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  type text check (type in ('movie', 'show')) default 'movie',
+  note text,
+  watched boolean default false,
+  watched_at timestamptz,
+  added_by uuid references auth.users not null,
+  created_at timestamptz default now()
+);
+
+alter table watchlist enable row level security;
+
+create policy "Authenticated users can read watchlist"
+  on watchlist for select using (auth.role() = 'authenticated');
+create policy "Authenticated users can insert watchlist"
+  on watchlist for insert with check (auth.role() = 'authenticated');
+create policy "Authenticated users can update watchlist"
+  on watchlist for update using (auth.role() = 'authenticated');
+create policy "Authenticated users can delete watchlist"
+  on watchlist for delete using (auth.role() = 'authenticated');

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState, useEffect } from 'react'
-import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X } from 'lucide-react'
+import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X, Clapperboard } from 'lucide-react'
 import { SidebarTimer } from './couple-timer'
 
 const links = [
@@ -13,6 +13,7 @@ const links = [
   { href: '/bucket-list', label: 'Bucket List', icon: Star          },
   { href: '/dates',       label: 'Dates',       icon: CalendarHeart },
   { href: '/watch',       label: 'Watch',       icon: Play          },
+  { href: '/watchlist',   label: 'Watchlist',   icon: Clapperboard  },
   { href: '/library',     label: 'Library',     icon: Library       },
 ]
 
