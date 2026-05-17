@@ -4,46 +4,43 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-export async function createMemory(_: unknown, formData: FormData) {
+export async function createMemory(data: {
+  title: string
+  body: string
+  happenedAt: string
+  tags: string[]
+  photoPaths: string[]
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const title = formData.get('title') as string
-  const body = formData.get('body') as string
-  const happenedAt = formData.get('happened_at') as string
-  const tagsRaw = formData.get('tags') as string
-  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : []
-
   const { data: memory, error } = await supabase
     .from('memories')
-    .insert({ title, body, happened_at: happenedAt, tags, created_by: user.id })
+    .insert({
+      title: data.title,
+      body: data.body,
+      happened_at: data.happenedAt,
+      tags: data.tags,
+      created_by: user.id,
+    })
     .select()
     .single()
 
   if (error || !memory) return { error: error?.message ?? 'Failed to create memory' }
 
-  // Handle photo uploads
-  const photos = formData.getAll('photos') as File[]
-  for (const photo of photos) {
-    if (!photo.size) continue
-    const ext = photo.name.split('.').pop() ?? 'jpg'
-    const path = `${user.id}/${memory.id}/${Date.now()}.${ext}`
-    const buffer = await photo.arrayBuffer()
-    const { error: uploadError } = await supabase.storage
-      .from('photos')
-      .upload(path, buffer, { contentType: photo.type })
-    if (!uploadError) {
-      await supabase.from('photos').insert({
+  if (data.photoPaths.length > 0) {
+    await supabase.from('photos').insert(
+      data.photoPaths.map(path => ({
         memory_id: memory.id,
         storage_path: path,
         uploaded_by: user.id,
-      })
-    }
+      }))
+    )
   }
 
   revalidatePath('/')
-  redirect(`/memories/${memory.id}`)
+  return { memoryId: memory.id }
 }
 
 export async function deleteMemory(id: string) {
