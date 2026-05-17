@@ -44,28 +44,35 @@ export default function Nav() {
   return (
     <>
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex flex-col w-56 min-h-screen bg-stone-900 border-r border-stone-800 px-4 py-8 fixed left-0 top-0 z-40">
-        <h1 className="font-serif text-2xl text-amber-100 mb-10 px-2">Hiranda</h1>
-        <nav className="flex flex-col gap-1 flex-1">
+      <aside className="hidden md:flex flex-col w-56 min-h-screen bg-stone-900/80 border-r border-stone-800/60 px-3 py-8 fixed left-0 top-0 z-40 backdrop-blur-sm">
+        <div className="px-3 mb-10">
+          <h1 className="font-serif text-2xl text-amber-100">Hiranda</h1>
+          <div className="mt-1.5 h-px bg-gradient-to-r from-amber-800/60 to-transparent" />
+        </div>
+        <nav className="flex flex-col gap-0.5 flex-1">
           {links.map(({ href, label, icon: Icon }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
             return (
               <Link key={href} href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-                  active ? 'bg-amber-900/40 text-amber-300' : 'text-stone-400 hover:text-amber-100 hover:bg-stone-800'
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 border-l-2 ${
+                  active
+                    ? 'border-amber-600 bg-amber-900/30 text-amber-300'
+                    : 'border-transparent text-stone-400 hover:text-amber-100 hover:bg-stone-800/70'
                 }`}
               >
-                <Icon size={18} />{label}
+                <Icon size={17} />{label}
               </Link>
             )
           })}
         </nav>
         <Link href="/settings"
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
-            pathname === '/settings' ? 'bg-amber-900/40 text-amber-300' : 'text-stone-400 hover:text-amber-100 hover:bg-stone-800'
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 border-l-2 ${
+            pathname === '/settings'
+              ? 'border-amber-600 bg-amber-900/30 text-amber-300'
+              : 'border-transparent text-stone-400 hover:text-amber-100 hover:bg-stone-800/70'
           }`}
         >
-          <Settings size={18} /> Settings
+          <Settings size={17} /> Settings
         </Link>
       </aside>
 

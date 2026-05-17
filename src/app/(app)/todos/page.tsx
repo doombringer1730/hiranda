@@ -62,7 +62,7 @@ export default async function TodosPage() {
 
 function TodoRow({ todo, name }: { todo: { id: string; text: string; completed: boolean }; name?: string }) {
   return (
-    <div className="flex items-center gap-3 bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 group">
+    <div className="flex items-center gap-3 bg-stone-900/80 border border-stone-800/80 rounded-xl px-4 py-3 group card-glow">
       <form action={toggleTodo.bind(null, todo.id, !todo.completed)}>
         <button
           type="submit"

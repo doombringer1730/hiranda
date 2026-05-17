@@ -90,7 +90,7 @@ export default async function BucketListPage() {
 function BucketRow({ item, done = false, name }: { item: { id: string; title: string; category: Category }; done?: boolean; name?: string }) {
   const colour = categoryColour[item.category] ?? categoryColour.other
   return (
-    <div className="flex items-center gap-3 bg-stone-900 border border-stone-800 rounded-xl px-4 py-3.5 group">
+    <div className="flex items-center gap-3 bg-stone-900/80 border border-stone-800/80 rounded-xl px-4 py-3.5 group card-glow">
       {!done ? (
         <form action={completeBucketItem.bind(null, item.id)}>
           <button type="submit" className="text-stone-600 hover:text-amber-400 transition-colors flex-shrink-0">

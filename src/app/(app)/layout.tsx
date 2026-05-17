@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-stone-950">
       <Nav />
       <CoupleTimer />
-      <main className="md:ml-56 pt-16 md:pt-0 min-h-screen">
+      <main className="md:ml-56 pt-16 md:pt-0 min-h-screen animate-page-in">
         {children}
       </main>
     </div>

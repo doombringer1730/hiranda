@@ -27,9 +27,12 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--font-sans), system-ui, sans-serif;
-  /* Prevent text size adjustment on orientation change (mobile) */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -38,19 +41,71 @@ h1, h2, h3, h4 {
   font-family: var(--font-serif), Georgia, serif;
 }
 
+/* ── Grain texture overlay ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='250' height='250'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='250' height='250' filter='url(%23n)'/></svg>");
+  background-repeat: repeat;
+}
+
 /* ── Tap targets ── */
 button, a, input, textarea, select {
   min-height: 44px;
 }
 
+/* ── Selection ── */
+::selection {
+  background: #92400e;
+  color: #fef3c7;
+}
+
+/* ── Focus rings ── */
+:focus-visible {
+  outline: 2px solid #b45309;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ── Page entrance animation ── */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-in {
+  animation: page-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Subtle ambient glow on cards (applied via Tailwind hover) ── */
+.card-glow {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.card-glow:hover {
+  box-shadow: 0 0 24px rgba(146, 64, 14, 0.12);
+}
+
 /* ── Scrollbar (desktop) ── */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #1a1008;
+  background: #0e0804;
 }
 ::-webkit-scrollbar-thumb {
-  background: #54391a;
+  background: #3d2c14;
   border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #54391a;
 }

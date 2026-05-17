@@ -42,7 +42,7 @@ export default async function HomePage() {
             <Link
               key={memory.id}
               href={`/memories/${memory.id}`}
-              className="group bg-stone-900 border border-stone-800 rounded-2xl overflow-hidden hover:border-amber-800/60 transition-colors"
+              className="group bg-stone-900/80 border border-stone-800/80 rounded-2xl overflow-hidden hover:border-amber-800/50 card-glow"
             >
               <div className="p-5">
                 <div className="flex items-start justify-between gap-4">
