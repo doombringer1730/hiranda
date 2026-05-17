@@ -1,39 +1,34 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
 
-async function saveName(formData: FormData) {
-  'use server'
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+import { useActionState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { saveName } from './actions'
 
-  const name = (formData.get('name') as string).trim()
-  if (!name) return
+export default function SetupPage() {
+  const [state, formAction, pending] = useActionState(saveName, {})
+  const router = useRouter()
 
-  await supabase.from('profiles').upsert({ id: user.id, display_name: name })
-  redirect('/')
-}
-
-export default async function SetupPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.display_name) redirect('/')
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from('profiles').select('display_name').maybeSingle().then(({ data }) => {
+      if (data?.display_name) router.replace('/')
+    })
+  }, [router])
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 bg-stone-950 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_80%,rgba(120,53,15,0.15),transparent_70%)] pointer-events-none" />
-      <div className="w-full max-w-sm relative z-10">
+      <div className="w-full max-w-sm relative z-10 animate-page-in">
         <h1 className="font-serif text-4xl text-amber-100 text-center mb-2">Hiranda</h1>
         <p className="text-stone-400 text-center text-sm mb-10">What should we call you?</p>
-        <form action={saveName} className="flex flex-col gap-4">
+
+        <form action={formAction} className="flex flex-col gap-4">
+          {state?.error && (
+            <p className="text-red-400 text-sm text-center bg-red-950/30 rounded-xl px-4 py-3">
+              {state.error}
+            </p>
+          )}
           <input
             name="name"
             type="text"
@@ -44,9 +39,10 @@ export default async function SetupPage() {
           />
           <button
             type="submit"
-            className="bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors"
+            disabled={pending}
+            className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors"
           >
-            Continue
+            {pending ? 'Saving…' : 'Continue'}
           </button>
         </form>
       </div>
