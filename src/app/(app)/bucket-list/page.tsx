@@ -42,7 +42,7 @@ export default async function BucketListPage() {
           className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
           placeholder="Something to do together…"
         />
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <select
             name="category"
             className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 focus:outline-none focus:border-amber-700 transition-colors"
@@ -53,7 +53,7 @@ export default async function BucketListPage() {
           </select>
           <button
             type="submit"
-            className="bg-amber-700 hover:bg-amber-600 text-amber-50 rounded-xl px-5 py-3 transition-colors flex items-center gap-2"
+            className="bg-amber-700 hover:bg-amber-600 text-amber-50 rounded-xl px-5 py-3 transition-colors flex items-center justify-center gap-2"
           >
             <Plus size={18} /> Add
           </button>

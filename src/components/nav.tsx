@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState, useEffect } from 'react'
-import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart } from 'lucide-react'
+import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X } from 'lucide-react'
 
 const links = [
   { href: '/',            label: 'Memories',    icon: BookOpen      },
@@ -15,12 +15,34 @@ const links = [
   { href: '/library',     label: 'Library',     icon: Library       },
 ]
 
+function NavLink({ href, label, icon: Icon, active, onClick }: {
+  href: string
+  label: string
+  icon: React.ElementType
+  active: boolean
+  onClick?: () => void
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-all duration-200 border-l-2 ${
+        active
+          ? 'border-amber-600 bg-amber-900/30 text-amber-300'
+          : 'border-transparent text-stone-400 hover:text-amber-100 hover:bg-stone-800/70 active:bg-stone-800'
+      }`}
+    >
+      <Icon size={17} />
+      <span>{label}</span>
+    </Link>
+  )
+}
+
 export default function Nav() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const touchStartX = useRef(0)
 
-  // Swipe detection on document
   useEffect(() => {
     function onTouchStart(e: TouchEvent) {
       touchStartX.current = e.touches[0].clientX
@@ -30,16 +52,21 @@ export default function Nav() {
       if (dx > 60 && touchStartX.current < 30) setOpen(true)
       if (dx < -60) setOpen(false)
     }
-    document.addEventListener('touchstart', onTouchStart)
-    document.addEventListener('touchend', onTouchEnd)
+    document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener('touchend', onTouchEnd, { passive: true })
     return () => {
       document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('touchend', onTouchEnd)
     }
   }, [])
 
-  // Close on route change
   useEffect(() => { setOpen(false) }, [pathname])
+
+  // Lock body scroll when drawer is open
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [open])
 
   return (
     <>
@@ -52,78 +79,78 @@ export default function Nav() {
         <nav className="flex flex-col gap-0.5 flex-1">
           {links.map(({ href, label, icon: Icon }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
-            return (
-              <Link key={href} href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 border-l-2 ${
-                  active
-                    ? 'border-amber-600 bg-amber-900/30 text-amber-300'
-                    : 'border-transparent text-stone-400 hover:text-amber-100 hover:bg-stone-800/70'
-                }`}
-              >
-                <Icon size={17} />{label}
-              </Link>
-            )
+            return <NavLink key={href} href={href} label={label} icon={Icon} active={active} />
           })}
         </nav>
-        <Link href="/settings"
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 border-l-2 ${
-            pathname === '/settings'
-              ? 'border-amber-600 bg-amber-900/30 text-amber-300'
-              : 'border-transparent text-stone-400 hover:text-amber-100 hover:bg-stone-800/70'
-          }`}
-        >
-          <Settings size={17} /> Settings
-        </Link>
+        <NavLink href="/settings" label="Settings" icon={Settings} active={pathname === '/settings'} />
       </aside>
 
       {/* ── Mobile: hamburger button ── */}
       <button
         onClick={() => setOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-xl bg-stone-900/90 backdrop-blur border border-stone-800 text-stone-400 hover:text-amber-300 transition-colors"
+        aria-label="Open menu"
+        className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 rounded-xl bg-stone-900/95 backdrop-blur border border-stone-800/80 text-stone-400 hover:text-amber-300 hover:border-stone-700 transition-all duration-200 flex items-center justify-center shadow-lg"
       >
-        <Menu size={20} />
+        <Menu size={18} />
       </button>
 
       {/* ── Mobile: backdrop ── */}
-      {open && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => setOpen(false)}
-        />
-      )}
+      <div
+        onClick={() => setOpen(false)}
+        className={`md:hidden fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40 transition-opacity duration-300 ${
+          open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      />
 
-      {/* ── Mobile: icon-only drawer ── */}
+      {/* ── Mobile: full drawer ── */}
       <aside
-        className={`md:hidden fixed top-0 left-0 h-full w-16 bg-stone-900 border-r border-stone-800 z-50 flex flex-col items-center py-6 transition-transform duration-300 ${
+        className={`md:hidden fixed top-0 left-0 h-full w-64 bg-stone-900 border-r border-stone-800/60 z-50 flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-2xl ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Icons pushed to bottom */}
-        <nav className="flex flex-col items-center gap-1 mt-auto w-full px-3">
-          {links.map(({ href, icon: Icon, label }) => {
+        {/* Header */}
+        <div className="px-6 pt-8 pb-6 flex items-start justify-between flex-shrink-0">
+          <div>
+            <h1 className="font-serif text-2xl text-amber-100">Hiranda</h1>
+            <div className="mt-1.5 h-px bg-gradient-to-r from-amber-800/60 to-transparent w-32" />
+          </div>
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="Close menu"
+            className="text-stone-500 hover:text-amber-300 transition-colors p-1 mt-0.5 -mr-1"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Nav items */}
+        <nav className="flex flex-col gap-0.5 flex-1 px-3 overflow-y-auto">
+          {links.map(({ href, label, icon: Icon }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
             return (
-              <Link key={href} href={href}
-                className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors ${
-                  active ? 'bg-amber-900/50 text-amber-400' : 'text-stone-500 hover:text-amber-300 hover:bg-stone-800'
-                }`}
-                title={label}
-              >
-                <Icon size={20} />
-              </Link>
+              <NavLink
+                key={href}
+                href={href}
+                label={label}
+                icon={Icon}
+                active={active}
+                onClick={() => setOpen(false)}
+              />
             )
           })}
-
-          {/* Gear → Settings page */}
-          <Link href="/settings"
-            className={`flex items-center justify-center w-10 h-10 rounded-xl transition-colors mt-2 ${
-              pathname === '/settings' ? 'bg-amber-900/50 text-amber-400' : 'text-stone-500 hover:text-amber-300 hover:bg-stone-800'
-            }`}
-            title="Settings"
-          >
-            <Settings size={20} />
-          </Link>
         </nav>
+
+        {/* Settings at bottom */}
+        <div className="px-3 pb-8 flex-shrink-0">
+          <div className="h-px bg-stone-800/60 mb-3" />
+          <NavLink
+            href="/settings"
+            label="Settings"
+            icon={Settings}
+            active={pathname === '/settings'}
+            onClick={() => setOpen(false)}
+          />
+        </div>
       </aside>
     </>
   )
