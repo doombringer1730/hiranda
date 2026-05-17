@@ -59,7 +59,7 @@ export default function CoupleTimer() {
   if (!since || !time) return null
 
   return (
-    <div className="fixed top-4 right-4 z-30 bg-stone-900/90 backdrop-blur border border-stone-800 rounded-xl px-3 py-2 text-right pointer-events-none select-none">
+    <div className="fixed bottom-5 right-4 md:bottom-auto md:top-4 z-30 bg-stone-900/90 backdrop-blur border border-stone-800 rounded-xl px-3 py-2 text-right pointer-events-none select-none">
       <p className="text-stone-500 text-xs leading-none mb-1">together</p>
       <p className="text-amber-400 text-xs font-mono leading-none">
         {time.years > 0 && `${time.years}y `}
