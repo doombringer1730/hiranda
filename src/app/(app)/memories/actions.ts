@@ -27,9 +27,12 @@ export async function createMemory(_: unknown, formData: FormData) {
   const photos = formData.getAll('photos') as File[]
   for (const photo of photos) {
     if (!photo.size) continue
-    const ext = photo.name.split('.').pop()
+    const ext = photo.name.split('.').pop() ?? 'jpg'
     const path = `${user.id}/${memory.id}/${Date.now()}.${ext}`
-    const { error: uploadError } = await supabase.storage.from('photos').upload(path, photo)
+    const buffer = await photo.arrayBuffer()
+    const { error: uploadError } = await supabase.storage
+      .from('photos')
+      .upload(path, buffer, { contentType: photo.type })
     if (!uploadError) {
       await supabase.from('photos').insert({
         memory_id: memory.id,
