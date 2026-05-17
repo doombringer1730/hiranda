@@ -76,7 +76,7 @@ export default function NewMemoryPage() {
             name="photos"
             type="file"
             multiple
-            accept="image/*"
+            accept="image/jpeg,image/jpg,image/png,image/webp,image/heic,image/heif,image/gif,image/bmp,image/tiff,video/mp4,video/quicktime,video/mov,video/avi,video/mkv,video/webm"
             className="bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-amber-900/40 file:text-amber-300 file:text-sm cursor-pointer"
           />
         </div>
