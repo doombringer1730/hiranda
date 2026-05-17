@@ -16,6 +16,7 @@ export default function WatchPage() {
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [progress, setProgress] = useState<number | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -34,29 +35,56 @@ export default function WatchPage() {
 
     setUploading(true)
     setError(null)
+    setProgress(0)
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('Not logged in'); setUploading(false); return }
 
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setError('Not logged in'); setUploading(false); return }
+
     const ext = file.name.split('.').pop() ?? 'mp4'
     const path = `${user.id}/${Date.now()}.${ext}`
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 
-    // Upload directly from browser — no server size limit
-    const { error: uploadError } = await supabase.storage
-      .from('videos')
-      .upload(path, file, { contentType: file.type })
-
-    if (uploadError) {
-      setError(uploadError.message)
+    await new Promise<void>((resolve, reject) => {
+      const { Upload } = require('tus-js-client')
+      const upload = new Upload(file, {
+        endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          authorization: `Bearer ${session.access_token}`,
+          'x-upsert': 'true',
+        },
+        uploadDataDuringCreation: true,
+        removeFingerprintOnSuccess: true,
+        metadata: {
+          bucketName: 'videos',
+          objectName: path,
+          contentType: file.type,
+          cacheControl: '3600',
+        },
+        chunkSize: 6 * 1024 * 1024,
+        onError: reject,
+        onProgress: (uploaded: number, total: number) => {
+          setProgress(Math.round((uploaded / total) * 100))
+        },
+        onSuccess: resolve,
+      })
+      upload.start()
+    }).catch((err) => {
+      setError(err?.message ?? 'Upload failed')
       setUploading(false)
-      return
-    }
+      setProgress(null)
+      throw err
+    })
 
     const result = await createWatchSession(title.trim(), path)
     if ('error' in result) {
       setError(result.error ?? 'Something went wrong')
       setUploading(false)
+      setProgress(null)
       return
     }
 
@@ -108,13 +136,25 @@ export default function WatchPage() {
             </p>
           )}
 
+          {uploading && progress !== null && (
+            <div className="flex flex-col gap-1.5">
+              <div className="w-full bg-stone-800 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-amber-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <p className="text-stone-500 text-xs text-right">{progress}%</p>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={uploading || !file || !title.trim()}
             className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2"
           >
             {uploading
-              ? <><Loader2 size={16} className="animate-spin" /> Uploading…</>
+              ? <><Loader2 size={16} className="animate-spin" /> Uploading {progress !== null ? `${progress}%` : '…'}</>
               : 'Upload & watch'}
           </button>
         </form>
