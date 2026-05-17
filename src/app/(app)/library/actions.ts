@@ -16,7 +16,13 @@ export async function addBook(data: {
 
   const { data: book, error } = await supabase
     .from('books')
-    .insert({ ...data, uploaded_by: user.id })
+    .insert({
+      title: data.title,
+      author: data.author,
+      epub_path: data.epubPath,
+      cover_path: data.coverPath,
+      uploaded_by: user.id,
+    })
     .select()
     .single()
 
