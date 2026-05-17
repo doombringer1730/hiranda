@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* ── Jazz coffee shop theme tokens ── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Fonts */
+  --font-serif: var(--font-serif);
+  --font-sans:  var(--font-sans);
+
+  /* Brand colours */
+  --color-roast-950: #0e0804;
+  --color-roast-900: #1a1008;
+  --color-roast-800: #2d1f0e;
+  --color-roast-700: #3d2c14;
+  --color-roast-600: #54391a;
+
+  --color-amber-glow:  #c8842a;
+  --color-amber-light: #e8a040;
+  --color-amber-dim:   #8a5a1a;
+
+  --color-parchment-100: #f5efe6;
+  --color-parchment-200: #ede4d4;
+  --color-parchment-300: #d9ccb8;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ── */
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  /* Prevent text size adjustment on orientation change (mobile) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+/* ── Tap targets ── */
+button, a, input, textarea, select {
+  min-height: 44px;
+}
+
+/* ── Scrollbar (desktop) ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1a1008;
+}
+::-webkit-scrollbar-thumb {
+  background: #54391a;
+  border-radius: 3px;
 }
