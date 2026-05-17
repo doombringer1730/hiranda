@@ -40,7 +40,14 @@ Hiranda is a personal web app built for a couple. It's not a social network — 
 - Private storage — videos not publicly accessible
 - Simple UI: video player + who's watching indicator
 
-### 6. Bucket List / Goals
+### 6. Book Library
+- Upload EPUB files to a shared library
+- Grid view styled like Apple Books — cover art, title, author
+- In-app EPUB reader powered by epub.js
+- Reading progress saved per user — you each keep your own place in a book
+- Optional cover image upload per book
+
+### 7. Bucket List / Goals
 - Things to do together, someday
 - Mark as done (and optionally link to a memory when completed)
 - Categories: travel, food, experiences, etc.
@@ -102,11 +109,12 @@ Think a late-night café — warm amber light, dark wood, soft and unhurried. Th
 - [x] Define DB schema for all core features
 
 ### Phase 2 — Core Features
-- [ ] Memories + journal entries (CRUD)
-- [ ] Photo upload + album view per memory
-- [ ] To-do list (shared, real-time)
-- [ ] Bucket list
-- [ ] Watch Together (synchronized video playback via Supabase Realtime)
+- [x] Memories + journal entries (CRUD)
+- [x] Photo upload + album view per memory
+- [x] To-do list (shared, real-time)
+- [x] Bucket list
+- [x] Watch Together (synchronized video playback via Supabase Realtime)
+- [ ] Book Library (EPUB upload, Apple Books-style grid, in-app reader, per-user progress)
 
 ### Phase 3 — Dates & Countdowns
 - [ ] Anniversary / important dates tracker

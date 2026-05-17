@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BookOpen, CheckSquare, Star, Play, LogOut } from 'lucide-react'
+import { BookOpen, CheckSquare, Star, Play, Library, LogOut } from 'lucide-react'
 import { logout } from '@/app/(auth)/actions'
 
 const links = [
@@ -10,6 +10,7 @@ const links = [
   { href: '/todos',       label: 'Todos',       icon: CheckSquare },
   { href: '/bucket-list', label: 'Bucket List', icon: Star        },
   { href: '/watch',       label: 'Watch',       icon: Play        },
+  { href: '/library',    label: 'Library',     icon: Library     },
 ]
 
 export default function Nav() {
