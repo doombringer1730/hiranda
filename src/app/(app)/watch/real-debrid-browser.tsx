@@ -37,8 +37,7 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSearch() {
     if (!query.trim()) return
     setSearching(true)
     setError(null)
@@ -171,22 +170,24 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <form onSubmit={handleSearch} className="flex gap-2">
+      <div className="flex gap-2">
         <input
           type="search"
           value={query}
           onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
           placeholder="Search for a movie…"
           className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
         />
         <button
-          type="submit"
+          type="button"
+          onClick={handleSearch}
           disabled={searching || !query.trim()}
           className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 rounded-xl px-4 py-3 transition-colors flex-shrink-0"
         >
           {searching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
         </button>
-      </form>
+      </div>
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
 
