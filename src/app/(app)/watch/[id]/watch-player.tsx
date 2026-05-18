@@ -290,7 +290,7 @@ export default function WatchPlayer({
         {floatingEmotes.map(fe => (
           <span
             key={fe.id}
-            className="absolute bottom-20 text-4xl animate-float-up pointer-events-none select-none"
+            className="absolute bottom-8 text-4xl animate-float-up pointer-events-none select-none"
             style={{ left: `${fe.x}%` }}
           >
             {fe.emote}
@@ -298,7 +298,7 @@ export default function WatchPlayer({
         ))}
 
         {/* Overlay chat messages */}
-        <div className="absolute bottom-16 left-0 right-0 px-4 pb-2 pointer-events-none flex flex-col gap-1.5 items-start">
+        <div className="absolute bottom-4 left-0 right-0 px-4 pb-2 pointer-events-none flex flex-col gap-1.5 items-start">
           {visibleMessages.map(msg => (
             <div key={msg.id} className="animate-chat-in bg-black/60 backdrop-blur-sm rounded-xl px-3 py-1.5 max-w-xs">
               <span className="text-amber-400 text-xs font-medium">
@@ -306,19 +306,6 @@ export default function WatchPlayer({
               </span>
               <span className="text-white text-sm ml-1.5">{msg.body}</span>
             </div>
-          ))}
-        </div>
-
-        {/* Emote bar */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 bg-black/70 backdrop-blur rounded-2xl px-3 py-2">
-          {EMOTES.map(emote => (
-            <button
-              key={emote}
-              onClick={() => sendEmote(emote)}
-              className="text-xl hover:scale-125 transition-transform active:scale-110 w-9 h-9 flex items-center justify-center"
-            >
-              {emote}
-            </button>
           ))}
         </div>
 
@@ -338,8 +325,21 @@ export default function WatchPlayer({
         </div>
       </div>
 
-      {/* ── Chat input ── */}
-      <form onSubmit={sendMessage} className="flex gap-2 px-4 py-3 bg-stone-950/90 border-t border-stone-800 flex-shrink-0">
+      {/* ── Emotes + Chat ── */}
+      <div className="bg-stone-950/90 border-t border-stone-800 flex-shrink-0">
+        <div className="flex justify-center gap-1 px-3 pt-2">
+          {EMOTES.map(emote => (
+            <button
+              key={emote}
+              type="button"
+              onClick={() => sendEmote(emote)}
+              className="text-xl hover:scale-125 transition-transform active:scale-110 w-9 h-9 flex items-center justify-center"
+            >
+              {emote}
+            </button>
+          ))}
+        </div>
+        <form onSubmit={sendMessage} className="flex gap-2 px-4 py-2.5">
         <input
           value={chatInput}
           onChange={e => setChatInput(e.target.value)}
@@ -353,7 +353,8 @@ export default function WatchPlayer({
         >
           <Send size={14} /> Send
         </button>
-      </form>
+        </form>
+      </div>
     </div>
   )
 }
