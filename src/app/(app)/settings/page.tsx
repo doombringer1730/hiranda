@@ -79,15 +79,15 @@ export default async function SettingsPage() {
           />
         </section>
 
-        {/* Stremio Addon */}
+        {/* Real-Debrid */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
-          <h3 className="text-amber-200 font-medium mb-1">Stremio Addon</h3>
+          <h3 className="text-amber-200 font-medium mb-1">Real-Debrid</h3>
           <p className="text-stone-500 text-sm mb-4">
-            Search and stream movies and TV shows from the Watch page using any Stremio addon.
+            Search and stream any movie instantly from the Watch page.
           </p>
           <SettingsClient
-            type="stremio"
-            addonUrl={couple?.stremio_addon_url ?? ''}
+            type="realdebrid"
+            rdApiKey={couple?.real_debrid_api_key ?? ''}
           />
         </section>
 

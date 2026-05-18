@@ -77,14 +77,14 @@ export async function saveJellyfinSettings(jellyfinUrl: string, jellyfinApiKey: 
   revalidatePath('/settings')
 }
 
-export async function saveStremioAddonSettings(addonUrl: string) {
+export async function saveRealDebridSettings(apiKey: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   await supabase
     .from('couple')
-    .update({ stremio_addon_url: addonUrl || null })
+    .update({ real_debrid_api_key: apiKey || null })
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
 
   revalidatePath('/settings')

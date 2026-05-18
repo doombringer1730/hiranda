@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, Library, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import JellyfinBrowser, { JellyfinNotConfigured } from './jellyfin-browser'
-import StremioAddonBrowser, { StremioAddonNotConfigured } from './real-debrid-browser'
+import RealDebridBrowser, { RealDebridNotConfigured } from './real-debrid-browser'
 
 type WatchSession = { id: string; title: string; created_at: string; source_type: string | null }
 type Tab = 'upload' | 'url' | 'local' | 'jellyfin' | 'stream'
@@ -18,7 +18,7 @@ export default function WatchPage() {
   const [tab, setTab] = useState<Tab>('upload')
   const [jellyfinUrl, setJellyfinUrl] = useState('')
   const [jellyfinApiKey, setJellyfinApiKey] = useState('')
-  const [stremioAddonUrl, setStremioAddonUrl] = useState('')
+  const [rdApiKey, setRdApiKey] = useState('')
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -41,13 +41,13 @@ export default function WatchPage() {
       if (!user) return
       supabase
         .from('couple')
-        .select('jellyfin_url, jellyfin_api_key, stremio_addon_url')
+        .select('jellyfin_url, jellyfin_api_key, real_debrid_api_key')
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
         .maybeSingle()
         .then(({ data }) => {
           if (data?.jellyfin_url) setJellyfinUrl(data.jellyfin_url)
           if (data?.jellyfin_api_key) setJellyfinApiKey(data.jellyfin_api_key)
-          if (data?.stremio_addon_url) setStremioAddonUrl(data.stremio_addon_url)
+          if (data?.real_debrid_api_key) setRdApiKey(data.real_debrid_api_key)
         })
     })
   }, [])
@@ -222,9 +222,9 @@ export default function WatchPage() {
           )}
 
           {tab === 'stream' && (
-            stremioAddonUrl
-              ? <StremioAddonBrowser addonUrl={stremioAddonUrl} />
-              : <StremioAddonNotConfigured />
+            rdApiKey
+              ? <RealDebridBrowser rdApiKey={rdApiKey} />
+              : <RealDebridNotConfigured />
           )}
 
           {tab !== 'jellyfin' && tab !== 'stream' && (
