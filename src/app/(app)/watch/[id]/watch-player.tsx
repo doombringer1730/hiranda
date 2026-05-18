@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { ArrowLeft, Trash2, Film, Send } from 'lucide-react'
+import { ArrowLeft, Trash2, Film, Send, Smartphone, Monitor, Tablet } from 'lucide-react'
 
 const EMOTES = ['🍿', '❤️', '😂', '😱', '👏', '💀', '🔥', '🎬']
 
@@ -16,6 +16,7 @@ type ChatMsg = {
 }
 
 type FloatingEmote = { id: string; emote: string; x: number }
+type PresenceUser = { user_id: string; name: string; device: 'phone' | 'tablet' | 'desktop' }
 
 type Props = {
   sessionId: string
@@ -48,7 +49,15 @@ export default function WatchPlayer({
   const [partnerPosition, setPartnerPosition] = useState<number | null>(null)
   const [partnerPlaying, setPartnerPlaying] = useState<boolean | null>(null)
   const [partnerName, setPartnerName] = useState<string | null>(null)
+  const [activeUsers, setActiveUsers] = useState<PresenceUser[]>([])
   const supabase = createClient()
+
+  function detectDevice(): 'phone' | 'tablet' | 'desktop' {
+    const ua = navigator.userAgent
+    if (/tablet|ipad|playbook|silk/i.test(ua)) return 'tablet'
+    if (/mobile|android|iphone|ipod|blackberry|phone/i.test(ua)) return 'phone'
+    return 'desktop'
+  }
 
   function formatTime(s: number) {
     const h = Math.floor(s / 3600)
@@ -74,7 +83,7 @@ export default function WatchPlayer({
     }).eq('id', sessionId)
   }, [sessionId, userId, supabase])
 
-  // ── Sync: subscribe via Broadcast (no table replication required) ────────
+  // ── Sync + Presence on one channel ──────────────────────────────────────
   useEffect(() => {
     const channel = supabase
       .channel(`watch:${sessionId}`)
@@ -93,10 +102,25 @@ export default function WatchPlayer({
         if (payload.state === 'paused' && !video.paused) video.pause()
         setTimeout(() => { applyingRemote.current = false }, 300)
       })
-      .subscribe()
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState<PresenceUser>()
+        setActiveUsers(Object.values(state).flat())
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            user_id: userId,
+            name: profileMap[userId] ?? 'You',
+            device: detectDevice(),
+          })
+        }
+      })
 
     syncChannelRef.current = channel
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      channel.untrack()
+      supabase.removeChannel(channel)
+    }
   }, [sessionId, userId, supabase])
 
   // ── Chat: subscribe to incoming messages ────────────────────────────────
@@ -202,6 +226,20 @@ export default function WatchPlayer({
           <ArrowLeft size={20} />
         </Link>
         <p className="font-serif text-amber-100 text-base truncate flex-1">{title}</p>
+
+        {/* Presence badges */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {activeUsers.map(u => (
+            <div key={u.user_id} className="flex items-center gap-1 bg-stone-800/80 rounded-lg px-2 py-1" title={u.name}>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
+              {u.device === 'phone' && <Smartphone size={12} className="text-stone-400" />}
+              {u.device === 'tablet' && <Tablet size={12} className="text-stone-400" />}
+              {u.device === 'desktop' && <Monitor size={12} className="text-stone-400" />}
+              <span className="text-stone-400 text-xs max-w-[60px] truncate">{u.name}</span>
+            </div>
+          ))}
+        </div>
+
         <form action={deleteAction} className="flex-shrink-0">
           <button type="submit" className="text-stone-600 hover:text-red-400 transition-colors p-1">
             <Trash2 size={17} />
