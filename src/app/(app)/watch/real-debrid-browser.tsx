@@ -35,7 +35,15 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
   const [loadingStreams, setLoadingStreams] = useState(false)
   const [starting, setStarting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [compatOnly, setCompatOnly] = useState(true)
   const router = useRouter()
+
+  const INCOMPAT = /\b(AC3|DTS|TrueHD|EAC3|DDP|DD5\.1|Atmos)\b/i
+
+  function isCompatible(stream: RdStream) {
+    const text = stream.name + ' ' + stream.title
+    return !INCOMPAT.test(text)
+  }
 
   async function handleSearch() {
     if (!query.trim()) return
@@ -137,14 +145,35 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
           </div>
         )}
 
+        {!loadingStreams && streams.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setCompatOnly(v => !v)}
+            className={`self-start flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              compatOnly
+                ? 'bg-amber-900/30 border-amber-700/50 text-amber-400'
+                : 'bg-stone-900 border-stone-700 text-stone-400'
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${compatOnly ? 'bg-amber-400' : 'bg-stone-600'}`} />
+            {compatOnly ? 'AAC / browser-safe only' : 'Showing all codecs'}
+          </button>
+        )}
+
         {!loadingStreams && streams.length === 0 && !error && (
           <p className="text-stone-500 text-sm text-center py-6">
             No cached streams found. Try a more popular title or wait for Real-Debrid to cache it.
           </p>
         )}
 
+        {!loadingStreams && streams.length > 0 && compatOnly && streams.filter(isCompatible).length === 0 && (
+          <p className="text-stone-500 text-sm text-center py-4">
+            No AAC streams found. Toggle the filter above to see all codecs.
+          </p>
+        )}
+
         <div className="flex flex-col gap-2">
-          {streams.map((stream, i) => (
+          {(compatOnly ? streams.filter(isCompatible) : streams).map((stream, i) => (
             <button
               key={i}
               onClick={() => handleStartSession(stream)}
