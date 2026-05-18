@@ -91,15 +91,15 @@ export default async function SettingsPage() {
           />
         </section>
 
-        {/* AllDebrid */}
+        {/* TorBox */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
-          <h3 className="text-amber-200 font-medium mb-1">AllDebrid</h3>
+          <h3 className="text-amber-200 font-medium mb-1">TorBox</h3>
           <p className="text-stone-500 text-sm mb-4">
-            Optional second debrid service — used as a fallback source when Real-Debrid streams are unavailable.
+            Optional second debrid service — streams from TorBox are shown alongside Real-Debrid for more coverage.
           </p>
           <SettingsClient
-            type="alldebrid"
-            apiKey={couple?.alldebrid_api_key ?? ''}
+            type="torbox"
+            apiKey={couple?.torbox_api_key ?? ''}
           />
         </section>
 

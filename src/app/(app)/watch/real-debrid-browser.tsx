@@ -44,9 +44,9 @@ type RdStream = {
   behaviorHints?: { filename?: string; videoSize?: number }
 }
 
-type Props = { rdApiKey: string; allDebridApiKey?: string }
+type Props = { rdApiKey: string; torBoxApiKey?: string }
 
-export default function RealDebridBrowser({ rdApiKey, allDebridApiKey }: Props) {
+export default function RealDebridBrowser({ rdApiKey, torBoxApiKey }: Props) {
   const [searchType, setSearchType] = useState<SearchType>('movie')
   const [query, setQuery] = useState('')
   const [view, setView] = useState<View>('search')
@@ -129,7 +129,7 @@ export default function RealDebridBrowser({ rdApiKey, allDebridApiKey }: Props) 
       if (!imdbId) throw new Error('No IMDB ID found')
 
       const urls = [`https://torrentio.strem.fun/realdebrid=${rdApiKey}/stream/movie/${imdbId}.json`]
-      if (allDebridApiKey) urls.push(`https://torrentio.strem.fun/alldebrid=${allDebridApiKey}/stream/movie/${imdbId}.json`)
+      if (torBoxApiKey) urls.push(`https://torrentio.strem.fun/torbox=${torBoxApiKey}/stream/movie/${imdbId}.json`)
       const results = await Promise.all(urls.map(u => fetch(u).then(r => r.json()).catch(() => ({ streams: [] }))))
       const merged = results.flatMap(d => d.streams ?? []).filter((s: RdStream) => s.url?.startsWith('https://'))
       setStreams(merged)
@@ -193,7 +193,7 @@ export default function RealDebridBrowser({ rdApiKey, allDebridApiKey }: Props) 
 
       const path = `stream/series/${imdbId}:${selectedSeason.season_number}:${episode.episode_number}.json`
       const urls = [`https://torrentio.strem.fun/realdebrid=${rdApiKey}/${path}`]
-      if (allDebridApiKey) urls.push(`https://torrentio.strem.fun/alldebrid=${allDebridApiKey}/${path}`)
+      if (torBoxApiKey) urls.push(`https://torrentio.strem.fun/torbox=${torBoxApiKey}/${path}`)
       const results = await Promise.all(urls.map(u => fetch(u).then(r => r.json()).catch(() => ({ streams: [] }))))
       const merged = results.flatMap(d => d.streams ?? []).filter((s: RdStream) => s.url?.startsWith('https://'))
       setStreams(merged)
