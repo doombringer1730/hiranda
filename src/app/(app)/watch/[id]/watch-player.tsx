@@ -39,7 +39,7 @@ export default function WatchPlayer({
   const videoRef = useRef<HTMLVideoElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hlsRef = useRef<any>(null)
-  const applyingRemote = useRef(false)
+  const lastReceivedAt = useRef(0)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const syncChannelRef = useRef<any>(null)
   const [localFile, setLocalFile] = useState<File | null>(null)
@@ -68,9 +68,9 @@ export default function WatchPlayer({
     return `${m}:${String(sec).padStart(2, '0')}`
   }
 
-  // ── Push state: broadcast for instant sync + update DB for persistence ──
+  // ── Push state: only sends if we haven't just received a remote event ────
   const pushState = useCallback(async (state: 'playing' | 'paused', position: number) => {
-    if (applyingRemote.current) return
+    if (Date.now() - lastReceivedAt.current < 500) return
     syncChannelRef.current?.send({
       type: 'broadcast',
       event: 'sync',
@@ -84,24 +84,25 @@ export default function WatchPlayer({
     }).eq('id', sessionId)
   }, [sessionId, userId, supabase])
 
-  // ── Sync + Presence on one channel ──────────────────────────────────────
+  // ── Sync + Presence ──────────────────────────────────────────────────────
   useEffect(() => {
     const channel = supabase
       .channel(`watch:${sessionId}`)
       .on('broadcast', { event: 'sync' }, ({ payload }) => {
+        if (payload.from === userId) return
+        lastReceivedAt.current = Date.now()
+
         const video = videoRef.current
-        if (!video || payload.from === userId) return
+        if (!video) return
 
         setPartnerPosition(payload.position)
         setPartnerPlaying(payload.state === 'playing')
         setPartnerName(profileMap[payload.from] ?? 'Partner')
 
-        applyingRemote.current = true
-        if (Math.abs(video.currentTime - payload.position) > 1.5)
+        if (Math.abs(video.currentTime - payload.position) > 2)
           video.currentTime = payload.position
         if (payload.state === 'playing' && video.paused) video.play().catch(() => {})
         if (payload.state === 'paused' && !video.paused) video.pause()
-        setTimeout(() => { applyingRemote.current = false }, 1000)
       })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<PresenceUser>()
@@ -125,17 +126,17 @@ export default function WatchPlayer({
     }
   }, [sessionId, userId, supabase])
 
-  // ── Heartbeat: re-broadcast position every 3s to recover from missed events
+  // ── Heartbeat: 1s broadcast keeps both devices in sync ───────────────────
   useEffect(() => {
     const interval = setInterval(() => {
       const video = videoRef.current
-      if (!video || applyingRemote.current || !syncChannelRef.current) return
+      if (!video || !syncChannelRef.current) return
       syncChannelRef.current.send({
         type: 'broadcast',
         event: 'sync',
         payload: { state: video.paused ? 'paused' : 'playing', position: video.currentTime, from: userId },
       })
-    }, 3000)
+    }, 1000)
     return () => clearInterval(interval)
   }, [userId])
 
