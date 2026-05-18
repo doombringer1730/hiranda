@@ -50,6 +50,7 @@ export default function WatchPlayer({
   const [partnerPlaying, setPartnerPlaying] = useState<boolean | null>(null)
   const [partnerName, setPartnerName] = useState<string | null>(null)
   const [activeUsers, setActiveUsers] = useState<PresenceUser[]>([])
+  const [connected, setConnected] = useState(false)
   const supabase = createClient()
 
   function detectDevice(): 'phone' | 'tablet' | 'desktop' {
@@ -100,13 +101,14 @@ export default function WatchPlayer({
           video.currentTime = payload.position
         if (payload.state === 'playing' && video.paused) video.play().catch(() => {})
         if (payload.state === 'paused' && !video.paused) video.pause()
-        setTimeout(() => { applyingRemote.current = false }, 300)
+        setTimeout(() => { applyingRemote.current = false }, 1000)
       })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<PresenceUser>()
         setActiveUsers(Object.values(state).flat())
       })
       .subscribe(async (status) => {
+        setConnected(status === 'SUBSCRIBED')
         if (status === 'SUBSCRIBED') {
           await channel.track({
             user_id: userId,
@@ -122,6 +124,20 @@ export default function WatchPlayer({
       supabase.removeChannel(channel)
     }
   }, [sessionId, userId, supabase])
+
+  // ── Heartbeat: re-broadcast position every 3s to recover from missed events
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const video = videoRef.current
+      if (!video || applyingRemote.current || !syncChannelRef.current) return
+      syncChannelRef.current.send({
+        type: 'broadcast',
+        event: 'sync',
+        payload: { state: video.paused ? 'paused' : 'playing', position: video.currentTime, from: userId },
+      })
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [userId])
 
   // ── Chat: subscribe to incoming messages ────────────────────────────────
   useEffect(() => {
@@ -312,8 +328,8 @@ export default function WatchPlayer({
         {/* Sync indicator */}
         <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5 pointer-events-none">
           <div className="flex items-center gap-1.5 bg-black/50 rounded-lg px-2.5 py-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-stone-400 text-xs">Synced</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
+            <span className="text-stone-400 text-xs">{connected ? 'Synced' : 'Connecting…'}</span>
           </div>
           {partnerPosition !== null && (
             <div className="flex items-center gap-1.5 bg-black/50 rounded-lg px-2.5 py-1.5">
