@@ -11,8 +11,16 @@ export default function SetupPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.from('profiles').select('display_name').maybeSingle().then(({ data }) => {
-      if (data?.display_name) router.replace('/')
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', user.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.display_name) router.replace('/')
+        })
     })
   }, [router])
 

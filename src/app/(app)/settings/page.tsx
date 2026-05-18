@@ -66,6 +66,19 @@ export default async function SettingsPage() {
           />
         </section>
 
+        {/* Jellyfin */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">Jellyfin</h3>
+          <p className="text-stone-500 text-sm mb-4">
+            Connect your Raspberry Pi media server to browse your library from the Watch page.
+          </p>
+          <SettingsClient
+            type="jellyfin"
+            jellyfinUrl={couple?.jellyfin_url ?? ''}
+            jellyfinApiKey={couple?.jellyfin_api_key ?? ''}
+          />
+        </section>
+
         {/* Sign out */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
           <h3 className="text-amber-200 font-medium mb-3">Account</h3>

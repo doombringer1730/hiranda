@@ -4,16 +4,19 @@ import { useEffect, useRef, useState } from 'react'
 import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal } from './actions'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive } from 'lucide-react'
+import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, Library } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import JellyfinBrowser, { JellyfinNotConfigured } from './jellyfin-browser'
 
 type WatchSession = { id: string; title: string; created_at: string; source_type: string | null }
-type Tab = 'upload' | 'url' | 'local'
+type Tab = 'upload' | 'url' | 'local' | 'jellyfin'
 
 export default function WatchPage() {
   const [sessions, setSessions] = useState<WatchSession[]>([])
   const [showForm, setShowForm] = useState(false)
   const [tab, setTab] = useState<Tab>('upload')
+  const [jellyfinUrl, setJellyfinUrl] = useState('')
+  const [jellyfinApiKey, setJellyfinApiKey] = useState('')
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -31,6 +34,19 @@ export default function WatchPage() {
       .select('id, title, created_at, source_type')
       .order('created_at', { ascending: false })
       .then(({ data }) => setSessions(data ?? []))
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase
+        .from('couple')
+        .select('jellyfin_url, jellyfin_api_key')
+        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.jellyfin_url) setJellyfinUrl(data.jellyfin_url)
+          if (data?.jellyfin_api_key) setJellyfinApiKey(data.jellyfin_api_key)
+        })
+    })
   }, [])
 
   function reset() {
@@ -41,6 +57,7 @@ export default function WatchPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (tab === 'jellyfin') return
     if (!title.trim()) return
     setUploading(true); setError(null)
 
@@ -97,9 +114,10 @@ export default function WatchPage() {
   }
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'upload', label: 'Upload', icon: <Upload size={14} /> },
-    { id: 'url',    label: 'Link / Pi',  icon: <Link2 size={14} /> },
-    { id: 'local',  label: 'Local file', icon: <HardDrive size={14} /> },
+    { id: 'upload',   label: 'Upload',   icon: <Upload size={14} /> },
+    { id: 'url',      label: 'Link / Pi', icon: <Link2 size={14} /> },
+    { id: 'local',    label: 'Local',    icon: <HardDrive size={14} /> },
+    { id: 'jellyfin', label: 'Library',  icon: <Library size={14} /> },
   ]
 
   return (
@@ -135,14 +153,16 @@ export default function WatchPage() {
 
           {error && <p className="text-red-400 text-sm bg-red-950/30 rounded-xl px-4 py-3">{error}</p>}
 
-          <input
-            type="text"
-            required
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
-            placeholder="Title"
-          />
+          {tab !== 'jellyfin' && (
+            <input
+              type="text"
+              required
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+              placeholder="Title"
+            />
+          )}
 
           {tab === 'upload' && (
             <>
@@ -191,15 +211,23 @@ export default function WatchPage() {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={uploading || !title.trim()}
-            className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2"
-          >
-            {uploading
-              ? <><Loader2 size={16} className="animate-spin" /> {progress !== null ? `Uploading ${progress}%…` : 'Starting…'}</>
-              : 'Start watching'}
-          </button>
+          {tab === 'jellyfin' && (
+            jellyfinUrl && jellyfinApiKey
+              ? <JellyfinBrowser jellyfinUrl={jellyfinUrl} jellyfinApiKey={jellyfinApiKey} />
+              : <JellyfinNotConfigured />
+          )}
+
+          {tab !== 'jellyfin' && (
+            <button
+              type="submit"
+              disabled={uploading || !title.trim()}
+              className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2"
+            >
+              {uploading
+                ? <><Loader2 size={16} className="animate-spin" /> {progress !== null ? `Uploading ${progress}%…` : 'Starting…'}</>
+                : 'Start watching'}
+            </button>
+          )}
         </form>
       )}
 
