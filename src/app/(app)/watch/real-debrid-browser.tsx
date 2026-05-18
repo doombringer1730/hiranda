@@ -47,9 +47,10 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
         `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(query)}&api_key=${TMDB_KEY}`
       )
       const data = await res.json()
+      if (!res.ok) throw new Error(data.status_message ?? `TMDB error ${res.status}`)
       setResults(data.results ?? [])
-    } catch {
-      setError('Search failed — check your TMDB API key in .env.local')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Search failed')
     } finally {
       setSearching(false)
     }
