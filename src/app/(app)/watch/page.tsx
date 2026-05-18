@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal } from './actions'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, Library } from 'lucide-react'
+import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, Library, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import JellyfinBrowser, { JellyfinNotConfigured } from './jellyfin-browser'
+import RealDebridBrowser, { RealDebridNotConfigured } from './real-debrid-browser'
 
 type WatchSession = { id: string; title: string; created_at: string; source_type: string | null }
-type Tab = 'upload' | 'url' | 'local' | 'jellyfin'
+type Tab = 'upload' | 'url' | 'local' | 'jellyfin' | 'stream'
 
 export default function WatchPage() {
   const [sessions, setSessions] = useState<WatchSession[]>([])
@@ -17,6 +18,7 @@ export default function WatchPage() {
   const [tab, setTab] = useState<Tab>('upload')
   const [jellyfinUrl, setJellyfinUrl] = useState('')
   const [jellyfinApiKey, setJellyfinApiKey] = useState('')
+  const [rdApiKey, setRdApiKey] = useState('')
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -39,12 +41,13 @@ export default function WatchPage() {
       if (!user) return
       supabase
         .from('couple')
-        .select('jellyfin_url, jellyfin_api_key')
+        .select('jellyfin_url, jellyfin_api_key, real_debrid_api_key')
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
         .maybeSingle()
         .then(({ data }) => {
           if (data?.jellyfin_url) setJellyfinUrl(data.jellyfin_url)
           if (data?.jellyfin_api_key) setJellyfinApiKey(data.jellyfin_api_key)
+          if (data?.real_debrid_api_key) setRdApiKey(data.real_debrid_api_key)
         })
     })
   }, [])
@@ -118,6 +121,7 @@ export default function WatchPage() {
     { id: 'url',      label: 'Link / Pi', icon: <Link2 size={14} /> },
     { id: 'local',    label: 'Local',    icon: <HardDrive size={14} /> },
     { id: 'jellyfin', label: 'Library',  icon: <Library size={14} /> },
+    { id: 'stream',   label: 'Search',   icon: <Search size={14} /> },
   ]
 
   return (
@@ -217,7 +221,13 @@ export default function WatchPage() {
               : <JellyfinNotConfigured />
           )}
 
-          {tab !== 'jellyfin' && (
+          {tab === 'stream' && (
+            rdApiKey
+              ? <RealDebridBrowser rdApiKey={rdApiKey} />
+              : <RealDebridNotConfigured />
+          )}
+
+          {tab !== 'jellyfin' && tab !== 'stream' && (
             <button
               type="submit"
               disabled={uploading || !title.trim()}

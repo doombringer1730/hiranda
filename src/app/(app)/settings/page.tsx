@@ -79,6 +79,18 @@ export default async function SettingsPage() {
           />
         </section>
 
+        {/* Real-Debrid */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">Real-Debrid</h3>
+          <p className="text-stone-500 text-sm mb-4">
+            Search and stream any movie instantly from the Watch page.
+          </p>
+          <SettingsClient
+            type="realdebrid"
+            rdApiKey={couple?.real_debrid_api_key ?? ''}
+          />
+        </section>
+
         {/* Sign out */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
           <h3 className="text-amber-200 font-medium mb-3">Account</h3>

@@ -1,19 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { updateTogetherSince, toggleTimer, updateDisplayName, saveJellyfinSettings } from './actions'
+import { updateTogetherSince, toggleTimer, updateDisplayName, saveJellyfinSettings, saveRealDebridSettings } from './actions'
 import { Copy, Check } from 'lucide-react'
 
 type InviteProps = { type: 'invite'; inviteLink: string }
 type TimerProps = { type: 'timer'; showTimer: boolean; togetherSince: string }
 type NameProps = { type: 'name'; displayName: string }
 type JellyfinProps = { type: 'jellyfin'; jellyfinUrl: string; jellyfinApiKey: string }
-type Props = InviteProps | TimerProps | NameProps | JellyfinProps
+type RealDebridProps = { type: 'realdebrid'; rdApiKey: string }
+type Props = InviteProps | TimerProps | NameProps | JellyfinProps | RealDebridProps
 
 export default function SettingsClient(props: Props) {
   if (props.type === 'invite') return <InviteSection {...props} />
   if (props.type === 'name') return <NameSection {...props} />
   if (props.type === 'jellyfin') return <JellyfinSection {...props} />
+  if (props.type === 'realdebrid') return <RealDebridSection {...props} />
   return <TimerSection {...props} />
 }
 
@@ -111,6 +113,42 @@ function JellyfinSection({ jellyfinUrl, jellyfinApiKey }: JellyfinProps) {
       <button
         onClick={handleSave}
         disabled={!url.trim() || !apiKey.trim()}
+        className="self-end bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 text-sm px-4 py-2.5 rounded-xl transition-colors"
+      >
+        {saved ? 'Saved!' : 'Save'}
+      </button>
+    </div>
+  )
+}
+
+function RealDebridSection({ rdApiKey }: RealDebridProps) {
+  const [apiKey, setApiKey] = useState(rdApiKey)
+  const [saved, setSaved] = useState(false)
+
+  async function handleSave() {
+    await saveRealDebridSettings(apiKey.trim())
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <label className="text-stone-400 text-xs uppercase tracking-widest mb-1.5 block">API Token</label>
+        <input
+          type="password"
+          value={apiKey}
+          onChange={e => setApiKey(e.target.value)}
+          className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2.5 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+          placeholder="Paste your Real-Debrid API token"
+        />
+        <p className="text-stone-600 text-xs mt-1.5 px-1">
+          real-debrid.com → My Account → API token
+        </p>
+      </div>
+      <button
+        onClick={handleSave}
+        disabled={!apiKey.trim()}
         className="self-end bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 text-sm px-4 py-2.5 rounded-xl transition-colors"
       >
         {saved ? 'Saved!' : 'Save'}
