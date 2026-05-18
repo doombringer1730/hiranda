@@ -38,11 +38,19 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
   const [compatOnly, setCompatOnly] = useState(true)
   const router = useRouter()
 
-  const INCOMPAT = /\b(AC3|DTS|TrueHD|EAC3|DDP|DD5\.1|Atmos)\b/i
+  const INCOMPAT_AUDIO = /\b(AC3|DTS|TrueHD|EAC3|DDP|DD5\.1|Atmos)\b/i
 
   function isCompatible(stream: RdStream) {
+    const filename = stream.behaviorHints?.filename ?? ''
+    const ext = filename.split('.').pop()?.toLowerCase()
+    if (ext && ext !== 'mp4') return false
     const text = stream.name + ' ' + stream.title
-    return !INCOMPAT.test(text)
+    return !INCOMPAT_AUDIO.test(text)
+  }
+
+  function getExt(stream: RdStream) {
+    const filename = stream.behaviorHints?.filename ?? ''
+    return filename.split('.').pop()?.toLowerCase() ?? ''
   }
 
   async function handleSearch() {
@@ -180,8 +188,15 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
               disabled={!!starting}
               className="flex items-center justify-between bg-stone-950 border border-stone-800 hover:border-amber-700/50 rounded-xl px-4 py-3 transition-colors disabled:opacity-50 text-left"
             >
-              <div className="min-w-0">
-                <p className="text-amber-100 text-sm font-medium">{parseQuality(stream.name)}</p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-amber-100 text-sm font-medium">{parseQuality(stream.name)}</p>
+                  {getExt(stream) && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-mono flex-shrink-0 ${
+                      getExt(stream) === 'mp4' ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'
+                    }`}>{getExt(stream)}</span>
+                  )}
+                </div>
                 <p className="text-stone-500 text-xs mt-0.5 truncate">
                   {stream.title?.split('\n')[0]}{formatSize(stream.behaviorHints?.videoSize)}
                 </p>
