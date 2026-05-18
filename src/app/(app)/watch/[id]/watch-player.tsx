@@ -40,7 +40,7 @@ export default function WatchPlayer({
   const videoRef = useRef<HTMLVideoElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hlsRef = useRef<any>(null)
-  const lastReceivedAt = useRef(0)
+  const applyingRemote = useRef(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const syncChannelRef = useRef<any>(null)
   const [localFile, setLocalFile] = useState<File | null>(null)
@@ -52,6 +52,7 @@ export default function WatchPlayer({
   const [partnerName, setPartnerName] = useState<string | null>(null)
   const [activeUsers, setActiveUsers] = useState<PresenceUser[]>([])
   const [connected, setConnected] = useState(false)
+  const [needsUserPlay, setNeedsUserPlay] = useState(false)
   const [currentUrl, setCurrentUrl] = useState(videoUrl)
   const [fallbackIndex, setFallbackIndex] = useState(0)
   const [streamError, setStreamError] = useState(false)
@@ -72,13 +73,13 @@ export default function WatchPlayer({
     return `${m}:${String(sec).padStart(2, '0')}`
   }
 
-  // ── Push state: only sends if we haven't just received a remote event ────
+  // ── Push state: blocked only while actively applying a remote event ───────
   const pushState = useCallback(async (state: 'playing' | 'paused', position: number) => {
-    if (Date.now() - lastReceivedAt.current < 500) return
+    if (applyingRemote.current) return
     syncChannelRef.current?.send({
       type: 'broadcast',
       event: 'sync',
-      payload: { state, position, from: userId },
+      payload: { kind: 'action', state, position, from: userId },
     })
     await supabase.from('watch_sessions').update({
       state,
@@ -94,7 +95,6 @@ export default function WatchPlayer({
       .channel(`watch:${sessionId}`)
       .on('broadcast', { event: 'sync' }, ({ payload }) => {
         if (payload.from === userId) return
-        lastReceivedAt.current = Date.now()
 
         const video = videoRef.current
         if (!video) return
@@ -103,10 +103,27 @@ export default function WatchPlayer({
         setPartnerPlaying(payload.state === 'playing')
         setPartnerName(profileMap[payload.from] ?? 'Partner')
 
-        if (Math.abs(video.currentTime - payload.position) > 2)
+        const isAction = payload.kind === 'action'
+        const driftBig = Math.abs(video.currentTime - payload.position) > (isAction ? 1 : 2)
+
+        // Correct position
+        if (driftBig) {
+          applyingRemote.current = true
           video.currentTime = payload.position
-        if (payload.state === 'playing' && video.paused) video.play().catch(() => {})
-        if (payload.state === 'paused' && !video.paused) video.pause()
+          // cleared in onSeeked
+        }
+
+        // Correct play/pause state
+        if (payload.state === 'playing' && video.paused) {
+          applyingRemote.current = true
+          setNeedsUserPlay(false)
+          video.play().catch(() => setNeedsUserPlay(true))
+          setTimeout(() => { applyingRemote.current = false }, 100)
+        } else if (payload.state === 'paused' && !video.paused) {
+          applyingRemote.current = true
+          video.pause()
+          setTimeout(() => { applyingRemote.current = false }, 100)
+        }
       })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<PresenceUser>()
@@ -138,7 +155,7 @@ export default function WatchPlayer({
       syncChannelRef.current.send({
         type: 'broadcast',
         event: 'sync',
-        payload: { state: video.paused ? 'paused' : 'playing', position: video.currentTime, from: userId },
+        payload: { kind: 'heartbeat', state: video.paused ? 'paused' : 'playing', position: video.currentTime, from: userId },
       })
     }, 1000)
     return () => clearInterval(interval)
@@ -312,6 +329,7 @@ export default function WatchPlayer({
           onPlay={e => pushState('playing', (e.target as HTMLVideoElement).currentTime)}
           onPause={e => pushState('paused', (e.target as HTMLVideoElement).currentTime)}
           onSeeked={e => {
+            if (applyingRemote.current) { applyingRemote.current = false; return }
             const v = e.target as HTMLVideoElement
             pushState(v.paused ? 'paused' : 'playing', v.currentTime)
           }}
@@ -327,6 +345,19 @@ export default function WatchPlayer({
               ← Pick a new stream
             </Link>
           </div>
+        )}
+
+        {/* Mobile autoplay blocked */}
+        {needsUserPlay && (
+          <button
+            onClick={() => { videoRef.current?.play().catch(() => {}); setNeedsUserPlay(false) }}
+            className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/60"
+          >
+            <div className="bg-amber-700 rounded-2xl px-6 py-4 flex flex-col items-center gap-2">
+              <span className="text-3xl">▶</span>
+              <span className="text-amber-50 text-sm font-medium">Tap to play</span>
+            </div>
+          </button>
         )}
 
         {/* Trying fallback */}
