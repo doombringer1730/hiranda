@@ -39,15 +39,22 @@ export default function WatchPlayer({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hlsRef = useRef<any>(null)
   const applyingRemote = useRef(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const syncChannelRef = useRef<any>(null)
   const [localFile, setLocalFile] = useState<File | null>(null)
   const [visibleMessages, setVisibleMessages] = useState<ChatMsg[]>([])
   const [floatingEmotes, setFloatingEmotes] = useState<FloatingEmote[]>([])
   const [chatInput, setChatInput] = useState('')
   const supabase = createClient()
 
-  // ── Push local state to DB ──────────────────────────────────────────────
+  // ── Push state: broadcast for instant sync + update DB for persistence ──
   const pushState = useCallback(async (state: 'playing' | 'paused', position: number) => {
     if (applyingRemote.current) return
+    syncChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'sync',
+      payload: { state, position, from: userId },
+    })
     await supabase.from('watch_sessions').update({
       state,
       playback_position_seconds: position,
@@ -56,30 +63,24 @@ export default function WatchPlayer({
     }).eq('id', sessionId)
   }, [sessionId, userId, supabase])
 
-  // ── Sync: subscribe to remote playback changes ──────────────────────────
+  // ── Sync: subscribe via Broadcast (no table replication required) ────────
   useEffect(() => {
     const channel = supabase
       .channel(`watch:${sessionId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'watch_sessions',
-        filter: `id=eq.${sessionId}`,
-      }, (payload) => {
+      .on('broadcast', { event: 'sync' }, ({ payload }) => {
         const video = videoRef.current
-        if (!video) return
-        const { state, playback_position_seconds, last_updated_by } = payload.new
-        if (last_updated_by === userId) return
+        if (!video || payload.from === userId) return
 
         applyingRemote.current = true
-        if (Math.abs(video.currentTime - playback_position_seconds) > 1.5)
-          video.currentTime = playback_position_seconds
-        if (state === 'playing' && video.paused) video.play()
-        if (state === 'paused' && !video.paused) video.pause()
+        if (Math.abs(video.currentTime - payload.position) > 1.5)
+          video.currentTime = payload.position
+        if (payload.state === 'playing' && video.paused) video.play().catch(() => {})
+        if (payload.state === 'paused' && !video.paused) video.pause()
         setTimeout(() => { applyingRemote.current = false }, 300)
       })
       .subscribe()
 
+    syncChannelRef.current = channel
     return () => { supabase.removeChannel(channel) }
   }, [sessionId, userId, supabase])
 
