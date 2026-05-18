@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { updateTogetherSince, toggleTimer, updateDisplayName, saveJellyfinSettings, saveRealDebridSettings } from './actions'
+import { updateTogetherSince, toggleTimer, updateDisplayName, saveJellyfinSettings, saveRealDebridSettings, saveAllDebridSettings } from './actions'
 import { Copy, Check } from 'lucide-react'
 
 type InviteProps = { type: 'invite'; inviteLink: string }
@@ -9,13 +9,15 @@ type TimerProps = { type: 'timer'; showTimer: boolean; togetherSince: string }
 type NameProps = { type: 'name'; displayName: string }
 type JellyfinProps = { type: 'jellyfin'; jellyfinUrl: string; jellyfinApiKey: string }
 type RealDebridProps = { type: 'realdebrid'; rdApiKey: string }
-type Props = InviteProps | TimerProps | NameProps | JellyfinProps | RealDebridProps
+type AllDebridProps = { type: 'alldebrid'; apiKey: string }
+type Props = InviteProps | TimerProps | NameProps | JellyfinProps | RealDebridProps | AllDebridProps
 
 export default function SettingsClient(props: Props) {
   if (props.type === 'invite') return <InviteSection {...props} />
   if (props.type === 'name') return <NameSection {...props} />
   if (props.type === 'jellyfin') return <JellyfinSection {...props} />
   if (props.type === 'realdebrid') return <RealDebridSection {...props} />
+  if (props.type === 'alldebrid') return <AllDebridSection {...props} />
   return <TimerSection {...props} />
 }
 
@@ -205,6 +207,42 @@ function TimerSection({ showTimer, togetherSince }: TimerProps) {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+function AllDebridSection({ apiKey }: AllDebridProps) {
+  const [key, setKey] = useState(apiKey)
+  const [saved, setSaved] = useState(false)
+
+  async function handleSave() {
+    await saveAllDebridSettings(key.trim())
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <label className="text-stone-400 text-xs uppercase tracking-widest mb-1.5 block">API Key</label>
+        <input
+          type="password"
+          value={key}
+          onChange={e => setKey(e.target.value)}
+          className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2.5 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+          placeholder="Paste your AllDebrid API key"
+        />
+        <p className="text-stone-600 text-xs mt-1.5 px-1">
+          alldebrid.com → My Account → API keys → + New key
+        </p>
+      </div>
+      <button
+        onClick={handleSave}
+        disabled={!key.trim()}
+        className="self-end bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 text-sm px-4 py-2.5 rounded-xl transition-colors"
+      >
+        {saved ? 'Saved!' : 'Save'}
+      </button>
     </div>
   )
 }

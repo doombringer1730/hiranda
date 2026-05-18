@@ -20,14 +20,14 @@ export async function createWatchSession(title: string, storagePath: string) {
   return { sessionId: session.id }
 }
 
-export async function createWatchSessionFromUrl(title: string, url: string) {
+export async function createWatchSessionFromUrl(title: string, url: string, fallbackUrls: string[] = []) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const { data: session, error } = await supabase
     .from('watch_sessions')
-    .insert({ title, storage_path: '', source_type: 'url', source_url: url, created_by: user.id })
+    .insert({ title, storage_path: '', source_type: 'url', source_url: url, fallback_urls: fallbackUrls, created_by: user.id })
     .select()
     .single()
 

@@ -83,11 +83,23 @@ export default async function SettingsPage() {
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
           <h3 className="text-amber-200 font-medium mb-1">Real-Debrid</h3>
           <p className="text-stone-500 text-sm mb-4">
-            Search and stream any movie instantly from the Watch page.
+            Search and stream movies and TV shows from the Watch page.
           </p>
           <SettingsClient
             type="realdebrid"
             rdApiKey={couple?.real_debrid_api_key ?? ''}
+          />
+        </section>
+
+        {/* AllDebrid */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">AllDebrid</h3>
+          <p className="text-stone-500 text-sm mb-4">
+            Optional second debrid service — used as a fallback source when Real-Debrid streams are unavailable.
+          </p>
+          <SettingsClient
+            type="alldebrid"
+            apiKey={couple?.alldebrid_api_key ?? ''}
           />
         </section>
 

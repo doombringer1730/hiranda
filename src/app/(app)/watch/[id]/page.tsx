@@ -45,6 +45,7 @@ export default async function WatchSessionPage({ params }: { params: Promise<{ i
       profileMap={profileMap}
       initialState={session.state ?? 'paused'}
       initialPosition={session.playback_position_seconds ?? 0}
+      fallbackUrls={session.fallback_urls ?? []}
       deleteAction={deleteWatchSession.bind(null, id, sourceType === 'upload' ? session.storage_path : null)}
     />
   )

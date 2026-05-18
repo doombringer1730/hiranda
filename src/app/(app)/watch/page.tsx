@@ -19,6 +19,7 @@ export default function WatchPage() {
   const [jellyfinUrl, setJellyfinUrl] = useState('')
   const [jellyfinApiKey, setJellyfinApiKey] = useState('')
   const [rdApiKey, setRdApiKey] = useState('')
+  const [adApiKey, setAdApiKey] = useState('')
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -41,13 +42,14 @@ export default function WatchPage() {
       if (!user) return
       supabase
         .from('couple')
-        .select('jellyfin_url, jellyfin_api_key, real_debrid_api_key')
+        .select('jellyfin_url, jellyfin_api_key, real_debrid_api_key, alldebrid_api_key')
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
         .maybeSingle()
         .then(({ data }) => {
           if (data?.jellyfin_url) setJellyfinUrl(data.jellyfin_url)
           if (data?.jellyfin_api_key) setJellyfinApiKey(data.jellyfin_api_key)
           if (data?.real_debrid_api_key) setRdApiKey(data.real_debrid_api_key)
+          if (data?.alldebrid_api_key) setAdApiKey(data.alldebrid_api_key)
         })
     })
   }, [])
@@ -223,7 +225,7 @@ export default function WatchPage() {
 
           {tab === 'stream' && (
             rdApiKey
-              ? <RealDebridBrowser rdApiKey={rdApiKey} />
+              ? <RealDebridBrowser rdApiKey={rdApiKey} allDebridApiKey={adApiKey} />
               : <RealDebridNotConfigured />
           )}
 

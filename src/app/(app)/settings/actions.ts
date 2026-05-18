@@ -77,6 +77,19 @@ export async function saveJellyfinSettings(jellyfinUrl: string, jellyfinApiKey: 
   revalidatePath('/settings')
 }
 
+export async function saveAllDebridSettings(apiKey: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  await supabase
+    .from('couple')
+    .update({ alldebrid_api_key: apiKey || null })
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+
+  revalidatePath('/settings')
+}
+
 export async function saveRealDebridSettings(apiKey: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

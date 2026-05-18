@@ -44,9 +44,9 @@ type RdStream = {
   behaviorHints?: { filename?: string; videoSize?: number }
 }
 
-type Props = { rdApiKey: string }
+type Props = { rdApiKey: string; allDebridApiKey?: string }
 
-export default function RealDebridBrowser({ rdApiKey }: Props) {
+export default function RealDebridBrowser({ rdApiKey, allDebridApiKey }: Props) {
   const [searchType, setSearchType] = useState<SearchType>('movie')
   const [query, setQuery] = useState('')
   const [view, setView] = useState<View>('search')
@@ -128,9 +128,11 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
       const imdbId = extData.imdb_id as string | null
       if (!imdbId) throw new Error('No IMDB ID found')
 
-      const streamRes = await fetch(`https://torrentio.strem.fun/realdebrid=${rdApiKey}/stream/movie/${imdbId}.json`)
-      const streamData = await streamRes.json()
-      setStreams((streamData.streams ?? []).filter((s: RdStream) => s.url?.startsWith('https://')))
+      const urls = [`https://torrentio.strem.fun/realdebrid=${rdApiKey}/stream/movie/${imdbId}.json`]
+      if (allDebridApiKey) urls.push(`https://torrentio.strem.fun/alldebrid=${allDebridApiKey}/stream/movie/${imdbId}.json`)
+      const results = await Promise.all(urls.map(u => fetch(u).then(r => r.json()).catch(() => ({ streams: [] }))))
+      const merged = results.flatMap(d => d.streams ?? []).filter((s: RdStream) => s.url?.startsWith('https://'))
+      setStreams(merged)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load streams')
     } finally {
@@ -189,11 +191,12 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
       const imdbId = extData.imdb_id as string | null
       if (!imdbId) throw new Error('No IMDB ID found')
 
-      const streamRes = await fetch(
-        `https://torrentio.strem.fun/realdebrid=${rdApiKey}/stream/series/${imdbId}:${selectedSeason.season_number}:${episode.episode_number}.json`
-      )
-      const streamData = await streamRes.json()
-      setStreams((streamData.streams ?? []).filter((s: RdStream) => s.url?.startsWith('https://')))
+      const path = `stream/series/${imdbId}:${selectedSeason.season_number}:${episode.episode_number}.json`
+      const urls = [`https://torrentio.strem.fun/realdebrid=${rdApiKey}/${path}`]
+      if (allDebridApiKey) urls.push(`https://torrentio.strem.fun/alldebrid=${allDebridApiKey}/${path}`)
+      const results = await Promise.all(urls.map(u => fetch(u).then(r => r.json()).catch(() => ({ streams: [] }))))
+      const merged = results.flatMap(d => d.streams ?? []).filter((s: RdStream) => s.url?.startsWith('https://'))
+      setStreams(merged)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load streams')
     } finally {
@@ -208,8 +211,12 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
     } else if (selectedShow && selectedSeason && selectedEpisode) {
       title = `${selectedShow.name} S${pad(selectedSeason.season_number)}E${pad(selectedEpisode.episode_number)}`
     }
+    const fallbacks = (compatOnly ? streams.filter(isCompatible) : streams)
+      .filter(s => s.url !== stream.url && s.url?.startsWith('https://'))
+      .slice(0, 5)
+      .map(s => s.url)
     setStarting(stream.url)
-    const result = await createWatchSessionFromUrl(title, stream.url)
+    const result = await createWatchSessionFromUrl(title, stream.url, fallbacks)
     if (result?.sessionId) {
       router.push(`/watch/${result.sessionId}`)
     } else {

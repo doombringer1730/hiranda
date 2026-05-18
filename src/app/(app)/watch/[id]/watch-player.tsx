@@ -29,12 +29,13 @@ type Props = {
   profileMap: Record<string, string>
   initialState: string
   initialPosition: number
+  fallbackUrls: string[]
   deleteAction: () => Promise<void>
 }
 
 export default function WatchPlayer({
   sessionId, title, sourceType, videoUrl, sourceHint,
-  userId, profileMap, initialState, initialPosition, deleteAction,
+  userId, profileMap, initialState, initialPosition, fallbackUrls, deleteAction,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -51,6 +52,9 @@ export default function WatchPlayer({
   const [partnerName, setPartnerName] = useState<string | null>(null)
   const [activeUsers, setActiveUsers] = useState<PresenceUser[]>([])
   const [connected, setConnected] = useState(false)
+  const [currentUrl, setCurrentUrl] = useState(videoUrl)
+  const [fallbackIndex, setFallbackIndex] = useState(0)
+  const [streamError, setStreamError] = useState(false)
   const supabase = createClient()
 
   function detectDevice(): 'phone' | 'tablet' | 'desktop' {
@@ -173,9 +177,10 @@ export default function WatchPlayer({
 
     const src = sourceType === 'local'
       ? (localFile ? URL.createObjectURL(localFile) : null)
-      : videoUrl
+      : currentUrl
 
     if (!src) return
+    setStreamError(false)
 
     const isHls = src.includes('.m3u8')
 
@@ -209,7 +214,16 @@ export default function WatchPlayer({
       if (sourceType === 'local' && src) URL.revokeObjectURL(src)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoUrl, localFile])
+  }, [currentUrl, localFile])
+
+  // ── Auto-retry fallback streams on error ─────────────────────────────────
+  async function tryNextStream() {
+    if (fallbackIndex >= fallbackUrls.length) { setStreamError(true); return }
+    const next = fallbackUrls[fallbackIndex]
+    setFallbackIndex(i => i + 1)
+    setCurrentUrl(next)
+    await supabase.from('watch_sessions').update({ source_url: next }).eq('id', sessionId)
+  }
 
   // ── Send chat message ───────────────────────────────────────────────────
   async function sendMessage(e: React.FormEvent) {
@@ -301,7 +315,26 @@ export default function WatchPlayer({
             const v = e.target as HTMLVideoElement
             pushState(v.paused ? 'paused' : 'playing', v.currentTime)
           }}
+          onError={() => tryNextStream()}
         />
+
+        {/* Stream error — no more fallbacks */}
+        {streamError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-black/90 gap-3">
+            <p className="text-stone-300 text-sm">This stream was removed from the debrid service.</p>
+            <p className="text-stone-500 text-xs">All fallback streams exhausted.</p>
+            <Link href="/watch" className="text-amber-500 text-sm hover:text-amber-400 transition-colors">
+              ← Pick a new stream
+            </Link>
+          </div>
+        )}
+
+        {/* Trying fallback */}
+        {!streamError && fallbackIndex > 0 && (
+          <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-black/70 rounded-xl px-4 py-2 pointer-events-none">
+            <p className="text-amber-300 text-xs">Stream removed — trying fallback {fallbackIndex}/{fallbackUrls.length}…</p>
+          </div>
+        )}
 
         {/* Floating emotes */}
         {floatingEmotes.map(fe => (
