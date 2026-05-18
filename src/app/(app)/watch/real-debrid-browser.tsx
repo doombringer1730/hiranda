@@ -44,9 +44,9 @@ type RdStream = {
   behaviorHints?: { filename?: string; videoSize?: number }
 }
 
-type Props = { rdApiKey: string }
+type Props = { addonUrl: string }
 
-export default function RealDebridBrowser({ rdApiKey }: Props) {
+export default function StremioAddonBrowser({ addonUrl }: Props) {
   const [searchType, setSearchType] = useState<SearchType>('movie')
   const [query, setQuery] = useState('')
   const [view, setView] = useState<View>('search')
@@ -128,7 +128,7 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
       const imdbId = extData.imdb_id as string | null
       if (!imdbId) throw new Error('No IMDB ID found')
 
-      const streamRes = await fetch(`https://torrentio.strem.fun/realdebrid=${rdApiKey}/stream/movie/${imdbId}.json`)
+      const streamRes = await fetch(`${addonUrl}/stream/movie/${imdbId}.json`)
       const streamData = await streamRes.json()
       setStreams((streamData.streams ?? []).filter((s: RdStream) => s.url?.startsWith('https://')))
     } catch (e) {
@@ -190,7 +190,7 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
       if (!imdbId) throw new Error('No IMDB ID found')
 
       const streamRes = await fetch(
-        `https://torrentio.strem.fun/realdebrid=${rdApiKey}/stream/series/${imdbId}:${selectedSeason.season_number}:${episode.episode_number}.json`
+        `${addonUrl}/stream/series/${imdbId}:${selectedSeason.season_number}:${episode.episode_number}.json`
       )
       const streamData = await streamRes.json()
       setStreams((streamData.streams ?? []).filter((s: RdStream) => s.url?.startsWith('https://')))
@@ -435,11 +435,11 @@ export default function RealDebridBrowser({ rdApiKey }: Props) {
   )
 }
 
-export function RealDebridNotConfigured() {
+export function StremioAddonNotConfigured() {
   return (
     <div className="text-center py-12 flex flex-col items-center gap-3">
       <Film size={36} className="text-stone-700" />
-      <p className="text-stone-500 text-sm">Connect your Real-Debrid account first.</p>
+      <p className="text-stone-500 text-sm">Add a Stremio addon URL in Settings first.</p>
       <Link href="/settings" className="flex items-center gap-1.5 text-amber-600 hover:text-amber-500 text-sm transition-colors">
         <Settings size={14} /> Go to Settings
       </Link>
