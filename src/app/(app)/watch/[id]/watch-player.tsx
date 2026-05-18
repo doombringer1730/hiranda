@@ -45,7 +45,18 @@ export default function WatchPlayer({
   const [visibleMessages, setVisibleMessages] = useState<ChatMsg[]>([])
   const [floatingEmotes, setFloatingEmotes] = useState<FloatingEmote[]>([])
   const [chatInput, setChatInput] = useState('')
+  const [partnerPosition, setPartnerPosition] = useState<number | null>(null)
+  const [partnerPlaying, setPartnerPlaying] = useState<boolean | null>(null)
+  const [partnerName, setPartnerName] = useState<string | null>(null)
   const supabase = createClient()
+
+  function formatTime(s: number) {
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    const sec = Math.floor(s % 60)
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+    return `${m}:${String(sec).padStart(2, '0')}`
+  }
 
   // ── Push state: broadcast for instant sync + update DB for persistence ──
   const pushState = useCallback(async (state: 'playing' | 'paused', position: number) => {
@@ -70,6 +81,10 @@ export default function WatchPlayer({
       .on('broadcast', { event: 'sync' }, ({ payload }) => {
         const video = videoRef.current
         if (!video || payload.from === userId) return
+
+        setPartnerPosition(payload.position)
+        setPartnerPlaying(payload.state === 'playing')
+        setPartnerName(profileMap[payload.from] ?? 'Partner')
 
         applyingRemote.current = true
         if (Math.abs(video.currentTime - payload.position) > 1.5)
@@ -270,9 +285,18 @@ export default function WatchPlayer({
         </div>
 
         {/* Sync indicator */}
-        <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/50 rounded-lg px-2.5 py-1.5 pointer-events-none">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-stone-400 text-xs">Synced</span>
+        <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5 pointer-events-none">
+          <div className="flex items-center gap-1.5 bg-black/50 rounded-lg px-2.5 py-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-stone-400 text-xs">Synced</span>
+          </div>
+          {partnerPosition !== null && (
+            <div className="flex items-center gap-1.5 bg-black/50 rounded-lg px-2.5 py-1.5">
+              <span className="text-stone-400 text-xs">{partnerName ?? 'Partner'}</span>
+              <span className="text-amber-300 text-xs font-mono">{formatTime(partnerPosition)}</span>
+              <span className="text-stone-500 text-xs">{partnerPlaying ? '▶' : '⏸'}</span>
+            </div>
+          )}
         </div>
       </div>
 
