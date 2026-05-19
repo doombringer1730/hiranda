@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getProfileMap } from '@/lib/profiles'
 import Link from 'next/link'
-import { Plus, Camera } from 'lucide-react'
+import { Plus, Camera, Map } from 'lucide-react'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -19,13 +19,21 @@ export default async function HomePage() {
     <div className="px-4 pt-8 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <h2 className="font-serif text-3xl text-amber-100">Memories</h2>
-        <Link
-          href="/memories/new"
-          className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
-        >
-          <Plus size={16} />
-          New
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/memories/map"
+            className="flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
+          >
+            <Map size={16} />
+          </Link>
+          <Link
+            href="/memories/new"
+            className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+          >
+            <Plus size={16} />
+            New
+          </Link>
+        </div>
       </div>
 
       {!memories?.length && (

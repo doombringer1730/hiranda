@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState, useEffect } from 'react'
-import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X, Clapperboard, LogOut } from 'lucide-react'
+import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X, Clapperboard, LogOut, Gamepad2, Music } from 'lucide-react'
 import { SidebarTimer } from './couple-timer'
+import SpotifyStatus from './spotify-status'
 import { logout } from '@/app/(auth)/actions'
 
 const links = [
@@ -16,6 +17,8 @@ const links = [
   { href: '/watch',       label: 'Watch',       icon: Play          },
   { href: '/watchlist',   label: 'Watchlist',   icon: Clapperboard  },
   { href: '/library',     label: 'Library',     icon: Library       },
+  { href: '/music',       label: 'Music',       icon: Music         },
+  { href: '/games',       label: 'Games',       icon: Gamepad2      },
 ]
 
 function NavLink({ href, label, icon: Icon, active, onClick }: {
@@ -85,6 +88,7 @@ export default function Nav() {
             return <NavLink key={href} href={href} label={label} icon={Icon} active={active} />
           })}
         </nav>
+        <SpotifyStatus />
         <SidebarTimer />
         <NavLink href="/settings" label="Settings" icon={Settings} active={pathname === '/settings'} />
         <form action={logout}>

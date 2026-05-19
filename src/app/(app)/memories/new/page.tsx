@@ -4,8 +4,10 @@ import { useState } from 'react'
 import { createMemory } from '../actions'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, X } from 'lucide-react'
+import { ArrowLeft, Loader2, X, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+
+type Location = { lat: number; lng: number; name: string }
 
 export default function NewMemoryPage() {
   const [title, setTitle] = useState('')
@@ -13,9 +15,37 @@ export default function NewMemoryPage() {
   const [happenedAt, setHappenedAt] = useState(new Date().toISOString().split('T')[0])
   const [tags, setTags] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  const [location, setLocation] = useState<Location | null>(null)
+  const [locating, setLocating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+
+  async function handleAddLocation() {
+    if (!navigator.geolocation) return
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+            { headers: { 'Accept-Language': 'en' } }
+          )
+          const data = await res.json()
+          const addr = data.address ?? {}
+          const city = addr.city ?? addr.town ?? addr.village ?? addr.county ?? ''
+          const country = addr.country ?? ''
+          const name = [city, country].filter(Boolean).join(', ') || (data.display_name?.split(',')[0] ?? 'Unknown location')
+          setLocation({ lat, lng, name })
+        } catch {
+          setLocation({ lat, lng, name: `${lat.toFixed(4)}, ${lng.toFixed(4)}` })
+        }
+        setLocating(false)
+      },
+      () => setLocating(false)
+    )
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -49,6 +79,9 @@ export default function NewMemoryPage() {
       happenedAt,
       tags: tags.split(',').map(t => t.trim()).filter(Boolean),
       photoPaths,
+      latitude: location?.lat ?? null,
+      longitude: location?.lng ?? null,
+      locationName: location?.name ?? null,
     })
 
     if ('error' in result) {
@@ -117,6 +150,30 @@ export default function NewMemoryPage() {
             className="bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
             placeholder="date night, travel, silly — comma separated"
           />
+        </div>
+
+        {/* Location */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-stone-400 text-xs uppercase tracking-widest">Location</label>
+          {location ? (
+            <div className="flex items-center gap-2 bg-stone-900 border border-stone-800 rounded-xl px-4 py-3">
+              <MapPin size={14} className="text-amber-600 flex-shrink-0" />
+              <span className="text-amber-50 text-sm flex-1">{location.name}</span>
+              <button type="button" onClick={() => setLocation(null)} className="text-stone-500 hover:text-red-400 transition-colors">
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAddLocation}
+              disabled={locating}
+              className="flex items-center gap-2 text-stone-400 hover:text-amber-400 bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-sm transition-colors disabled:opacity-50"
+            >
+              {locating ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
+              {locating ? 'Getting location…' : 'Add location'}
+            </button>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">

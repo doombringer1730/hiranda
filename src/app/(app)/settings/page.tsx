@@ -1,4 +1,4 @@
-import { getOrCreateCouple } from './actions'
+import { getOrCreateCouple, disconnectSpotify } from './actions'
 import { headers } from 'next/headers'
 import SettingsClient from './settings-client'
 import { logout } from '@/app/(auth)/actions'
@@ -10,7 +10,7 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase
     .from('profiles')
-    .select('display_name, username, avatar_url')
+    .select('display_name, username, avatar_url, spotify_display_name')
     .eq('id', user!.id)
     .single()
 
@@ -123,6 +123,34 @@ export default async function SettingsPage() {
             type="torbox"
             apiKey={couple?.torbox_api_key ?? ''}
           />
+        </section>
+
+        {/* Spotify */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">Spotify</h3>
+          <p className="text-stone-500 text-sm mb-4">
+            Share what you&apos;re listening to with your partner — shows live in their sidebar.
+          </p>
+          {profile?.spotify_display_name ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="text-green-400 text-sm">{profile.spotify_display_name}</span>
+              </div>
+              <form action={disconnectSpotify}>
+                <button type="submit" className="text-stone-500 hover:text-red-400 text-sm transition-colors">
+                  Disconnect
+                </button>
+              </form>
+            </div>
+          ) : (
+            <a
+              href="/api/spotify/connect"
+              className="inline-flex items-center gap-2 bg-green-700 hover:bg-green-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+            >
+              Connect Spotify
+            </a>
+          )}
         </section>
 
         {/* Sign out */}

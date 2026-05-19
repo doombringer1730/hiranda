@@ -10,6 +10,9 @@ export async function createMemory(data: {
   happenedAt: string
   tags: string[]
   photoPaths: string[]
+  latitude?: number | null
+  longitude?: number | null
+  locationName?: string | null
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -23,6 +26,9 @@ export async function createMemory(data: {
       happened_at: data.happenedAt,
       tags: data.tags,
       created_by: user.id,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
+      location_name: data.locationName ?? null,
     })
     .select()
     .single()
