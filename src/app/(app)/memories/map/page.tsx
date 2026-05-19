@@ -1,9 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-
-const MapView = dynamic(() => import('../map-view'), { ssr: false })
+import MapLoader from './map-loader'
 
 export default async function MemoryMapPage() {
   const supabase = await createClient()
@@ -27,7 +25,7 @@ export default async function MemoryMapPage() {
         <h2 className="font-serif text-3xl text-amber-100">Memory Map</h2>
         <span className="text-stone-600 text-sm ml-1">{pins.length} location{pins.length !== 1 ? 's' : ''}</span>
       </div>
-      <MapView memories={pins} />
+      <MapLoader memories={pins} />
     </div>
   )
 }
