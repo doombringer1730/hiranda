@@ -118,7 +118,7 @@ export default function Nav() {
 
       {/* ── Mobile: full drawer ── */}
       <aside
-        className={`md:hidden fixed top-0 left-0 h-full w-64 bg-stone-900 border-r border-stone-800/60 z-50 flex flex-col transition-transform duration-300 ease-out shadow-2xl ${
+        className={`md:hidden fixed top-0 left-0 h-full w-64 bg-stone-900 border-r border-stone-800/60 z-50 flex flex-col overflow-hidden transition-transform duration-300 ease-out shadow-2xl ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
