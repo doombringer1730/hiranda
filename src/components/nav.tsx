@@ -77,7 +77,7 @@ export default function Nav() {
   return (
     <>
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex flex-col w-56 min-h-screen bg-stone-900/80 border-r border-stone-800/60 px-3 py-8 fixed left-0 top-0 z-40 backdrop-blur-sm">
+      <aside className="hidden md:flex flex-col w-56 h-screen bg-stone-900/80 border-r border-stone-800/60 px-3 py-8 fixed left-0 top-0 z-40 backdrop-blur-sm overflow-hidden">
         <div className="px-3 mb-10">
           <h1 className="font-serif text-2xl text-amber-100">Hiranda</h1>
           <div className="mt-1.5 h-px bg-gradient-to-r from-amber-800/60 to-transparent" />
