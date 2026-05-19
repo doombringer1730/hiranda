@@ -325,7 +325,7 @@ export default function WatchPage() {
       {editingSession && (
         <>
           <div className="fixed inset-0 bg-black/60 z-40" onClick={closeEdit} />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-stone-900 border-t border-stone-800 rounded-t-2xl px-5 pt-5 pb-10 md:max-w-lg md:left-1/2 md:-translate-x-1/2 md:rounded-2xl md:bottom-8 md:border">
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-stone-900 border-t border-stone-800 rounded-t-2xl px-5 pt-5 pb-[max(2.5rem,env(safe-area-inset-bottom,2.5rem))] md:max-w-lg md:left-1/2 md:-translate-x-1/2 md:rounded-2xl md:bottom-8 md:border md:pb-5">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-amber-100 font-medium">Edit session</h3>
               <button onClick={closeEdit} className="text-stone-500 hover:text-stone-300 transition-colors">

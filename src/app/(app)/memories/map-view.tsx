@@ -1,5 +1,6 @@
 'use client'
 
+import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { X } from 'lucide-react'
@@ -27,7 +28,6 @@ export default function MapView({ memories }: Props) {
 
     async function init() {
       const L = (await import('leaflet')).default
-      await import('leaflet/dist/leaflet.css')
 
       if (!mapRef.current) return
 
@@ -84,7 +84,7 @@ export default function MapView({ memories }: Props) {
         <div
           className="absolute z-[1000] bg-stone-900 border border-stone-700 rounded-xl p-3 w-52 shadow-xl"
           style={{
-            left: Math.min(popup.x + 12, window.innerWidth - 220),
+            left: Math.min(popup.x + 12, (mapRef.current?.clientWidth ?? 400) - 220),
             top: Math.max(popup.y - 80, 8),
           }}
         >

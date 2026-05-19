@@ -31,8 +31,8 @@ export default async function GamesPage() {
 
   const tabs = [
     { type: 'question' as const, label: 'Questions', initial: questions },
-    { type: 'would_you_rather' as const, label: 'Would You Rather', initial: wyr },
-    { type: 'this_or_that' as const, label: 'This or That', initial: tot },
+    { type: 'would_you_rather' as const, label: 'Would You Rather', shortLabel: 'WYR', initial: wyr },
+    { type: 'this_or_that' as const, label: 'This or That', shortLabel: 'This or That', initial: tot },
   ]
 
   return (

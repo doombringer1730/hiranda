@@ -20,7 +20,7 @@ type PromptState = {
   partnerResponse: string | null
 }
 
-type Tab = { type: PromptType; label: string; initial: PromptState | null }
+type Tab = { type: PromptType; label: string; shortLabel?: string; initial: PromptState | null }
 
 type Props = {
   tabs: Tab[]
@@ -95,7 +95,8 @@ export default function GameClient({ tabs, partnerName }: Props) {
                 : 'text-stone-500 hover:text-stone-300'
             }`}
           >
-            {t.label}
+            <span className="hidden sm:inline">{t.label}</span>
+            <span className="sm:hidden">{t.shortLabel ?? t.label}</span>
           </button>
         ))}
       </div>
