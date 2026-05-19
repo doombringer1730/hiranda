@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal } from './actions'
+import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal, getCoupleData } from './actions'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, Library, Search } from 'lucide-react'
@@ -38,19 +38,11 @@ export default function WatchPage() {
       .order('created_at', { ascending: false })
       .then(({ data }) => setSessions(data ?? []))
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
-      supabase
-        .from('couple')
-        .select('jellyfin_url, jellyfin_api_key, real_debrid_api_key, torbox_api_key')
-        .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.jellyfin_url) setJellyfinUrl(data.jellyfin_url)
-          if (data?.jellyfin_api_key) setJellyfinApiKey(data.jellyfin_api_key)
-          if (data?.real_debrid_api_key) setRdApiKey(data.real_debrid_api_key)
-          if (data?.torbox_api_key) setTbApiKey(data.torbox_api_key)
-        })
+    getCoupleData().then(data => {
+      if (data?.jellyfin_url) setJellyfinUrl(data.jellyfin_url)
+      if (data?.jellyfin_api_key) setJellyfinApiKey(data.jellyfin_api_key)
+      if (data?.real_debrid_api_key) setRdApiKey(data.real_debrid_api_key)
+      if (data?.torbox_api_key) setTbApiKey(data.torbox_api_key)
     })
   }, [])
 

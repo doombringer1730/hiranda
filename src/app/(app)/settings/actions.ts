@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -9,7 +10,8 @@ export async function getOrCreateCouple() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: existing } = await supabase
+  const admin = createAdminClient()
+  const { data: existing } = await admin
     .from('couple')
     .select('*')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
@@ -17,7 +19,7 @@ export async function getOrCreateCouple() {
 
   if (existing) return existing
 
-  const { data: created } = await supabase
+  const { data: created } = await admin
     .from('couple')
     .insert({ user1_id: user.id })
     .select()
