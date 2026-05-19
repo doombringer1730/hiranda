@@ -10,8 +10,8 @@ export async function getCoupleData() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const admin = createAdminClient()
-  const { data } = await admin
+  const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase
+  const { data } = await db
     .from('couple')
     .select('jellyfin_url, jellyfin_api_key, real_debrid_api_key, torbox_api_key')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)

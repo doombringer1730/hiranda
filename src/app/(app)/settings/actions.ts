@@ -10,8 +10,8 @@ export async function getOrCreateCouple() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const admin = createAdminClient()
-  const { data: existing } = await admin
+  const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase
+  const { data: existing } = await db
     .from('couple')
     .select('*')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
@@ -19,7 +19,7 @@ export async function getOrCreateCouple() {
 
   if (existing) return existing
 
-  const { data: created } = await admin
+  const { data: created } = await db
     .from('couple')
     .insert({ user1_id: user.id })
     .select()
