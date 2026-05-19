@@ -82,7 +82,7 @@ export default function Nav() {
           <h1 className="font-serif text-2xl text-amber-100">Hiranda</h1>
           <div className="mt-1.5 h-px bg-gradient-to-r from-amber-800/60 to-transparent" />
         </div>
-        <nav className="flex flex-col gap-0.5 flex-1">
+        <nav className="flex flex-col gap-0.5 flex-1 overflow-y-auto">
           {links.map(({ href, label, icon: Icon }) => {
             const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
             return <NavLink key={href} href={href} label={label} icon={Icon} active={active} />
