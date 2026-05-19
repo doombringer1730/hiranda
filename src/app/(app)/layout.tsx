@@ -15,6 +15,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .eq('id', user.id)
       .single()
     if (!profile?.display_name) redirect('/setup')
+
+    const { data: couple } = await supabase
+      .from('couple')
+      .select('user2_id')
+      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+      .maybeSingle()
+
+    if (!couple?.user2_id) redirect('/invite-partner')
   }
 
   return (

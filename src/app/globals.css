@@ -1,5 +1,95 @@
 @import "tailwindcss";
 
+/* ── Theme overrides — override Tailwind's CSS vars per data-theme ── */
+
+[data-theme="midnight"] {
+  --color-stone-950: #07071a;
+  --color-stone-900: #0f0f2e;
+  --color-stone-800: #1a1a40;
+  --color-stone-700: #2d2d5f;
+  --color-stone-600: #4040a0;
+  --color-stone-500: #6060b0;
+  --color-stone-400: #8888cc;
+  --color-stone-300: #aaaadd;
+  --color-amber-950: #1a1040;
+  --color-amber-900: #2d1f70;
+  --color-amber-800: #3f2fa0;
+  --color-amber-700: #6366f1;
+  --color-amber-600: #818cf8;
+  --color-amber-500: #a5b4fc;
+  --color-amber-400: #c7d2fe;
+  --color-amber-300: #ddd6fe;
+  --color-amber-200: #ede9fe;
+  --color-amber-100: #f5f3ff;
+  --color-amber-50:  #faf5ff;
+}
+
+[data-theme="rose"] {
+  --color-stone-950: #180a0a;
+  --color-stone-900: #2d1010;
+  --color-stone-800: #3d1818;
+  --color-stone-700: #5a2020;
+  --color-stone-600: #7a3535;
+  --color-stone-500: #a05060;
+  --color-stone-400: #c07888;
+  --color-stone-300: #d8a0a8;
+  --color-amber-950: #400a18;
+  --color-amber-900: #6b1025;
+  --color-amber-800: #9b1535;
+  --color-amber-700: #e11d48;
+  --color-amber-600: #f43f5e;
+  --color-amber-500: #fb7185;
+  --color-amber-400: #fda4af;
+  --color-amber-300: #fecdd3;
+  --color-amber-200: #ffe4e6;
+  --color-amber-100: #fff1f2;
+  --color-amber-50:  #fff5f6;
+}
+
+[data-theme="forest"] {
+  --color-stone-950: #030f07;
+  --color-stone-900: #071a0f;
+  --color-stone-800: #0d2b18;
+  --color-stone-700: #153d24;
+  --color-stone-600: #1e5530;
+  --color-stone-500: #2d7a46;
+  --color-stone-400: #4a9e60;
+  --color-stone-300: #74bb88;
+  --color-amber-950: #031a0a;
+  --color-amber-900: #064a1a;
+  --color-amber-800: #096b26;
+  --color-amber-700: #059669;
+  --color-amber-600: #10b981;
+  --color-amber-500: #34d399;
+  --color-amber-400: #6ee7b7;
+  --color-amber-300: #a7f3d0;
+  --color-amber-200: #d1fae5;
+  --color-amber-100: #ecfdf5;
+  --color-amber-50:  #f0fdf4;
+}
+
+[data-theme="ocean"] {
+  --color-stone-950: #030d18;
+  --color-stone-900: #061a2e;
+  --color-stone-800: #0c2a45;
+  --color-stone-700: #143d5e;
+  --color-stone-600: #1e5478;
+  --color-stone-500: #2d7499;
+  --color-stone-400: #4a9ab8;
+  --color-stone-300: #74bcd3;
+  --color-amber-950: #031420;
+  --color-amber-900: #063b50;
+  --color-amber-800: #0a5e7a;
+  --color-amber-700: #0891b2;
+  --color-amber-600: #06b6d4;
+  --color-amber-500: #22d3ee;
+  --color-amber-400: #67e8f9;
+  --color-amber-300: #a5f3fc;
+  --color-amber-200: #cffafe;
+  --color-amber-100: #ecfeff;
+  --color-amber-50:  #f0fdff;
+}
+
 /* ── Jazz coffee shop theme tokens ── */
 @theme inline {
   /* Fonts */

@@ -206,17 +206,20 @@ export default function RealDebridBrowser({ rdApiKey, torBoxApiKey }: Props) {
 
   async function handleStartSession(stream: RdStream) {
     let title = ''
+    let thumbnailUrl: string | undefined
     if (selectedMovie) {
       title = selectedMovie.title
+      if (selectedMovie.poster_path) thumbnailUrl = `https://image.tmdb.org/t/p/w500${selectedMovie.poster_path}`
     } else if (selectedShow && selectedSeason && selectedEpisode) {
       title = `${selectedShow.name} S${pad(selectedSeason.season_number)}E${pad(selectedEpisode.episode_number)}`
+      if (selectedShow.poster_path) thumbnailUrl = `https://image.tmdb.org/t/p/w500${selectedShow.poster_path}`
     }
     const fallbacks = (compatOnly ? streams.filter(isCompatible) : streams)
       .filter(s => s.url !== stream.url && s.url?.startsWith('https://'))
       .slice(0, 5)
       .map(s => s.url)
     setStarting(stream.url)
-    const result = await createWatchSessionFromUrl(title, stream.url, fallbacks)
+    const result = await createWatchSessionFromUrl(title, stream.url, fallbacks, thumbnailUrl)
     if (result?.sessionId) {
       router.push(`/watch/${result.sessionId}`)
     } else {

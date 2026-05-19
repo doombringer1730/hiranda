@@ -36,14 +36,14 @@ export async function createWatchSession(title: string, storagePath: string) {
   return { sessionId: session.id }
 }
 
-export async function createWatchSessionFromUrl(title: string, url: string, fallbackUrls: string[] = []) {
+export async function createWatchSessionFromUrl(title: string, url: string, fallbackUrls: string[] = [], thumbnailUrl?: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const { data: session, error } = await supabase
     .from('watch_sessions')
-    .insert({ title, storage_path: '', source_type: 'url', source_url: url, fallback_urls: fallbackUrls, created_by: user.id })
+    .insert({ title, storage_path: '', source_type: 'url', source_url: url, fallback_urls: fallbackUrls, thumbnail_url: thumbnailUrl ?? null, created_by: user.id })
     .select()
     .single()
 
@@ -66,6 +66,15 @@ export async function createWatchSessionLocal(title: string, filename: string) {
   if (error || !session) return { error: error?.message ?? 'Failed to create session' }
   revalidatePath('/watch')
   return { sessionId: session.id }
+}
+
+export async function updateWatchSession(id: string, title: string, thumbnailUrl: string | null) {
+  const supabase = await createClient()
+  await supabase
+    .from('watch_sessions')
+    .update({ title: title.trim(), thumbnail_url: thumbnailUrl || null })
+    .eq('id', id)
+  revalidatePath('/watch')
 }
 
 export async function deleteWatchSession(id: string, storagePath: string | null) {

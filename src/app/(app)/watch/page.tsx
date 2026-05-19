@@ -1,20 +1,27 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal, getCoupleData } from './actions'
+import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal, getCoupleData, updateWatchSession, deleteWatchSession } from './actions'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, Library, Search } from 'lucide-react'
+import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, Library, Search, MoreHorizontal, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import JellyfinBrowser, { JellyfinNotConfigured } from './jellyfin-browser'
 import RealDebridBrowser, { RealDebridNotConfigured } from './real-debrid-browser'
 
-type WatchSession = { id: string; title: string; created_at: string; source_type: string | null }
+type WatchSession = { id: string; title: string; created_at: string; source_type: string | null; thumbnail_url: string | null }
 type Tab = 'upload' | 'url' | 'local' | 'jellyfin' | 'stream'
 
 export default function WatchPage() {
   const [sessions, setSessions] = useState<WatchSession[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [editingSession, setEditingSession] = useState<WatchSession | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editThumbnail, setEditThumbnail] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState<Tab>('upload')
   const [jellyfinUrl, setJellyfinUrl] = useState('')
   const [jellyfinApiKey, setJellyfinApiKey] = useState('')
@@ -34,7 +41,7 @@ export default function WatchPage() {
     const supabase = createClient()
     supabase
       .from('watch_sessions')
-      .select('id, title, created_at, source_type')
+      .select('id, title, created_at, source_type, thumbnail_url')
       .order('created_at', { ascending: false })
       .then(({ data }) => setSessions(data ?? []))
 
@@ -45,6 +52,42 @@ export default function WatchPage() {
       if (data?.torbox_api_key) setTbApiKey(data.torbox_api_key)
     })
   }, [])
+
+  function openEdit(s: WatchSession) {
+    setEditingSession(s)
+    setEditTitle(s.title)
+    setEditThumbnail(s.thumbnail_url ?? '')
+    setShowDeleteConfirm(false)
+    setDeleteConfirmText('')
+  }
+
+  function closeEdit() {
+    setEditingSession(null)
+    setShowDeleteConfirm(false)
+    setDeleteConfirmText('')
+  }
+
+  async function handleSave() {
+    if (!editingSession || !editTitle.trim()) return
+    setSaving(true)
+    await updateWatchSession(editingSession.id, editTitle, editThumbnail || null)
+    setSessions(prev => prev.map(s =>
+      s.id === editingSession.id
+        ? { ...s, title: editTitle.trim(), thumbnail_url: editThumbnail || null }
+        : s
+    ))
+    setSaving(false)
+    closeEdit()
+  }
+
+  async function handleDelete() {
+    if (!editingSession || deleteConfirmText !== editingSession.title) return
+    setDeleting(true)
+    await deleteWatchSession(editingSession.id, null)
+    setSessions(prev => prev.filter(s => s.id !== editingSession.id))
+    setDeleting(false)
+    closeEdit()
+  }
 
   function reset() {
     setTitle(''); setUrl(''); setFile(null); setLocalFile(null)
@@ -244,28 +287,118 @@ export default function WatchPage() {
 
       <div className="flex flex-col gap-3">
         {sessions.map((s) => (
-          <Link key={s.id} href={`/watch/${s.id}`}
-            className="flex items-center gap-4 bg-stone-900/80 border border-stone-800/80 hover:border-amber-800/50 rounded-xl px-5 py-4 transition-colors group card-glow"
-          >
-            <div className="w-10 h-10 bg-stone-800 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Play size={18} className="text-amber-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-amber-100 group-hover:text-amber-300 transition-colors truncate">{s.title}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-stone-500 text-xs">
-                  {new Date(s.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                </p>
-                {s.source_type && s.source_type !== 'upload' && (
-                  <span className="text-xs bg-stone-800 text-stone-500 px-2 py-0.5 rounded-full">
-                    {s.source_type === 'url' ? 'Link' : 'Local'}
-                  </span>
-                )}
+          <div key={s.id} className="relative group">
+            <Link href={`/watch/${s.id}`}
+              className="flex items-center bg-stone-900/80 border border-stone-800/80 hover:border-amber-800/50 rounded-xl overflow-hidden transition-colors card-glow"
+            >
+              {s.thumbnail_url
+                ? <img src={s.thumbnail_url} alt={s.title} className="w-14 h-20 object-cover flex-shrink-0" />
+                : <div className="w-14 h-20 bg-stone-800 flex items-center justify-center flex-shrink-0">
+                    <Play size={18} className="text-amber-500" />
+                  </div>
+              }
+              <div className="flex-1 min-w-0 py-3 pl-4 pr-10">
+                <p className="text-amber-100 group-hover:text-amber-300 transition-colors truncate">{s.title}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-stone-500 text-xs">
+                    {new Date(s.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </p>
+                  {s.source_type && s.source_type !== 'upload' && (
+                    <span className="text-xs bg-stone-800 text-stone-500 px-2 py-0.5 rounded-full">
+                      {s.source_type === 'url' ? 'Link' : 'Local'}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          </Link>
+            </Link>
+            <button
+              onClick={() => openEdit(s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-stone-600 hover:text-stone-300 transition-colors"
+            >
+              <MoreHorizontal size={16} />
+            </button>
+          </div>
         ))}
       </div>
+
+      {/* Edit sheet */}
+      {editingSession && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-40" onClick={closeEdit} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-stone-900 border-t border-stone-800 rounded-t-2xl px-5 pt-5 pb-10 md:max-w-lg md:left-1/2 md:-translate-x-1/2 md:rounded-2xl md:bottom-8 md:border">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-amber-100 font-medium">Edit session</h3>
+              <button onClick={closeEdit} className="text-stone-500 hover:text-stone-300 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 mb-6">
+              <div>
+                <label className="text-stone-400 text-xs uppercase tracking-widest mb-1.5 block">Title</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 focus:outline-none focus:border-amber-700 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-stone-400 text-xs uppercase tracking-widest mb-1.5 block">Poster URL</label>
+                <input
+                  type="url"
+                  value={editThumbnail}
+                  onChange={e => setEditThumbnail(e.target.value)}
+                  placeholder="https://image.tmdb.org/…"
+                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleSave}
+              disabled={!editTitle.trim() || saving}
+              className="w-full bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors mb-4 flex items-center justify-center gap-2"
+            >
+              {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : 'Save'}
+            </button>
+
+            <button
+              onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText('') }}
+              className="w-full flex items-center justify-center gap-2 text-stone-500 hover:text-red-400 text-sm transition-colors py-2"
+            >
+              <Trash2 size={15} /> Delete session
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Delete confirmation */}
+      {showDeleteConfirm && editingSession && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/80" onClick={() => setShowDeleteConfirm(false)} />
+          <div className="relative bg-stone-900 border border-stone-800 rounded-2xl p-5 w-full max-w-sm">
+            <h3 className="text-amber-100 font-medium mb-2">Delete session?</h3>
+            <p className="text-stone-400 text-sm mb-5">
+              This permanently deletes <span className="text-amber-200 font-medium">{editingSession.title}</span> and cannot be undone.
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={e => setDeleteConfirmText(e.target.value)}
+              placeholder="Type the session title to confirm"
+              className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-red-700 transition-colors mb-3 text-sm"
+            />
+            <button
+              onClick={handleDelete}
+              disabled={deleteConfirmText !== editingSession.title || deleting}
+              className="w-full bg-red-900/60 hover:bg-red-900 disabled:opacity-40 text-red-300 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2"
+            >
+              {deleting ? <><Loader2 size={16} className="animate-spin" /> Deleting…</> : 'Delete permanently'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

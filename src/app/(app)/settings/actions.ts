@@ -104,3 +104,53 @@ export async function saveRealDebridSettings(apiKey: string) {
 
   revalidatePath('/settings')
 }
+
+export async function saveUsername(username: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const clean = username.trim().toLowerCase()
+  if (!/^[a-z0-9_-]{3,20}$/.test(clean))
+    return { error: 'Must be 3–20 characters: letters, numbers, _ or -' }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ username: clean })
+    .eq('id', user.id)
+    .is('username', null)
+
+  if (error) {
+    if (error.code === '23505') return { error: 'That username is already taken.' }
+    return { error: error.message }
+  }
+
+  revalidatePath('/settings')
+  return {}
+}
+
+export async function saveAvatarUrl(avatarUrl: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  await supabase
+    .from('profiles')
+    .update({ avatar_url: avatarUrl })
+    .eq('id', user.id)
+
+  revalidatePath('/settings')
+}
+
+export async function saveTheme(theme: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  await supabase
+    .from('couple')
+    .update({ theme })
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+
+  revalidatePath('/', 'layout')
+}

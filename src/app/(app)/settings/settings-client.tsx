@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { updateTogetherSince, toggleTimer, updateDisplayName, saveJellyfinSettings, saveRealDebridSettings, saveTorBoxSettings } from './actions'
-import { Copy, Check } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { updateTogetherSince, toggleTimer, updateDisplayName, saveJellyfinSettings, saveRealDebridSettings, saveTorBoxSettings, saveTheme, saveUsername, saveAvatarUrl } from './actions'
+import { Copy, Check, UserCircle, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 type InviteProps = { type: 'invite'; inviteLink: string }
 type TimerProps = { type: 'timer'; showTimer: boolean; togetherSince: string }
@@ -10,15 +11,161 @@ type NameProps = { type: 'name'; displayName: string }
 type JellyfinProps = { type: 'jellyfin'; jellyfinUrl: string; jellyfinApiKey: string }
 type RealDebridProps = { type: 'realdebrid'; rdApiKey: string }
 type TorBoxProps = { type: 'torbox'; apiKey: string }
-type Props = InviteProps | TimerProps | NameProps | JellyfinProps | RealDebridProps | TorBoxProps
+type ThemeProps = { type: 'theme'; currentTheme: string }
+type UsernameProps = { type: 'username'; username: string | null }
+type AvatarProps = { type: 'avatar'; avatarUrl: string | null; userId: string }
+type Props = InviteProps | TimerProps | NameProps | JellyfinProps | RealDebridProps | TorBoxProps | ThemeProps | UsernameProps | AvatarProps
 
 export default function SettingsClient(props: Props) {
   if (props.type === 'invite') return <InviteSection {...props} />
   if (props.type === 'name') return <NameSection {...props} />
+  if (props.type === 'username') return <UsernameSection {...props} />
+  if (props.type === 'avatar') return <AvatarSection {...props} />
   if (props.type === 'jellyfin') return <JellyfinSection {...props} />
   if (props.type === 'realdebrid') return <RealDebridSection {...props} />
   if (props.type === 'torbox') return <TorBoxSection {...props} />
+  if (props.type === 'theme') return <ThemeSection {...props} />
   return <TimerSection {...props} />
+}
+
+function UsernameSection({ username }: UsernameProps) {
+  const [value, setValue] = useState(username ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  const locked = !!username
+
+  async function handleSave() {
+    setError(null)
+    const result = await saveUsername(value)
+    if (result?.error) setError(result.error)
+    else setSaved(true)
+  }
+
+  if (locked) {
+    return (
+      <div className="flex items-center gap-3 bg-stone-950 border border-stone-800 rounded-xl px-4 py-3">
+        <span className="text-amber-50 flex-1">@{username}</span>
+        <span className="text-stone-600 text-xs">locked</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 pointer-events-none">@</span>
+          <input
+            type="text"
+            value={value}
+            onChange={e => setValue(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+            maxLength={20}
+            disabled={saved}
+            className="w-full bg-stone-950 border border-stone-800 rounded-xl pl-8 pr-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+            placeholder="yourname"
+          />
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={value.length < 3 || saved}
+          className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 text-sm px-4 py-3 rounded-xl transition-colors flex-shrink-0"
+        >
+          {saved ? 'Saved!' : 'Save'}
+        </button>
+      </div>
+      {error && <p className="text-red-400 text-sm">{error}</p>}
+      <p className="text-stone-600 text-xs px-1">Becomes your profile URL — can't be changed after saving.</p>
+    </div>
+  )
+}
+
+function AvatarSection({ avatarUrl, userId }: AvatarProps) {
+  const [preview, setPreview] = useState<string | null>(avatarUrl)
+  const [uploading, setUploading] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+
+    const supabase = createClient()
+    const { error } = await supabase.storage
+      .from('avatars')
+      .upload(userId, file, { upsert: true, contentType: file.type })
+
+    if (!error) {
+      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${userId}`
+      setPreview(url + '?t=' + Date.now())
+      await saveAvatarUrl(url)
+    }
+    setUploading(false)
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <button
+        onClick={() => inputRef.current?.click()}
+        className="relative w-16 h-16 rounded-2xl bg-stone-800 border border-stone-700 overflow-hidden flex-shrink-0 hover:border-amber-700 transition-colors flex items-center justify-center"
+      >
+        {preview
+          ? <img src={preview} alt="Avatar" className="w-full h-full object-cover" />
+          : <UserCircle size={32} className="text-stone-600" />}
+        {uploading && (
+          <div className="absolute inset-0 bg-stone-950/70 flex items-center justify-center">
+            <Loader2 size={18} className="animate-spin text-amber-500" />
+          </div>
+        )}
+      </button>
+      <div>
+        <p className="text-stone-300 text-sm mb-1">{preview ? 'Tap to change' : 'Upload a photo'}</p>
+        <p className="text-stone-600 text-xs">Square images look best.</p>
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+    </div>
+  )
+}
+
+const THEMES = [
+  { key: 'coffee',   name: 'Coffee',   bg: '#0e0804', accent: '#b45309', text: '#fef3c7' },
+  { key: 'midnight', name: 'Midnight', bg: '#07071a', accent: '#6366f1', text: '#f5f3ff' },
+  { key: 'rose',     name: 'Rose',     bg: '#180a0a', accent: '#e11d48', text: '#fff1f2' },
+  { key: 'forest',   name: 'Forest',   bg: '#030f07', accent: '#059669', text: '#ecfdf5' },
+  { key: 'ocean',    name: 'Ocean',    bg: '#030d18', accent: '#0891b2', text: '#ecfeff' },
+]
+
+function ThemeSection({ currentTheme }: ThemeProps) {
+  const [active, setActive] = useState(currentTheme)
+
+  async function handleSelect(key: string) {
+    setActive(key)
+    document.documentElement.setAttribute('data-theme', key)
+    await saveTheme(key)
+  }
+
+  return (
+    <div className="flex flex-wrap gap-3">
+      {THEMES.map(t => (
+        <button
+          key={t.key}
+          onClick={() => handleSelect(t.key)}
+          className="flex flex-col items-center gap-2 group"
+        >
+          <div
+            className={`w-14 h-14 rounded-2xl border-2 transition-all flex items-end justify-end p-1.5 ${
+              active === t.key ? 'border-amber-500 scale-105' : 'border-transparent hover:border-stone-600'
+            }`}
+            style={{ background: t.bg }}
+          >
+            <div className="w-5 h-5 rounded-lg" style={{ background: t.accent }} />
+          </div>
+          <span className={`text-xs transition-colors ${active === t.key ? 'text-amber-300' : 'text-stone-500 group-hover:text-stone-400'}`}>
+            {t.name}
+          </span>
+        </button>
+      ))}
+    </div>
+  )
 }
 
 function NameSection({ displayName }: NameProps) {

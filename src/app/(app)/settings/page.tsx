@@ -10,11 +10,12 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase
     .from('profiles')
-    .select('display_name')
+    .select('display_name, username, avatar_url')
     .eq('id', user!.id)
     .single()
 
   const couple = await getOrCreateCouple()
+  const theme = (couple as { theme?: string })?.theme ?? 'coffee'
 
   const headersList = await headers()
   const host = headersList.get('host') ?? 'localhost:3000'
@@ -26,6 +27,27 @@ export default async function SettingsPage() {
       <h2 className="font-serif text-3xl text-amber-100 mb-8">Settings</h2>
 
       <div className="flex flex-col gap-4">
+
+        {/* Theme */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">Theme</h3>
+          <p className="text-stone-500 text-sm mb-4">Shared with your partner — you both see the same one.</p>
+          <SettingsClient type="theme" currentTheme={theme} />
+        </section>
+
+        {/* Avatar */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">Avatar</h3>
+          <p className="text-stone-500 text-sm mb-4">Shown on your profile and next to things you add.</p>
+          <SettingsClient type="avatar" avatarUrl={profile?.avatar_url ?? null} userId={user!.id} />
+        </section>
+
+        {/* Username */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">Username</h3>
+          <p className="text-stone-500 text-sm mb-4">Your public profile URL — set once, can't be changed.</p>
+          <SettingsClient type="username" username={profile?.username ?? null} />
+        </section>
 
         {/* Your name */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
