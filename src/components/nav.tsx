@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState, useEffect } from 'react'
-import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X, Clapperboard } from 'lucide-react'
+import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X, Clapperboard, LogOut } from 'lucide-react'
 import { SidebarTimer } from './couple-timer'
+import { logout } from '@/app/(auth)/actions'
 
 const links = [
   { href: '/',            label: 'Memories',    icon: BookOpen      },
@@ -86,6 +87,12 @@ export default function Nav() {
         </nav>
         <SidebarTimer />
         <NavLink href="/settings" label="Settings" icon={Settings} active={pathname === '/settings'} />
+        <form action={logout}>
+          <button type="submit" className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-stone-500 hover:text-red-400 hover:bg-stone-800/70 transition-all duration-200 w-full">
+            <LogOut size={17} />
+            <span>Sign out</span>
+          </button>
+        </form>
       </aside>
 
       {/* ── Mobile: hamburger button ── */}
@@ -143,7 +150,7 @@ export default function Nav() {
           })}
         </nav>
 
-        {/* Settings at bottom */}
+        {/* Settings + logout at bottom */}
         <div className="px-3 pb-8 flex-shrink-0">
           <div className="h-px bg-stone-800/60 mb-3" />
           <NavLink
@@ -153,6 +160,12 @@ export default function Nav() {
             active={pathname === '/settings'}
             onClick={() => setOpen(false)}
           />
+          <form action={logout}>
+            <button type="submit" className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-stone-500 hover:text-red-400 hover:bg-stone-800/70 transition-all duration-200 w-full">
+              <LogOut size={17} />
+              <span>Sign out</span>
+            </button>
+          </form>
         </div>
       </aside>
     </>
