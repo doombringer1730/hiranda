@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import CopyInviteButton from './copy-button'
+import { logout } from '@/app/(auth)/actions'
 
 export default async function InvitePartnerPage() {
   const supabase = await createClient()
@@ -37,9 +38,15 @@ export default async function InvitePartnerPage() {
           <CopyInviteButton link={inviteLink} />
         </div>
 
-        <p className="text-stone-600 text-xs">
+        <p className="text-stone-600 text-xs mb-8">
           This link only works once. Once your partner joins you'll both land in the app automatically.
         </p>
+
+        <form action={logout}>
+          <button type="submit" className="text-stone-600 hover:text-stone-400 text-sm transition-colors">
+            ← Back to sign in
+          </button>
+        </form>
       </div>
     </main>
   )
