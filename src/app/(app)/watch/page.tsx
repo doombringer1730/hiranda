@@ -9,7 +9,13 @@ import { createClient } from '@/lib/supabase/client'
 import JellyfinBrowser, { JellyfinNotConfigured } from './jellyfin-browser'
 import RealDebridBrowser, { RealDebridNotConfigured } from './real-debrid-browser'
 
-type WatchSession = { id: string; title: string; created_at: string; source_type: string | null; thumbnail_url: string | null }
+const PLATFORM_LABELS: Record<string, string> = {
+  netflix: 'Netflix', youtube: 'YouTube', disney: 'Disney+',
+  prime: 'Prime Video', max: 'Max', hulu: 'Hulu',
+  appletv: 'Apple TV+', paramount: 'Paramount+',
+}
+
+type WatchSession = { id: string; title: string; created_at: string; source_type: string | null; thumbnail_url: string | null; platform: string | null }
 type Tab = 'upload' | 'url' | 'local' | 'jellyfin' | 'stream'
 
 export default function WatchPage() {
@@ -41,7 +47,7 @@ export default function WatchPage() {
     const supabase = createClient()
     supabase
       .from('watch_sessions')
-      .select('id, title, created_at, source_type, thumbnail_url')
+      .select('id, title, created_at, source_type, thumbnail_url, platform')
       .order('created_at', { ascending: false })
       .then(({ data }) => setSessions(data ?? []))
 
@@ -286,39 +292,53 @@ export default function WatchPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        {sessions.map((s) => (
-          <div key={s.id} className="relative group">
-            <Link href={`/watch/${s.id}`}
-              className="flex items-center bg-stone-900/80 border border-stone-800/80 hover:border-amber-800/50 rounded-xl overflow-hidden transition-colors card-glow"
-            >
-              {s.thumbnail_url
-                ? <img src={s.thumbnail_url} alt={s.title} className="w-14 h-20 object-cover flex-shrink-0" />
-                : <div className="w-14 h-20 bg-stone-800 flex items-center justify-center flex-shrink-0">
-                    <Play size={18} className="text-amber-500" />
+        {sessions.map((s) => {
+          const isParty = s.source_type === 'party'
+          const href = isParty ? `/party/${s.id}` : `/watch/${s.id}`
+          const platformLabel = isParty && s.platform ? (PLATFORM_LABELS[s.platform] ?? s.platform) : null
+
+          return (
+            <div key={s.id} className="relative group">
+              <Link href={href}
+                className="flex items-center bg-stone-900/80 border border-stone-800/80 hover:border-amber-800/50 rounded-xl overflow-hidden transition-colors card-glow"
+              >
+                {s.thumbnail_url
+                  ? <img src={s.thumbnail_url} alt={s.title} className="w-14 h-20 object-cover flex-shrink-0" />
+                  : <div className="w-14 h-20 bg-stone-800 flex items-center justify-center flex-shrink-0">
+                      {isParty
+                        ? <span className="text-lg">🎬</span>
+                        : <Play size={18} className="text-amber-500" />
+                      }
+                    </div>
+                }
+                <div className="flex-1 min-w-0 py-3 pl-4 pr-10">
+                  <p className="text-amber-100 group-hover:text-amber-300 transition-colors truncate">{s.title}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-stone-500 text-xs">
+                      {new Date(s.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                    </p>
+                    {isParty && platformLabel && (
+                      <span className="text-xs bg-amber-950/50 text-amber-600 border border-amber-900/50 px-2 py-0.5 rounded-full">
+                        {platformLabel}
+                      </span>
+                    )}
+                    {!isParty && s.source_type && s.source_type !== 'upload' && (
+                      <span className="text-xs bg-stone-800 text-stone-500 px-2 py-0.5 rounded-full">
+                        {s.source_type === 'url' ? 'Link' : 'Local'}
+                      </span>
+                    )}
                   </div>
-              }
-              <div className="flex-1 min-w-0 py-3 pl-4 pr-10">
-                <p className="text-amber-100 group-hover:text-amber-300 transition-colors truncate">{s.title}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <p className="text-stone-500 text-xs">
-                    {new Date(s.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                  </p>
-                  {s.source_type && s.source_type !== 'upload' && (
-                    <span className="text-xs bg-stone-800 text-stone-500 px-2 py-0.5 rounded-full">
-                      {s.source_type === 'url' ? 'Link' : 'Local'}
-                    </span>
-                  )}
                 </div>
-              </div>
-            </Link>
-            <button
-              onClick={() => openEdit(s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-stone-600 hover:text-stone-300 transition-colors"
-            >
-              <MoreHorizontal size={16} />
-            </button>
-          </div>
-        ))}
+              </Link>
+              <button
+                onClick={() => openEdit(s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-stone-600 hover:text-stone-300 transition-colors"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+            </div>
+          )
+        })}
       </div>
 
       {/* Edit sheet */}

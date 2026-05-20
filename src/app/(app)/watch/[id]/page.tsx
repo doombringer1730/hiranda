@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import WatchPlayer from './watch-player'
 import { deleteWatchSession } from '../actions'
 
@@ -14,6 +14,7 @@ export default async function WatchSessionPage({ params }: { params: Promise<{ i
     .single()
 
   if (!session) notFound()
+  if (session.source_type === 'party') redirect(`/party/${id}`)
 
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profiles } = await supabase.from('profiles').select('id, display_name')
