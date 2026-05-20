@@ -24,6 +24,7 @@ export default async function PartyPage({ params }: { params: Promise<{ id: stri
       sessionId={id}
       title={session.title}
       platform={session.platform ?? null}
+      partyUrl={session.party_url ?? null}
       thumbnailUrl={session.thumbnail_url ?? null}
       userId={user!.id}
       profileMap={profileMap}
