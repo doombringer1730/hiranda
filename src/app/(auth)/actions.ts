@@ -10,7 +10,8 @@ export async function login(_: unknown, formData: FormData) {
     password: formData.get('password') as string,
   })
   if (error) return { error: error.message }
-  redirect('/')
+  const next = formData.get('next') as string | null
+  redirect(next?.startsWith('/') ? next : '/')
 }
 
 export async function signup(_: unknown, formData: FormData) {
@@ -19,6 +20,8 @@ export async function signup(_: unknown, formData: FormData) {
   const password = formData.get('password') as string
   const displayName = formData.get('display_name') as string
   const inviteToken = formData.get('invite_token') as string | null
+  const next = formData.get('next') as string | null
+  const safeNext = next?.startsWith('/') ? next : null
 
   const { data, error } = await supabase.auth.signUp({ email, password })
   if (error) return { error: error.message }
@@ -36,14 +39,14 @@ export async function signup(_: unknown, formData: FormData) {
         .eq('invite_token', inviteToken.trim())
         .is('user2_id', null)
       if (joinError) return { error: 'That invite link is invalid or has already been used.' }
-      redirect('/')
+      redirect(safeNext ?? '/')
     } else {
       await supabase.from('couple').insert({ user1_id: data.user.id })
       redirect('/invite-partner')
     }
   }
 
-  redirect('/')
+  redirect(safeNext ?? '/')
 }
 
 export async function logout() {

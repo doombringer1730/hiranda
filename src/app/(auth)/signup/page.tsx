@@ -10,6 +10,7 @@ function SignupForm() {
   const [state, formAction, pending] = useActionState(signup, null)
   const searchParams = useSearchParams()
   const tokenFromUrl = searchParams.get('token') ?? ''
+  const next = searchParams.get('next') ?? ''
   const [mode, setMode] = useState<'choose' | 'new' | 'join'>(
     tokenFromUrl ? 'join' : 'choose'
   )
@@ -45,8 +46,20 @@ function SignupForm() {
 
           <p className="text-stone-500 text-sm text-center mt-8">
             Already have an account?{' '}
-            <Link href="/login" className="text-amber-500 hover:text-amber-400 transition-colors">Sign in</Link>
+            <Link
+              href={next ? `/login?next=${encodeURIComponent(next)}` : '/login'}
+              className="text-amber-500 hover:text-amber-400 transition-colors"
+            >
+              Sign in
+            </Link>
           </p>
+
+          <Link
+            href={next ? `/login?next=${encodeURIComponent(next)}` : '/login'}
+            className="text-stone-600 hover:text-stone-400 text-sm text-center mt-4 block transition-colors"
+          >
+            ← Back
+          </Link>
         </div>
       </main>
     )
@@ -63,6 +76,7 @@ function SignupForm() {
 
         <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="invite_token" value={inviteToken} />
+          {next && <input type="hidden" name="next" value={next} />}
 
           {state?.error && (
             <p className="text-red-400 text-sm text-center bg-red-950/30 rounded-lg px-4 py-3">
