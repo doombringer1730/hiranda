@@ -274,10 +274,6 @@ async function handle(msg, sender) {
 
       const { kind } = msg.payload
 
-      // Only host broadcasts play/pause/seek — prevents oscillation.
-      // Either partner can broadcast buffering events.
-      if (!isHost && kind !== 'buffering' && kind !== 'resume') return { ok: true }
-
       if (sender.tab?.id) {
         activeTabId = sender.tab.id
         chrome.storage.local.set({ active_tab_id: activeTabId })

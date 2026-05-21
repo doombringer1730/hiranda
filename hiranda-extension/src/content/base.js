@@ -177,7 +177,7 @@ chrome.runtime.onMessage.addListener(msg => {
 setInterval(() => {
   if (isYouTube || !adapter || !inParty || frozen) return
   sendSync('heartbeat', adapter.getState(), adapter.getPos(), Date.now(), adapter.getDur())
-}, 1000)
+}, 5000)
 
 // ── On page load: restore party state if already in session ──────────────────
 
