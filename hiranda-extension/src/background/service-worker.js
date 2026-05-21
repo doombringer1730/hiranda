@@ -159,14 +159,26 @@ chrome.runtime.onConnect.addListener(port => {
   port.onDisconnect.addListener(() => {})
 })
 
-// ── SPA navigation: reinit content script adapter after URL change ─────────────
+// ── SPA navigation: reinit adapter only when the video ID actually changes ────
+// YouTube strips query params (like ?hiranda=) immediately, which looks like
+// navigation but isn't a real video change — ignore those.
+
+function extractVideoId(url) {
+  try {
+    const u = new URL(url)
+    return u.searchParams.get('v') ?? u.pathname.split('/').pop()
+  } catch (_) { return null }
+}
+
+let lastVideoId = null
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (tabId !== activeTabId || !sessionId) return
-  if (changeInfo.url) {
-    log('SPA navigation detected, reiniting adapter')
-    setTimeout(() => chrome.tabs.sendMessage(tabId, { type: 'REINIT_ADAPTER' }).catch(() => {}), 1500)
-  }
+  if (tabId !== activeTabId || !sessionId || !changeInfo.url) return
+  const newId = extractVideoId(changeInfo.url)
+  if (!newId || newId === lastVideoId) return  // same video or no ID — ignore
+  lastVideoId = newId
+  log('video changed, reiniting adapter')
+  setTimeout(() => chrome.tabs.sendMessage(tabId, { type: 'REINIT_ADAPTER' }).catch(() => {}), 1500)
 })
 
 // ── Message handler ───────────────────────────────────────────────────────────
