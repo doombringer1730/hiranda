@@ -75,8 +75,9 @@ async function joinChannel(sid, uid, tabId, host) {
       if (payload.from === userId) return
       log('sync received', payload.kind, payload.state, payload.position?.toFixed(1))
 
-      // Apply network latency correction to position
-      const delayMs = Math.max(0, Date.now() - payload.sentAt)
+      // Apply network latency correction — cap at 2s to ignore stale buffered messages
+      const rawDelay = Date.now() - payload.sentAt
+      const delayMs  = Math.max(0, Math.min(rawDelay, 2000))
       const corrected = payload.state === 'playing'
         ? payload.position + (delayMs - clockOffsetMs) / 1000
         : payload.position
