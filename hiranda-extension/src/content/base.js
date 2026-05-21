@@ -189,4 +189,17 @@ chrome.runtime.sendMessage({ type: 'GET_SESSION_STATUS' }, res => {
   }
 })
 
+// Auto-join if URL contains ?hiranda=SESSION_ID (guest clicked "Open on [platform]" from party page)
+const _autoJoinId = new URLSearchParams(location.search).get('hiranda')
+if (_autoJoinId && !inParty) {
+  console.log('[Hiranda] auto-joining from URL:', _autoJoinId)
+  chrome.runtime.sendMessage({ type: 'JOIN_SESSION', sessionId: _autoJoinId }, res => {
+    if (res && !res.error) {
+      console.log('[Hiranda] auto-joined:', _autoJoinId)
+    } else {
+      console.log('[Hiranda] auto-join failed:', res?.error)
+    }
+  })
+}
+
 waitForAdapter()

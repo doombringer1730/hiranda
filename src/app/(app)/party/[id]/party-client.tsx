@@ -180,7 +180,7 @@ export default function PartyClient({
             {/* Open on streaming site */}
             {partyUrl && (
               <a
-                href={partyUrl}
+                href={`${partyUrl}${partyUrl.includes('?') ? '&' : '?'}hiranda=${sessionId}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1.5 bg-amber-700 hover:bg-amber-600 text-amber-50 text-xs font-medium px-3 py-2 rounded-lg transition-colors"

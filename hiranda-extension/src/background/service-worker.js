@@ -234,9 +234,11 @@ async function handle(msg, sender) {
 
       if (error || !data) return { error: 'Party session not found' }
 
-      await joinChannel(data.id, user.id, msg.tabId ?? null, false)
-      if (msg.tabId) chrome.tabs.sendMessage(msg.tabId, { type: 'PARTY_STARTED' }).catch(() => {})
-      log('joined session:', data.id)
+      // tabId from popup message, or sender tab when auto-joining from content script URL param
+      const tabId = msg.tabId ?? sender.tab?.id ?? null
+      await joinChannel(data.id, user.id, tabId, false)
+      if (tabId) chrome.tabs.sendMessage(tabId, { type: 'PARTY_STARTED' }).catch(() => {})
+      log('joined session:', data.id, 'tab:', tabId)
       return { ok: true, title: data.title, platform: data.platform }
     }
 
