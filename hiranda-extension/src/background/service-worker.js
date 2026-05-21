@@ -213,9 +213,15 @@ async function handle(msg, sender) {
 
     case 'REGISTER_TAB': {
       if (sender.tab?.id) {
+        const oldTabId = activeTabId
         activeTabId = sender.tab.id
         await chrome.storage.local.set({ active_tab_id: activeTabId })
         log('registered tab:', activeTabId)
+        // End party on the old tab so it stops broadcasting
+        if (oldTabId && oldTabId !== activeTabId) {
+          log('ending party on old tab:', oldTabId)
+          chrome.tabs.sendMessage(oldTabId, { type: 'PARTY_ENDED' }).catch(() => {})
+        }
       }
       return { ok: true }
     }
@@ -271,6 +277,11 @@ async function handle(msg, sender) {
     case 'SYNC_ACTION': {
       await ensureChannel()
       if (!channel || !userId) return { ok: false }
+
+      // Reject sync from non-active tabs (prevents multi-tab oscillation)
+      if (sender.tab?.id && activeTabId && sender.tab.id !== activeTabId) {
+        return { ok: true }
+      }
 
       const { kind } = msg.payload
 
