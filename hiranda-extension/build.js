@@ -39,6 +39,7 @@ for (const [src, dest] of [
   ['src/content/hulu.js',       'dist/content/hulu.js'],
   ['src/content/appletv.js',    'dist/content/appletv.js'],
   ['src/content/paramount.js',  'dist/content/paramount.js'],
+  ['src/content/chat-overlay.js', 'dist/content/chat-overlay.js'],
   ['src/popup/popup.html',      'dist/popup/popup.html'],
   ['src/popup/popup.js',        'dist/popup/popup.js'],
   ['src/popup/popup.css',       'dist/popup/popup.css'],

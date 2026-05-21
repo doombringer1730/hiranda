@@ -27,6 +27,12 @@ let sessionId    = null
 let userId       = null
 let activeTabId  = null
 let isHost       = false
+let myProfile    = { username: null, avatarUrl: null }
+
+async function fetchProfile(uid) {
+  const { data } = await sb().from('profiles').select('username, avatar_url').eq('id', uid).single()
+  return data ? { username: data.username, avatarUrl: data.avatar_url } : { username: null, avatarUrl: null }
+}
 
 // Last authoritative state from host — used to snap guest back on divergence
 let lastHostState = null
@@ -107,6 +113,18 @@ async function joinChannel(sid, uid, tabId, host) {
       log('NTP offset updated:', clockOffsetMs, 'ms  rtt:', rtt, 'ms')
     })
 
+    // ── Chat ──
+    .on('broadcast', { event: 'chat' }, ({ payload }) => {
+      if (payload.from === userId) return
+      sendToTab({ type: 'CHAT_MESSAGE', payload })
+    })
+
+    // ── Reactions ──
+    .on('broadcast', { event: 'reaction' }, ({ payload }) => {
+      if (payload.from === userId) return
+      sendToTab({ type: 'REACTION_MESSAGE', payload })
+    })
+
     .subscribe((status, err) => {
       log('channel status:', status, err ?? '')
       if (status === 'SUBSCRIBED') {
@@ -125,6 +143,7 @@ async function leaveChannel() {
   isHost      = false
   ntpSamples  = []
   clockOffsetMs = 0
+  myProfile   = { username: null, avatarUrl: null }
   await chrome.storage.local.remove(['session_id', 'is_host'])
   log('left channel')
 }
@@ -135,6 +154,7 @@ async function ensureChannel() {
   if (!user) return
   const s = await chrome.storage.local.get(['session_id', 'active_tab_id', 'is_host'])
   if (s.session_id) {
+    myProfile = await fetchProfile(user.id)
     log('rejoining after SW restart')
     await joinChannel(s.session_id, user.id, s.active_tab_id ?? null, s.is_host ?? false)
   }
@@ -243,8 +263,9 @@ async function handle(msg, sender) {
 
       if (error || !data) return { error: error?.message ?? 'Failed to create session' }
 
+      myProfile = await fetchProfile(user.id)
       await joinChannel(data.id, user.id, msg.tabId ?? null, true)
-      if (msg.tabId) chrome.tabs.sendMessage(msg.tabId, { type: 'PARTY_STARTED' }).catch(() => {})
+      if (msg.tabId) chrome.tabs.sendMessage(msg.tabId, { type: 'PARTY_STARTED', userId: user.id, username: myProfile.username || user.email }).catch(() => {})
       log('session created:', data.id)
       return { sessionId: data.id }
     }
@@ -263,8 +284,9 @@ async function handle(msg, sender) {
 
       // tabId from popup message, or sender tab when auto-joining from content script URL param
       const tabId = msg.tabId ?? sender.tab?.id ?? null
+      myProfile = await fetchProfile(user.id)
       await joinChannel(data.id, user.id, tabId, false)
-      if (tabId) chrome.tabs.sendMessage(tabId, { type: 'PARTY_STARTED' }).catch(() => {})
+      if (tabId) chrome.tabs.sendMessage(tabId, { type: 'PARTY_STARTED', userId: user.id, username: myProfile.username || user.email }).catch(() => {})
       log('joined session:', data.id, 'tab:', tabId)
       return { ok: true, title: data.title, platform: data.platform }
     }
@@ -312,9 +334,31 @@ async function handle(msg, sender) {
       return { ok: true }
     }
 
+    case 'SEND_CHAT': {
+      await ensureChannel()
+      if (!channel || !userId) return { ok: false }
+      channel.send({
+        type: 'broadcast',
+        event: 'chat',
+        payload: { text: msg.text, from: userId, username: myProfile.username || 'Partner', ts: Date.now() },
+      })
+      return { ok: true }
+    }
+
+    case 'SEND_REACTION': {
+      await ensureChannel()
+      if (!channel || !userId) return { ok: false }
+      channel.send({
+        type: 'broadcast',
+        event: 'reaction',
+        payload: { emoji: msg.emoji, from: userId, username: myProfile.username || 'Partner', ts: Date.now() },
+      })
+      return { ok: true }
+    }
+
     case 'GET_SESSION_STATUS': {
       await ensureChannel()
-      return { sessionId, connected: !!channel, isHost }
+      return { sessionId, connected: !!channel, isHost, userId, username: myProfile.username }
     }
   }
 }
@@ -326,6 +370,7 @@ chrome.runtime.onStartup.addListener(async () => {
   if (!user) return
   const s = await chrome.storage.local.get(['session_id', 'active_tab_id', 'is_host'])
   if (s.session_id) {
+    myProfile = await fetchProfile(user.id)
     log('rejoining on startup')
     await joinChannel(s.session_id, user.id, s.active_tab_id ?? null, s.is_host ?? false)
   }

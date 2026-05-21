@@ -33,12 +33,9 @@ export async function signup(_: unknown, formData: FormData) {
     })
 
     if (inviteToken?.trim()) {
-      const { error: joinError } = await supabase
-        .from('couple')
-        .update({ user2_id: data.user.id })
-        .eq('invite_token', inviteToken.trim())
-        .is('user2_id', null)
-      if (joinError) return { error: 'That invite link is invalid or has already been used.' }
+      const { data: joined, error: joinError } = await supabase
+        .rpc('accept_invite', { token: inviteToken.trim(), new_user_id: data.user.id })
+      if (joinError || !joined) return { error: 'That invite link is invalid or has already been used.' }
       redirect(safeNext ?? '/')
     } else {
       await supabase.from('couple').insert({ user1_id: data.user.id })
