@@ -212,6 +212,17 @@ body {
   padding: 12px;
 }
 .session-title { font-size: 14px; color: #fef3c7; font-weight: 500; margin-bottom: 6px; }
+.session-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.role-badge {
+  display: inline-block;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.role-host { background: #1a3a1a; border: 1px solid #166534; color: #86efac; }
+.role-guest { background: #1e1a2e; border: 1px solid #4c1d95; color: #c4b5fd; }
+.guest-hint { font-size: 11px; color: #78716c; text-align: center; }
 .platform-badge {
   display: inline-block;
   background: #451a03;

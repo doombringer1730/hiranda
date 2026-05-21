@@ -192,7 +192,7 @@ function render() {
   }
 
   if (view === 'party') {
-    const { sessionId, title, platform, user } = d
+    const { sessionId, title, platform, user, isHost } = d
     const platformLabel = platform ? (PLATFORM_LABELS[platform] || platform) : null
     const link = `${HIRANDA_URL}/party/${sessionId}`
 
@@ -208,8 +208,12 @@ function render() {
       <div class="body">
         <div class="session-card">
           <div class="session-title">${esc(title || 'Party session')}</div>
-          ${platformLabel ? `<span class="platform-badge">${esc(platformLabel)}</span>` : ''}
+          <div class="session-meta">
+            ${platformLabel ? `<span class="platform-badge">${esc(platformLabel)}</span>` : ''}
+            <span class="role-badge ${isHost ? 'role-host' : 'role-guest'}">${isHost ? 'Host' : 'Guest'}</span>
+          </div>
         </div>
+        ${!isHost ? `<p class="guest-hint">Your partner controls playback. Sit back and enjoy.</p>` : ''}
         <div class="divider-label">invite link</div>
         <div class="invite-row">
           <span class="invite-link">${esc(link)}</span>
@@ -250,14 +254,10 @@ async function boot() {
   if (!auth.user) { view = 'auth'; d = {}; render(); return }
 
   if (auth.sessionId) {
-    // Already in a party — restore party view
+    const status = await send('GET_SESSION_STATUS')
     view = 'party'
-    d = { sessionId: auth.sessionId, title: '', platform: null, user: auth.user }
+    d = { sessionId: auth.sessionId, title: '', platform: null, user: auth.user, isHost: status?.isHost ?? false }
     render()
-    // Fetch session details to fill in title/platform
-    chrome.runtime.sendMessage({ type: 'GET_SESSION_STATUS' }, async () => {
-      // Re-query after brief delay to let service worker re-hydrate
-    })
     return
   }
 
