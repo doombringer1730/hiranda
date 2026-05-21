@@ -195,6 +195,8 @@ if (_autoJoinId && !inParty) {
   console.log('[Hiranda] auto-joining from URL:', _autoJoinId)
   chrome.runtime.sendMessage({ type: 'JOIN_SESSION', sessionId: _autoJoinId }, res => {
     if (res && !res.error) {
+      inParty = true
+      chrome.runtime.sendMessage({ type: 'REGISTER_TAB' }).catch(() => {})
       console.log('[Hiranda] auto-joined:', _autoJoinId)
     } else {
       console.log('[Hiranda] auto-join failed:', res?.error)

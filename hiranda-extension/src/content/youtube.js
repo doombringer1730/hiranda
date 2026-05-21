@@ -116,18 +116,25 @@ waitForPlayer(() => {
     suppress()
 
     if (absDrift > 2) {
-      // Large drift: hard seek
       p.seekTo(position, true)
       p.setPlaybackRate(1.0)
     } else if (absDrift > 1.0 && state === 'playing') {
-      // Small drift: rate adjust (smooth catch-up, no jarring seek)
       p.setPlaybackRate(drift > 0 ? 1.05 : 0.95)
     } else {
       p.setPlaybackRate(1.0)
     }
 
-    const playing = p.getPlayerState() === 1
-    if      (state === 'playing' && !playing) p.playVideo()
-    else if (state === 'paused'  &&  playing) p.pauseVideo()
+    // Apply play/pause after a short delay so any seek has time to settle
+    const applyPlayPause = () => {
+      const playing = p.getPlayerState() === 1
+      if      (state === 'playing' && !playing) { p.playVideo();  console.log('[Hiranda YT] applied play') }
+      else if (state === 'paused'  &&  playing) { p.pauseVideo(); console.log('[Hiranda YT] applied pause') }
+    }
+
+    if (absDrift > 2) {
+      setTimeout(applyPlayPause, 300)  // give seek time to settle
+    } else {
+      applyPlayPause()
+    }
   })
 })
