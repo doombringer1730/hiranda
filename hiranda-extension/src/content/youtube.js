@@ -74,7 +74,7 @@ waitForPlayer(() => {
       sentAt: Date.now(),
       duration: p.getDuration(),
     }, '*')
-  }, 5000)
+  }, 1000)
 
   // ── Inbound: apply sync from base.js ──────────────────────────────────────
 

@@ -28,6 +28,9 @@ let userId       = null
 let activeTabId  = null
 let isHost       = false
 
+// Last authoritative state from host — used to snap guest back on divergence
+let lastHostState = null
+
 // NTP clock offset (local ms - partner ms), rolling median of 5 samples
 let ntpSamples   = []
 let clockOffsetMs = 0
@@ -78,7 +81,12 @@ async function joinChannel(sid, uid, tabId, host) {
         ? payload.position + (delayMs - clockOffsetMs) / 1000
         : payload.position
 
-      sendToTab({ type: 'APPLY_SYNC', payload: { ...payload, position: corrected } })
+      const correctedPayload = { ...payload, position: corrected }
+
+      // Store authoritative host state so we can snap guest back if they diverge
+      lastHostState = correctedPayload
+
+      sendToTab({ type: 'APPLY_SYNC', payload: correctedPayload })
     })
 
     // ── NTP ping (partner sent, we respond) ──
@@ -257,7 +265,9 @@ async function handle(msg, sender) {
       // Only host broadcasts play/pause/seek — prevents oscillation.
       // Either partner can broadcast buffering events.
       if (!isHost && kind !== 'buffering' && kind !== 'resume') {
-        log('guest dropped sync (not host):', kind)
+        log('guest action intercepted — snapping back to host state')
+        // Return last host state so guest content script can immediately revert
+        if (lastHostState) sendToTab({ type: 'APPLY_SYNC', payload: lastHostState })
         return { ok: true }
       }
 
