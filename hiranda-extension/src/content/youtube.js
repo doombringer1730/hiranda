@@ -1,9 +1,10 @@
 // MAIN world — direct access to YouTube's movie_player API
 // Communicates with base.js (ISOLATED world) via window.postMessage
 
-let suppressUntil = 0
-let frozen        = false
-let prevState     = -1
+let suppressUntil   = 0
+let frozen          = false
+let prevState       = -1
+let lastActionSent  = 0   // throttle outbound ACTION events (ads fire state changes rapidly)
 
 function suppressed() { return Date.now() < suppressUntil || frozen }
 function suppress(ms = 1500) { suppressUntil = Date.now() + ms }
@@ -42,14 +43,19 @@ waitForPlayer(() => {
     const dur = p.getDuration()         // seconds
     const ts  = Date.now()
 
-    if (state === 1) {
-      // playing — if recovering from buffering send 'resume' so partner unfreezes
-      const type = prevState === 3 ? 'RESUME' : 'ACTION'
-      window.postMessage({ source: 'hiranda-yt', type, state: 'playing', position: pos, sentAt: ts, duration: dur }, '*')
-      console.log('[Hiranda YT] outbound', type, pos.toFixed(1))
-    } else if (state === 2) {
-      window.postMessage({ source: 'hiranda-yt', type: 'ACTION', state: 'paused', position: pos, sentAt: ts, duration: dur }, '*')
-      console.log('[Hiranda YT] outbound ACTION paused', pos.toFixed(1))
+    if (state === 1 || state === 2) {
+      // Throttle: ads fire state changes rapidly — ignore if sent within last 800ms
+      if (ts - lastActionSent < 800) { prevState = state; return }
+      lastActionSent = ts
+
+      if (state === 1) {
+        const type = prevState === 3 ? 'RESUME' : 'ACTION'
+        window.postMessage({ source: 'hiranda-yt', type, state: 'playing', position: pos, sentAt: ts, duration: dur }, '*')
+        console.log('[Hiranda YT] outbound', type, pos.toFixed(1))
+      } else {
+        window.postMessage({ source: 'hiranda-yt', type: 'ACTION', state: 'paused', position: pos, sentAt: ts, duration: dur }, '*')
+        console.log('[Hiranda YT] outbound ACTION paused', pos.toFixed(1))
+      }
     } else if (state === 3) {
       window.postMessage({ source: 'hiranda-yt', type: 'BUFFERING', state: 'buffering', position: pos, sentAt: ts, duration: dur }, '*')
       console.log('[Hiranda YT] outbound BUFFERING')

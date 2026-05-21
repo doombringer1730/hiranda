@@ -264,12 +264,7 @@ async function handle(msg, sender) {
 
       // Only host broadcasts play/pause/seek — prevents oscillation.
       // Either partner can broadcast buffering events.
-      if (!isHost && kind !== 'buffering' && kind !== 'resume') {
-        log('guest action intercepted — snapping back to host state')
-        // Return last host state so guest content script can immediately revert
-        if (lastHostState) sendToTab({ type: 'APPLY_SYNC', payload: lastHostState })
-        return { ok: true }
-      }
+      if (!isHost && kind !== 'buffering' && kind !== 'resume') return { ok: true }
 
       if (sender.tab?.id) {
         activeTabId = sender.tab.id
