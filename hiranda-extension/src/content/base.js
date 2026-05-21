@@ -1,14 +1,34 @@
-// Persistent port — keeps the MV3 service worker alive while on a streaming page
+// Runs in ISOLATED world — has chrome.runtime access
+// On YouTube: bridges postMessage ↔ chrome.runtime (youtube.js handles player in MAIN world)
+// On other platforms: uses video element adapter directly
+
 const _port = chrome.runtime.connect({ name: 'keepalive' })
 
 let inParty = false
 let adapter = null
 let eventsHooked = false
-let suppressUntil = 0  // timestamp; suppress outbound events until this time
+let suppressUntil = 0
 
-// ── Adapter resolution ────────────────────────────────────────────────────────
-// Platform scripts set window.__hirandaAdapter (preferred) or window.__hirandaGetVideo.
-// If neither, fall back to document.querySelector('video').
+const isYouTube = location.hostname === 'www.youtube.com'
+
+// ── YouTube bridge ────────────────────────────────────────────────────────────
+// youtube.js (MAIN world) ↔ base.js (ISOLATED world) via window.postMessage
+
+if (isYouTube) {
+  window.addEventListener('message', (e) => {
+    if (e.data?.source !== 'hiranda-yt') return
+    if (!inParty) return
+    const { type, state, position, sentAt } = e.data
+    if (type === 'ACTION' || type === 'HEARTBEAT') {
+      chrome.runtime.sendMessage({
+        type: 'SYNC_ACTION',
+        payload: { kind: type === 'ACTION' ? 'action' : 'heartbeat', state, position, sentAt },
+      }).catch(() => {})
+    }
+  })
+}
+
+// ── Video element adapter (non-YouTube) ───────────────────────────────────────
 
 function makeVideoAdapter(v) {
   return {
@@ -25,18 +45,14 @@ function makeVideoAdapter(v) {
   }
 }
 
-function resolveAdapter() {
-  if (typeof window.__hirandaAdapter !== 'undefined') return window.__hirandaAdapter
+function initAdapter() {
+  if (isYouTube) return true
+  if (adapter) return true
   const v = typeof window.__hirandaGetVideo === 'function'
     ? window.__hirandaGetVideo()
     : document.querySelector('video')
-  return v ? makeVideoAdapter(v) : null
-}
-
-function initAdapter() {
-  const a = resolveAdapter()
-  if (!a) return false
-  adapter = a
+  if (!v) return false
+  adapter = makeVideoAdapter(v)
   if (!eventsHooked) {
     eventsHooked = true
     adapter.hookEvents((state, position) => {
@@ -49,74 +65,68 @@ function initAdapter() {
 
 function waitForAdapter() {
   if (initAdapter()) return
-  // youtube.js fires this event when movie_player is ready
-  window.addEventListener('hiranda:adapter-ready', () => initAdapter(), { once: true })
-  // For other platforms: watch for video element to appear
   const obs = new MutationObserver(() => { if (initAdapter()) obs.disconnect() })
   obs.observe(document.body, { childList: true, subtree: true })
 }
 
-// ── Sync protocol ─────────────────────────────────────────────────────────────
-// sentAt enables clock compensation: receiver corrects position for network RTT.
-// Action threshold: tight (0.5s) — user-triggered, apply immediately.
-// Heartbeat threshold: loose (3s) — only correct significant drift.
-// suppressUntil: prevents echo-loop after applying remote state (YouTube fires
-// onStateChange during buffering, so we suppress for 1.5s after any remote apply).
+// ── Sync ──────────────────────────────────────────────────────────────────────
+
+function ctxOk() {
+  try { return !!chrome.runtime?.id } catch (_) { return false }
+}
 
 function push(kind, state, position) {
-  chrome.runtime.sendMessage({
-    type: 'SYNC_ACTION',
-    payload: { kind, state, position, sentAt: Date.now() },
-  }).catch(() => {})
+  if (!ctxOk()) return
+  try {
+    chrome.runtime.sendMessage({
+      type: 'SYNC_ACTION',
+      payload: { kind, state, position, sentAt: Date.now() },
+    }).catch(() => {})
+  } catch (_) {}
 }
 
 function applySync(payload) {
+  if (isYouTube) {
+    // Forward to youtube.js in MAIN world — it owns the player
+    window.postMessage({ source: 'hiranda-base', type: 'APPLY_SYNC', ...payload }, '*')
+    return
+  }
   if (!adapter) return
   const { state, position, kind, sentAt } = payload
-
-  // Compensate for network latency: if playing, video has advanced since sentAt
   const latency = sentAt ? Math.max(0, (Date.now() - sentAt) / 1000) : 0
   const corrected = state === 'playing' ? position + latency : position
-
   const drift = Math.abs(adapter.getPosition() - corrected)
   const threshold = kind === 'action' ? 0.5 : 3
-
-  // Suppress outbound events while we apply (covers YouTube's buffering state changes)
   suppressUntil = Date.now() + 1500
-
   if (drift > threshold) adapter.seek(corrected)
-
   const curState = adapter.getState()
   if (state === 'playing' && curState === 'paused') adapter.play()
   else if (state === 'paused' && curState === 'playing') adapter.pause()
 }
 
-// ── Message handlers ──────────────────────────────────────────────────────────
+// ── Chrome message handlers ───────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'APPLY_SYNC') {
-    if (!adapter) initAdapter()
+    if (!isYouTube && !adapter) initAdapter()
     applySync(msg.payload)
   }
-
   if (msg.type === 'PARTY_STARTED') {
     inParty = true
     chrome.runtime.sendMessage({ type: 'REGISTER_TAB' }).catch(() => {})
-    if (!adapter) waitForAdapter()
+    if (!isYouTube) waitForAdapter()
   }
-
   if (msg.type === 'PARTY_ENDED') {
     inParty = false
   }
 })
 
-// Heartbeat every 5s — corrects drift without flooding the channel
+// Non-YouTube heartbeat
 setInterval(() => {
-  if (!adapter || !inParty) return
+  if (isYouTube || !adapter || !inParty) return
   push('heartbeat', adapter.getState(), adapter.getPosition())
 }, 5000)
 
-// Restore party state after page reload mid-session
 chrome.runtime.sendMessage({ type: 'GET_SESSION_STATUS' }, (res) => {
   if (res?.sessionId) {
     inParty = true
