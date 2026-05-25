@@ -21373,7 +21373,18 @@ ${suffix}`;
       }
       window.dispatchEvent(new CustomEvent("HirandaPresence", { detail: payload }));
     });
-    await channel.subscribe();
+    await new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error("[Hiranda] subscribe timeout")), 1e4);
+      channel.subscribe((status, err) => {
+        if (status === "SUBSCRIBED") {
+          clearTimeout(t);
+          resolve();
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          clearTimeout(t);
+          reject(err || new Error(`[Hiranda] channel ${status}`));
+        }
+      });
+    });
     const stored = await chrome.storage.local.get(["hpNickname", "hpIcon"]);
     const selfName = stored.hpNickname || "Guest";
     const selfIcon = stored.hpIcon || "General/Popcorn.svg";
@@ -21400,11 +21411,14 @@ ${suffix}`;
     const stored = await chrome.storage.local.get(["hpNickname", "hpIcon"]);
     const selfName = stored.hpNickname || "Guest";
     const selfIcon = stored.hpIcon || "General/Popcorn.svg";
-    await channel.send({
-      type: "broadcast",
-      event: "presence",
-      payload: { type: "leave", username: selfName, userIcon: selfIcon, ts: Date.now() }
-    });
+    try {
+      await channel.send({
+        type: "broadcast",
+        event: "presence",
+        payload: { type: "leave", username: selfName, userIcon: selfIcon, ts: Date.now() }
+      });
+    } catch {
+    }
     channel.unsubscribe();
     channel = null;
     partyId = null;

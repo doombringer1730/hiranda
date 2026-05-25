@@ -515,7 +515,21 @@ async function joinParty(id, host = false) {
     window.dispatchEvent(new CustomEvent('HirandaPresence', { detail: payload }))
   })
 
-  await channel.subscribe()
+  // Wait for the WebSocket channel to be fully joined before sending anything.
+  // channel.subscribe() is NOT a Promise — it returns the channel synchronously
+  // and the actual WebSocket join happens async. Awaiting a non-Promise resolves
+  // immediately, so callers were sending presence/requestSync while canPush()=false,
+  // causing Supabase to silently fall back to REST (the "automatically falling back"
+  // console warning). We wrap it in a Promise that resolves on 'SUBSCRIBED'.
+  await new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('[Hiranda] subscribe timeout')), 10000)
+    channel.subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') { clearTimeout(t); resolve() }
+      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        clearTimeout(t); reject(err || new Error(`[Hiranda] channel ${status}`))
+      }
+    })
+  })
 
   // Read local profile then announce join with identity
   const stored = await chrome.storage.local.get(['hpNickname', 'hpIcon'])
@@ -550,10 +564,15 @@ async function leaveParty() {
   const stored = await chrome.storage.local.get(['hpNickname', 'hpIcon'])
   const selfName = stored.hpNickname || 'Guest'
   const selfIcon = stored.hpIcon    || 'General/Popcorn.svg'
-  await channel.send({
-    type: 'broadcast', event: 'presence',
-    payload: { type: 'leave', username: selfName, userIcon: selfIcon, ts: Date.now() }
-  })
+  // Only send the leave presence if the channel is actually joined (canPush = true).
+  // If we leave before the subscription completed, skip the broadcast — no peers
+  // received our join broadcast either so there's nothing to clean up on their end.
+  try {
+    await channel.send({
+      type: 'broadcast', event: 'presence',
+      payload: { type: 'leave', username: selfName, userIcon: selfIcon, ts: Date.now() }
+    })
+  } catch {}
   channel.unsubscribe()
   channel = null
   partyId = null
