@@ -1,377 +1,255 @@
-import { createClient } from '@supabase/supabase-js'
+// Hiranda Watch Party — Service Worker (Background)
+// Party state manager: stores partyId, isHost, userId
+// Relays messages between content scripts and popup
+// Manages extension badge for unread chat count
 
-const SUPABASE_URL = 'https://nqmawsssiutarjylnmhg.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xbWF3c3NzaXV0YXJqeWxubWhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwMDYzODQsImV4cCI6MjA5NDU4MjM4NH0.MtuvqyUxeztP1scGTrebMKBaA6JjC2b0P1qARKmgPZw'
+'use strict'
 
-// ── Supabase ──────────────────────────────────────────────────────────────────
-
-const chromeStorage = {
-  getItem:    k => new Promise(r => chrome.storage.local.get(k, d => r(d[k] ?? null))),
-  setItem:    (k, v) => chrome.storage.local.set({ [k]: v }),
-  removeItem: k => chrome.storage.local.remove(k),
+// ── Constants ────────────────────────────────────────────────────────────────
+const DEFAULT_STATE = {
+  partyId: null,
+  isHost: false,
+  userId: null,
+  activeTabId: null,
+  unreadCount: 0,
 }
 
-let _sb = null
-function sb() {
-  if (_sb) return _sb
-  _sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { storage: chromeStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
-  })
-  return _sb
+// ── Init: ensure userId exists ────────────────────────────────────────────────
+async function ensureUserId() {
+  const { userId } = await chrome.storage.local.get('userId')
+  if (!userId) {
+    const id = crypto.randomUUID()
+    await chrome.storage.local.set({ userId: id })
+    return id
+  }
+  return userId
 }
 
-// ── Session state ─────────────────────────────────────────────────────────────
-
-let channel      = null
-let sessionId    = null
-let userId       = null
-let activeTabId  = null
-let isHost       = false
-let myProfile    = { username: null, avatarUrl: null }
-
-async function fetchProfile(uid) {
-  const { data } = await sb().from('profiles').select('username, avatar_url').eq('id', uid).single()
-  return data ? { username: data.username, avatarUrl: data.avatar_url } : { username: null, avatarUrl: null }
+// ── Badge helpers ─────────────────────────────────────────────────────────────
+async function updateBadge(count) {
+  await chrome.storage.local.set({ unreadCount: count })
+  if (count > 0) {
+    chrome.action.setBadgeText({ text: String(count) })
+    chrome.action.setBadgeBackgroundColor({ color: '#ef3e3a' })
+  } else {
+    chrome.action.setBadgeText({ text: '' })
+  }
 }
 
-// Last authoritative state from host — used to snap guest back on divergence
-let lastHostState = null
-
-// NTP clock offset (local ms - partner ms), rolling median of 5 samples
-let ntpSamples   = []
-let clockOffsetMs = 0
-
-function median(arr) {
-  const s = [...arr].sort((a, b) => a - b)
-  return s[Math.floor(s.length / 2)]
-}
-
-function log(...args) { console.log('[Hiranda SW]', ...args) }
-
-// ── NTP ───────────────────────────────────────────────────────────────────────
-
-function sendNtpPings() {
-  let n = 0
-  const id = setInterval(() => {
-    if (!channel || n >= 5) { clearInterval(id); return }
-    channel.send({ type: 'broadcast', event: 'ntp_ping', payload: { t0: Date.now(), from: userId } })
-    n++
-  }, 300)
-}
-
-// ── Channel ───────────────────────────────────────────────────────────────────
-
-async function joinChannel(sid, uid, tabId, host) {
-  if (channel) await sb().removeChannel(channel)
-
-  sessionId   = sid
-  userId      = uid
-  isHost      = host
-  ntpSamples  = []
-  clockOffsetMs = 0
-  if (tabId) activeTabId = tabId
-
-  log('joining channel', sid, host ? '(host)' : '(guest)')
-
-  channel = sb()
-    .channel(`watch:${sid}`)
-
-    // ── Sync ──
-    .on('broadcast', { event: 'sync' }, ({ payload }) => {
-      if (payload.from === userId) return
-      log('sync received', payload.kind, payload.state, payload.position?.toFixed(1))
-
-      // Apply network latency correction — cap at 2s to ignore stale buffered messages
-      const rawDelay = Date.now() - payload.sentAt
-      const delayMs  = Math.max(0, Math.min(rawDelay, 2000))
-      const corrected = payload.state === 'playing'
-        ? payload.position + (delayMs - clockOffsetMs) / 1000
-        : payload.position
-
-      const correctedPayload = { ...payload, position: corrected }
-
-      // Store authoritative host state so we can snap guest back if they diverge
-      lastHostState = correctedPayload
-
-      sendToTab({ type: 'APPLY_SYNC', payload: correctedPayload })
-    })
-
-    // ── NTP ping (partner sent, we respond) ──
-    .on('broadcast', { event: 'ntp_ping' }, ({ payload }) => {
-      if (payload.from === userId) return
-      channel.send({ type: 'broadcast', event: 'ntp_pong', payload: { t0: payload.t0, t1: Date.now(), from: userId } })
-    })
-
-    // ── NTP pong (we sent ping, partner responded) ──
-    .on('broadcast', { event: 'ntp_pong' }, ({ payload }) => {
-      if (payload.from === userId) return
-      const rtt    = Date.now() - payload.t0
-      const offset = Date.now() - payload.t1 - rtt / 2  // local - partner
-      ntpSamples.push(offset)
-      if (ntpSamples.length > 5) ntpSamples.shift()
-      clockOffsetMs = median(ntpSamples)
-      log('NTP offset updated:', clockOffsetMs, 'ms  rtt:', rtt, 'ms')
-    })
-
-    // ── Chat ──
-    .on('broadcast', { event: 'chat' }, ({ payload }) => {
-      if (payload.from === userId) return
-      sendToTab({ type: 'CHAT_MESSAGE', payload })
-    })
-
-    // ── Reactions ──
-    .on('broadcast', { event: 'reaction' }, ({ payload }) => {
-      if (payload.from === userId) return
-      sendToTab({ type: 'REACTION_MESSAGE', payload })
-    })
-
-    .subscribe((status, err) => {
-      log('channel status:', status, err ?? '')
-      if (status === 'SUBSCRIBED') {
-        // Wait 1s for partner to also subscribe, then ping
-        setTimeout(sendNtpPings, 1000)
+async function incrementBadge() {
+  const { unreadCount = 0, activeTabId } = await chrome.storage.local.get(['unreadCount', 'activeTabId'])
+  // Only increment if tab is not focused
+  let shouldIncrement = true
+  if (activeTabId) {
+    try {
+      const tab = await chrome.tabs.get(activeTabId)
+      if (tab.active) {
+        const win = await chrome.windows.get(tab.windowId)
+        if (win.focused) shouldIncrement = false
       }
-    })
-
-  await chrome.storage.local.set({ session_id: sid, user_id: uid, is_host: host })
-}
-
-async function leaveChannel() {
-  if (channel) { await sb().removeChannel(channel); channel = null }
-  sessionId   = null
-  userId      = null
-  isHost      = false
-  ntpSamples  = []
-  clockOffsetMs = 0
-  myProfile   = { username: null, avatarUrl: null }
-  await chrome.storage.local.remove(['session_id', 'is_host'])
-  log('left channel')
-}
-
-async function ensureChannel() {
-  if (channel) return
-  const { data: { user } } = await sb().auth.getUser()
-  if (!user) return
-  const s = await chrome.storage.local.get(['session_id', 'active_tab_id', 'is_host'])
-  if (s.session_id) {
-    myProfile = await fetchProfile(user.id)
-    log('rejoining after SW restart')
-    await joinChannel(s.session_id, user.id, s.active_tab_id ?? null, s.is_host ?? false)
+    } catch {}
+  }
+  if (shouldIncrement) {
+    await updateBadge(unreadCount + 1)
   }
 }
 
-// ── Tab messaging ─────────────────────────────────────────────────────────────
-
-async function sendToTab(msg) {
-  let tid = activeTabId
-  if (!tid) {
-    const s = await chrome.storage.local.get('active_tab_id')
-    tid = s.active_tab_id ?? null
-  }
-  if (!tid) { log('no active tab'); return }
-  chrome.tabs.sendMessage(tid, msg).catch(e => log('sendMessage error:', e.message))
+// ── Generate a short party ID (6 chars, like Teleparty) ───────────────────────
+function generatePartyId() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase()
 }
 
-// ── Keepalive port (prevents MV3 SW termination while in party) ───────────────
+// ── Get active tab (the streaming tab) ───────────────────────────────────────
+async function getActiveStreamingTab() {
+  const { activeTabId } = await chrome.storage.local.get('activeTabId')
+  if (activeTabId) {
+    try {
+      const tab = await chrome.tabs.get(activeTabId)
+      return tab
+    } catch {}
+  }
+  return null
+}
 
-chrome.runtime.onConnect.addListener(port => {
-  if (port.name !== 'keepalive') return
-  ensureChannel()
-  port.onDisconnect.addListener(() => {})
-})
-
-// ── SPA navigation: reinit adapter only when the video ID actually changes ────
-// YouTube strips query params (like ?hiranda=) immediately, which looks like
-// navigation but isn't a real video change — ignore those.
-
-function extractVideoId(url) {
+// ── Send message to streaming tab content script ──────────────────────────────
+async function sendToTab(message) {
+  const { activeTabId } = await chrome.storage.local.get('activeTabId')
+  if (!activeTabId) return
   try {
-    const u = new URL(url)
-    return u.searchParams.get('v') ?? u.pathname.split('/').pop()
-  } catch (_) { return null }
+    await chrome.tabs.sendMessage(activeTabId, message)
+  } catch (e) {
+    // Tab may have navigated away
+    console.log('Hiranda SW: tab send failed', e?.message)
+  }
 }
-
-let lastVideoId = null
-
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (tabId !== activeTabId || !sessionId || !changeInfo.url) return
-  const newId = extractVideoId(changeInfo.url)
-  if (!newId || newId === lastVideoId) return  // same video or no ID — ignore
-  lastVideoId = newId
-  log('video changed, reiniting adapter')
-  setTimeout(() => chrome.tabs.sendMessage(tabId, { type: 'REINIT_ADAPTER' }).catch(() => {}), 1500)
-})
 
 // ── Message handler ───────────────────────────────────────────────────────────
-
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  handle(msg, sender).then(sendResponse).catch(e => sendResponse({ error: e.message }))
-  return true
+  handleMessage(msg, sender).then(sendResponse).catch(err => {
+    console.error('Hiranda SW error:', err)
+    sendResponse({ error: err.message })
+  })
+  return true // Keep channel open for async response
 })
 
-async function handle(msg, sender) {
-  switch (msg.type) {
+async function handleMessage(msg, sender) {
+  const { type } = msg
 
-    case 'GET_AUTH': {
-      const { data: { user } } = await sb().auth.getUser()
-      const s = await chrome.storage.local.get('session_id')
-      return { user: user ? { id: user.id, email: user.email } : null, sessionId: s.session_id ?? null }
-    }
+  if (type === 'CREATE_PARTY') {
+    const userId = await ensureUserId()
+    const partyId = generatePartyId()
+    const { hpNickname: username = 'Guest', hpIcon: userIcon = 'General/Popcorn.svg' } =
+      await chrome.storage.local.get(['hpNickname', 'hpIcon'])
+    const tabId = sender.tab?.id || msg.tabId
 
-    case 'SIGN_IN': {
-      const { data, error } = await sb().auth.signInWithPassword({ email: msg.email, password: msg.password })
-      if (error) return { error: error.message }
-      log('signed in:', data.user.email)
-      return { user: { id: data.user.id, email: data.user.email } }
-    }
+    await chrome.storage.local.set({
+      partyId,
+      isHost: true,
+      userId,
+      activeTabId: tabId,
+      unreadCount: 0,
+    })
 
-    case 'SIGN_OUT': {
-      await sb().auth.signOut()
-      await leaveChannel()
-      _sb = null
-      return { ok: true }
-    }
+    await updateBadge(0)
 
-    case 'REGISTER_TAB': {
-      if (sender.tab?.id) {
-        const oldTabId = activeTabId
-        activeTabId = sender.tab.id
-        await chrome.storage.local.set({ active_tab_id: activeTabId })
-        log('registered tab:', activeTabId)
-        // End party on the old tab so it stops broadcasting
-        if (oldTabId && oldTabId !== activeTabId) {
-          log('ending party on old tab:', oldTabId)
-          chrome.tabs.sendMessage(oldTabId, { type: 'PARTY_ENDED' }).catch(() => {})
-        }
+    // Tell content script it joined as host.
+    // Retry once after 1.5 s in case the content script wasn't ready yet
+    // (document_idle can fire just after the user clicks "Start Party" on a
+    // freshly-loaded page). If both attempts fail, the base.js auto-rejoin
+    // from stored state will cover it when the script initializes.
+    if (tabId) {
+      const joinMsg = { type: 'JOIN_PARTY', partyId, isHost: true, userId, username, userIcon }
+      try {
+        await chrome.tabs.sendMessage(tabId, joinMsg)
+      } catch {
+        setTimeout(async () => {
+          try { await chrome.tabs.sendMessage(tabId, joinMsg) } catch {}
+        }, 1500)
       }
-      return { ok: true }
     }
 
-    case 'CREATE_SESSION': {
-      const { data: { user } } = await sb().auth.getUser()
-      if (!user) return { error: 'Not signed in' }
-
-      const { data, error } = await sb().from('watch_sessions').insert({
-        title:        msg.title,
-        source_type:  'party',
-        platform:     msg.platform ?? null,
-        party_url:    msg.partyUrl ?? null,
-        thumbnail_url: msg.thumbnailUrl ?? null,
-        storage_path: '',
-        created_by:   user.id,
-      }).select().single()
-
-      if (error || !data) return { error: error?.message ?? 'Failed to create session' }
-
-      myProfile = await fetchProfile(user.id)
-      await joinChannel(data.id, user.id, msg.tabId ?? null, true)
-      if (msg.tabId) chrome.tabs.sendMessage(msg.tabId, { type: 'PARTY_STARTED', userId: user.id, username: myProfile.username || user.email }).catch(() => {})
-      log('session created:', data.id)
-      return { sessionId: data.id }
-    }
-
-    case 'JOIN_SESSION': {
-      const { data: { user } } = await sb().auth.getUser()
-      if (!user) return { error: 'Not signed in' }
-
-      const { data, error } = await sb().from('watch_sessions')
-        .select('id, title, platform')
-        .eq('id', msg.sessionId)
-        .eq('source_type', 'party')
-        .single()
-
-      if (error || !data) return { error: 'Party session not found' }
-
-      // tabId from popup message, or sender tab when auto-joining from content script URL param
-      const tabId = msg.tabId ?? sender.tab?.id ?? null
-      myProfile = await fetchProfile(user.id)
-      await joinChannel(data.id, user.id, tabId, false)
-      if (tabId) chrome.tabs.sendMessage(tabId, { type: 'PARTY_STARTED', userId: user.id, username: myProfile.username || user.email }).catch(() => {})
-      log('joined session:', data.id, 'tab:', tabId)
-      return { ok: true, title: data.title, platform: data.platform }
-    }
-
-    case 'LEAVE_SESSION': {
-      if (activeTabId) chrome.tabs.sendMessage(activeTabId, { type: 'PARTY_ENDED' }).catch(() => {})
-      await leaveChannel()
-      return { ok: true }
-    }
-
-    case 'SYNC_ACTION': {
-      await ensureChannel()
-      if (!channel || !userId) return { ok: false }
-
-      // Reject sync from non-active tabs (prevents multi-tab oscillation)
-      if (sender.tab?.id && activeTabId && sender.tab.id !== activeTabId) {
-        return { ok: true }
-      }
-
-      const { kind } = msg.payload
-
-      if (sender.tab?.id) {
-        activeTabId = sender.tab.id
-        chrome.storage.local.set({ active_tab_id: activeTabId })
-      }
-
-      log('broadcasting', kind, msg.payload.state, msg.payload.position?.toFixed(1))
-
-      channel.send({
-        type: 'broadcast',
-        event: 'sync',
-        payload: { ...msg.payload, from: userId },
-      })
-
-      // Persist state to DB on action events (not every heartbeat)
-      if (kind === 'action') {
-        await sb().from('watch_sessions').update({
-          state: msg.payload.state,
-          playback_position_seconds: msg.payload.position,
-          last_updated_by: userId,
-          updated_at: new Date().toISOString(),
-        }).eq('id', sessionId)
-      }
-
-      return { ok: true }
-    }
-
-    case 'SEND_CHAT': {
-      await ensureChannel()
-      if (!channel || !userId) return { ok: false }
-      channel.send({
-        type: 'broadcast',
-        event: 'chat',
-        payload: { text: msg.text, from: userId, username: myProfile.username || 'Partner', ts: Date.now() },
-      })
-      return { ok: true }
-    }
-
-    case 'SEND_REACTION': {
-      await ensureChannel()
-      if (!channel || !userId) return { ok: false }
-      channel.send({
-        type: 'broadcast',
-        event: 'reaction',
-        payload: { emoji: msg.emoji, from: userId, username: myProfile.username || 'Partner', ts: Date.now() },
-      })
-      return { ok: true }
-    }
-
-    case 'GET_SESSION_STATUS': {
-      await ensureChannel()
-      return { sessionId, connected: !!channel, isHost, userId, username: myProfile.username }
-    }
+    return { partyId, isHost: true, userId, username, userIcon }
   }
+
+  if (type === 'JOIN_PARTY') {
+    const userId = await ensureUserId()
+    const { partyId } = msg
+    const { hpNickname: username = 'Guest', hpIcon: userIcon = 'General/Popcorn.svg' } =
+      await chrome.storage.local.get(['hpNickname', 'hpIcon'])
+    const tabId = sender.tab?.id || msg.tabId
+
+    await chrome.storage.local.set({
+      partyId,
+      isHost: false,
+      userId,
+      activeTabId: tabId,
+      unreadCount: 0,
+    })
+
+    await updateBadge(0)
+
+    if (tabId) {
+      const joinMsg = { type: 'JOIN_PARTY', partyId, isHost: false, userId, username, userIcon }
+      try {
+        await chrome.tabs.sendMessage(tabId, joinMsg)
+      } catch {
+        setTimeout(async () => {
+          try { await chrome.tabs.sendMessage(tabId, joinMsg) } catch {}
+        }, 1500)
+      }
+    }
+
+    return { partyId, isHost: false, userId, username, userIcon }
+  }
+
+  if (type === 'LEAVE_PARTY') {
+    const { activeTabId } = await chrome.storage.local.get('activeTabId')
+
+    // Tell content script to leave
+    if (activeTabId) {
+      try {
+        await chrome.tabs.sendMessage(activeTabId, { type: 'LEAVE_PARTY' })
+      } catch {}
+    }
+
+    await chrome.storage.local.set({
+      partyId: null,
+      isHost: false,
+      activeTabId: null,
+      unreadCount: 0,
+    })
+    await updateBadge(0)
+
+    return { ok: true }
+  }
+
+  if (type === 'GET_PARTY_STATE') {
+    const state = await chrome.storage.local.get([
+      'partyId', 'isHost', 'userId', 'activeTabId', 'unreadCount'
+    ])
+    return state
+  }
+
+  if (type === 'SET_ACTIVE_TAB') {
+    await chrome.storage.local.set({ activeTabId: msg.tabId })
+    return { ok: true }
+  }
+
+  if (type === 'MARK_READ') {
+    await updateBadge(0)
+    return { ok: true }
+  }
+
+  if (type === 'CHAT_RECEIVED') {
+    // Content script tells us a chat message arrived (from remote)
+    await incrementBadge()
+    return { ok: true }
+  }
+
+  if (type === 'UPDATE_PROFILE') {
+    const { username, userIcon } = msg
+    const updates = {}
+    if (username  !== undefined) updates.hpNickname = username
+    if (userIcon  !== undefined) updates.hpIcon     = userIcon
+    if (Object.keys(updates).length) await chrome.storage.local.set(updates)
+    // Forward to content script so it can re-announce presence
+    await sendToTab({ type: 'UPDATE_PROFILE', username, userIcon })
+    return { ok: true }
+  }
+
+  // Content script relay: pass messages to the active tab
+  if (type === 'RELAY_TO_TAB') {
+    await sendToTab(msg.payload)
+    return { ok: true }
+  }
+
+  return { error: 'unknown type: ' + type }
 }
 
-// ── Startup: rejoin active session after browser restart ──────────────────────
-
-chrome.runtime.onStartup.addListener(async () => {
-  const { data: { user } } = await sb().auth.getUser()
-  if (!user) return
-  const s = await chrome.storage.local.get(['session_id', 'active_tab_id', 'is_host'])
-  if (s.session_id) {
-    myProfile = await fetchProfile(user.id)
-    log('rejoining on startup')
-    await joinChannel(s.session_id, user.id, s.active_tab_id ?? null, s.is_host ?? false)
+// ── Tab removal: clear activeTabId if streaming tab closed ───────────────────
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  const { activeTabId, partyId } = await chrome.storage.local.get(['activeTabId', 'partyId'])
+  if (tabId === activeTabId && partyId) {
+    await chrome.storage.local.set({
+      partyId: null,
+      isHost: false,
+      activeTabId: null,
+      unreadCount: 0,
+    })
+    await updateBadge(0)
   }
 })
+
+// ── Startup: restore badge ────────────────────────────────────────────────────
+chrome.runtime.onStartup.addListener(async () => {
+  await ensureUserId()
+  const { unreadCount = 0 } = await chrome.storage.local.get('unreadCount')
+  await updateBadge(unreadCount)
+})
+
+chrome.runtime.onInstalled.addListener(async () => {
+  await ensureUserId()
+  await updateBadge(0)
+})
+
+console.log('Hiranda: service worker loaded')

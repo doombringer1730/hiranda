@@ -16,8 +16,16 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  // metadataBase is required for Next.js to construct absolute URLs for OG images,
+  // canonical links, and Twitter cards. Without it Next.js falls back to
+  // "http://localhost:3000" and Google reports malformed canonical/OG URLs.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? 'https://hiranda-616i.vercel.app'
+  ),
   title: "Hiranda",
   description: "Our little place on the internet.",
+  // Hiranda is a private app — prevent Google from indexing any page.
+  robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {

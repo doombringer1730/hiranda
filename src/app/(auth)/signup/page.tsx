@@ -86,8 +86,9 @@ function SignupForm() {
 
           {mode === 'join' && !tokenFromUrl && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-stone-400 text-xs uppercase tracking-widest">Invite code</label>
+              <label htmlFor="invite_code" className="text-stone-400 text-xs uppercase tracking-widest">Invite code</label>
               <input
+                id="invite_code"
                 type="text"
                 value={manualToken}
                 onChange={e => setManualToken(e.target.value)}

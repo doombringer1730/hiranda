@@ -68,7 +68,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
         <div className="flex flex-col items-center text-center mb-8">
           <div className="w-24 h-24 rounded-full bg-stone-800 border border-stone-700 overflow-hidden mb-4 flex items-center justify-center">
             {profile.avatar_url
-              ? <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
+              ? <img src={profile.avatar_url} alt={profile.display_name} width={96} height={96} className="w-full h-full object-cover" />
               : <UserCircle size={48} className="text-stone-600" />}
           </div>
           <h1 className="font-serif text-2xl text-amber-100">{profile.display_name}</h1>
@@ -96,7 +96,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
                 <Link href={`/profile/${partner.username}`} className="flex items-center gap-3 group">
                   <div className="w-10 h-10 rounded-full bg-stone-800 overflow-hidden flex items-center justify-center flex-shrink-0">
                     {partner.avatar_url
-                      ? <img src={partner.avatar_url} alt={partner.display_name} className="w-full h-full object-cover" />
+                      ? <img src={partner.avatar_url} alt={partner.display_name} width={40} height={40} className="w-full h-full object-cover" />
                       : <UserCircle size={20} className="text-stone-600" />}
                   </div>
                   <div>
@@ -109,7 +109,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-stone-800 overflow-hidden flex items-center justify-center flex-shrink-0">
                     {partner.avatar_url
-                      ? <img src={partner.avatar_url} alt={partner.display_name} className="w-full h-full object-cover" />
+                      ? <img src={partner.avatar_url} alt={partner.display_name} width={40} height={40} className="w-full h-full object-cover" />
                       : <UserCircle size={20} className="text-stone-600" />}
                   </div>
                   <p className="text-amber-100">{partner.display_name}</p>

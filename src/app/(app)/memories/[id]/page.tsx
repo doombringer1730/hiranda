@@ -69,6 +69,9 @@ export default async function MemoryPage({ params }: { params: Promise<{ id: str
                   <img
                     src={photo.url}
                     alt={photo.caption ?? ''}
+                    width={400}
+                    height={400}
+                    loading="lazy"
                     className="w-full aspect-square object-cover rounded-xl"
                   />
                   <form

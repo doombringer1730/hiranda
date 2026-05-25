@@ -34,7 +34,7 @@ type Props = {
 }
 
 export default function WatchPlayer({
-  sessionId, title, sourceType, videoUrl, sourceHint,
+  sessionId, title, sourceType, videoUrl, sourceHint, storagePath: _storagePath,
   userId, profileMap, initialState, initialPosition, fallbackUrls, deleteAction,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)

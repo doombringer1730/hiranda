@@ -42,5 +42,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // Exclude static assets, Next.js internals, the favicon, AND all /api/* routes.
+  // API routes handle their own auth internally — routing them through the
+  // redirect middleware breaks unauthenticated callers (e.g. the extension's
+  // NTP sync hits /api/time with no session cookie and gets HTML instead of JSON).
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

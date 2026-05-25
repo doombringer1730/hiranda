@@ -1,0 +1,86 @@
+{
+  "manifest_version": 3,
+  "name": "Hiranda Watch Party",
+  "version": "1.0.0",
+  "description": "Watch together, perfectly in sync.",
+  "permissions": ["activeTab", "storage", "scripting", "alarms", "tabs"],
+  "host_permissions": [
+    "https://www.netflix.com/*",
+    "https://www.youtube.com/*",
+    "https://www.disneyplus.com/*",
+    "https://www.amazon.com/*",
+    "https://www.primevideo.com/*",
+    "https://hiranda-616i.vercel.app/*",
+    "https://nqmawsssiutarjylnmhg.supabase.co/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.netflix.com/watch/*"],
+      "js": ["netflix-main.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.youtube.com/watch*"],
+      "js": ["youtube-main.js"],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.netflix.com/watch/*",
+        "https://www.youtube.com/watch*",
+        "https://www.disneyplus.com/*",
+        "https://www.amazon.com/*",
+        "https://www.primevideo.com/*",
+        "https://hiranda-616i.vercel.app/watch/*"
+      ],
+      "js": ["base.js", "chat.js"],
+      "world": "ISOLATED",
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "netflix-main.js",
+        "youtube-main.js",
+        "img/*.svg",
+        "img/*.png",
+        "img/reactions/*",
+        "img/reactions/heart/*",
+        "img/reactions/angry/*",
+        "img/reactions/cry/*",
+        "img/reactions/laugh/*",
+        "img/reactions/surprise/*",
+        "img/reactions/fire/*",
+        "img/icons/General/*",
+        "icons/*"
+      ],
+      "matches": [
+        "https://www.netflix.com/*",
+        "https://www.youtube.com/*",
+        "https://www.disneyplus.com/*",
+        "https://www.amazon.com/*",
+        "https://www.primevideo.com/*"
+      ]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

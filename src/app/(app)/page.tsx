@@ -103,5 +103,5 @@ async function PhotoThumb({ path, supabase }: { path: string; supabase: Awaited<
   const { data } = await supabase.storage.from('photos').createSignedUrl(path, 3600)
   if (!data?.signedUrl) return null
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={data.signedUrl} alt="" className="w-16 h-16 object-cover rounded-xl flex-shrink-0" />
+  return <img src={data.signedUrl} alt="" width={64} height={64} loading="lazy" className="w-16 h-16 object-cover rounded-xl flex-shrink-0" />
 }
