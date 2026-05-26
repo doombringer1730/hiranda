@@ -77,10 +77,19 @@ export async function updateWatchSession(id: string, title: string, thumbnailUrl
   revalidatePath('/watch')
 }
 
+// Used from the watch player page — deletes then redirects away
 export async function deleteWatchSession(id: string, storagePath: string | null) {
   const supabase = await createClient()
   if (storagePath) await supabase.storage.from('videos').remove([storagePath])
   await supabase.from('watch_sessions').delete().eq('id', id)
   revalidatePath('/watch')
   redirect('/watch')
+}
+
+// Used from the watch list page — deletes without redirect so optimistic UI works
+export async function deleteWatchSessionSilent(id: string, storagePath: string | null) {
+  const supabase = await createClient()
+  if (storagePath) await supabase.storage.from('videos').remove([storagePath])
+  await supabase.from('watch_sessions').delete().eq('id', id)
+  revalidatePath('/watch')
 }

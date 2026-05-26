@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal, getCoupleData, updateWatchSession, deleteWatchSession } from './actions'
+import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal, getCoupleData, updateWatchSession, deleteWatchSessionSilent } from './actions'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, Library, Search, MoreHorizontal, Trash2 } from 'lucide-react'
@@ -26,7 +26,6 @@ export default function WatchPage() {
   const [editThumbnail, setEditThumbnail] = useState('')
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState<Tab>('upload')
   const [jellyfinUrl, setJellyfinUrl] = useState('')
   const [jellyfinApiKey, setJellyfinApiKey] = useState('')
@@ -85,11 +84,12 @@ export default function WatchPage() {
 
   async function handleDelete() {
     if (!editingSession) return
-    setDeleting(true)
-    await deleteWatchSession(editingSession.id, null)
-    setSessions(prev => prev.filter(s => s.id !== editingSession.id))
-    setDeleting(false)
+    const id = editingSession.id
+    // Optimistic: remove instantly, close sheet
+    setSessions(prev => prev.filter(s => s.id !== id))
     closeEdit()
+    // Fire server delete in background — no redirect, no spinner needed
+    await deleteWatchSessionSilent(id, null)
   }
 
   function reset() {
@@ -420,10 +420,9 @@ export default function WatchPage() {
 
                 <button
                   onClick={handleDelete}
-                  disabled={deleting}
-                  className="w-full bg-red-900/60 hover:bg-red-900 disabled:opacity-40 text-red-300 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2 mb-3"
+                  className="w-full bg-red-900/60 hover:bg-red-900 text-red-300 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2 mb-3"
                 >
-                  {deleting ? <><Loader2 size={16} className="animate-spin" /> Deleting…</> : 'Delete permanently'}
+                  Delete permanently
                 </button>
 
                 <button
