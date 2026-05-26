@@ -26,7 +26,6 @@ export default function WatchPage() {
   const [editThumbnail, setEditThumbnail] = useState('')
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [tab, setTab] = useState<Tab>('upload')
   const [jellyfinUrl, setJellyfinUrl] = useState('')
@@ -64,13 +63,11 @@ export default function WatchPage() {
     setEditTitle(s.title)
     setEditThumbnail(s.thumbnail_url ?? '')
     setShowDeleteConfirm(false)
-    setDeleteConfirmText('')
   }
 
   function closeEdit() {
     setEditingSession(null)
     setShowDeleteConfirm(false)
-    setDeleteConfirmText('')
   }
 
   async function handleSave() {
@@ -87,7 +84,7 @@ export default function WatchPage() {
   }
 
   async function handleDelete() {
-    if (!editingSession || deleteConfirmText !== editingSession.title) return
+    if (!editingSession) return
     setDeleting(true)
     await deleteWatchSession(editingSession.id, null)
     setSessions(prev => prev.filter(s => s.id !== editingSession.id))
@@ -341,83 +338,104 @@ export default function WatchPage() {
         })}
       </div>
 
-      {/* Edit sheet */}
+      {/* Edit / delete sheet — single bottom sheet, two views */}
       {editingSession && (
         <>
           <div className="fixed inset-0 bg-black/60 z-40" onClick={closeEdit} />
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-stone-900 border-t border-stone-800 rounded-t-2xl px-5 pt-5 pb-[max(2.5rem,env(safe-area-inset-bottom,2.5rem))] md:max-w-lg md:left-1/2 md:-translate-x-1/2 md:rounded-2xl md:bottom-8 md:border md:pb-5">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-amber-100 font-medium">Edit session</h3>
-              <button onClick={closeEdit} className="text-stone-500 hover:text-stone-300 transition-colors">
-                <X size={18} />
-              </button>
-            </div>
 
-            <div className="flex flex-col gap-3 mb-6">
-              <div>
-                <label className="text-stone-400 text-xs uppercase tracking-widest mb-1.5 block">Title</label>
-                <input
-                  type="text"
-                  value={editTitle}
-                  onChange={e => setEditTitle(e.target.value)}
-                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 focus:outline-none focus:border-amber-700 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-stone-400 text-xs uppercase tracking-widest mb-1.5 block">Poster URL</label>
-                <input
-                  type="url"
-                  value={editThumbnail}
-                  onChange={e => setEditThumbnail(e.target.value)}
-                  placeholder="https://image.tmdb.org/…"
-                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
-                />
-              </div>
-            </div>
+            {!showDeleteConfirm ? (
+              /* ── Edit view ── */
+              <>
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-amber-100 font-medium">Edit session</h3>
+                  <button onClick={closeEdit} className="text-stone-500 hover:text-stone-300 transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
 
-            <button
-              onClick={handleSave}
-              disabled={!editTitle.trim() || saving}
-              className="w-full bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors mb-4 flex items-center justify-center gap-2"
-            >
-              {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : 'Save'}
-            </button>
+                <div className="flex flex-col gap-3 mb-6">
+                  <div>
+                    <label className="text-stone-400 text-xs uppercase tracking-widest mb-1.5 block">Title</label>
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 focus:outline-none focus:border-amber-700 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-stone-400 text-xs uppercase tracking-widest mb-1.5 block">Poster URL</label>
+                    <input
+                      type="url"
+                      value={editThumbnail}
+                      onChange={e => setEditThumbnail(e.target.value)}
+                      placeholder="https://image.tmdb.org/…"
+                      className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+                    />
+                  </div>
+                </div>
 
-            <button
-              onClick={() => { setShowDeleteConfirm(true); setDeleteConfirmText('') }}
-              className="w-full flex items-center justify-center gap-2 text-stone-500 hover:text-red-400 text-sm transition-colors py-2"
-            >
-              <Trash2 size={15} /> Delete session
-            </button>
+                <button
+                  onClick={handleSave}
+                  disabled={!editTitle.trim() || saving}
+                  className="w-full bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors mb-4 flex items-center justify-center gap-2"
+                >
+                  {saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : 'Save'}
+                </button>
+
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full flex items-center justify-center gap-2 text-stone-500 hover:text-red-400 text-sm transition-colors py-2"
+                >
+                  <Trash2 size={15} /> Delete session
+                </button>
+              </>
+            ) : (
+              /* ── Delete confirm view (same sheet) ── */
+              <>
+                <div className="flex items-center justify-between mb-5">
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="text-stone-500 hover:text-stone-300 transition-colors text-sm flex items-center gap-1.5"
+                  >
+                    ← Back
+                  </button>
+                  <button onClick={closeEdit} className="text-stone-500 hover:text-stone-300 transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="flex flex-col items-center text-center gap-3 mb-6">
+                  <div className="w-12 h-12 rounded-full bg-red-950/60 flex items-center justify-center">
+                    <Trash2 size={20} className="text-red-400" />
+                  </div>
+                  <div>
+                    <p className="text-amber-100 font-medium mb-1">Delete this session?</p>
+                    <p className="text-stone-400 text-sm">
+                      <span className="text-amber-200">{editingSession.title}</span> will be permanently removed.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="w-full bg-red-900/60 hover:bg-red-900 disabled:opacity-40 text-red-300 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2 mb-3"
+                >
+                  {deleting ? <><Loader2 size={16} className="animate-spin" /> Deleting…</> : 'Delete permanently'}
+                </button>
+
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="w-full text-stone-500 hover:text-stone-300 text-sm transition-colors py-2"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
           </div>
         </>
-      )}
-
-      {/* Delete confirmation */}
-      {showDeleteConfirm && editingSession && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/80" onClick={() => setShowDeleteConfirm(false)} />
-          <div className="relative bg-stone-900 border border-stone-800 rounded-2xl p-5 w-full max-w-sm">
-            <h3 className="text-amber-100 font-medium mb-2">Delete session?</h3>
-            <p className="text-stone-400 text-sm mb-5">
-              This permanently deletes <span className="text-amber-200 font-medium">{editingSession.title}</span> and cannot be undone.
-            </p>
-            <input
-              type="text"
-              value={deleteConfirmText}
-              onChange={e => setDeleteConfirmText(e.target.value)}
-              placeholder="Type the session title to confirm"
-              className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-red-700 transition-colors mb-3 text-sm"
-            />
-            <button
-              onClick={handleDelete}
-              disabled={deleteConfirmText !== editingSession.title || deleting}
-              className="w-full bg-red-900/60 hover:bg-red-900 disabled:opacity-40 text-red-300 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2"
-            >
-              {deleting ? <><Loader2 size={16} className="animate-spin" /> Deleting…</> : 'Delete permanently'}
-            </button>
-          </div>
-        </div>
       )}
     </div>
   )
