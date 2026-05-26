@@ -7,6 +7,13 @@ import { ArrowLeft, Trash2, Film, Send, Smartphone, Monitor, Tablet } from 'luci
 
 const EMOTES = ['🍿', '❤️', '😂', '😱', '👏', '💀', '🔥', '🎬']
 
+// ── Sync constants (mirrors base.js / Teleparty algorithm) ──────────────────
+const HEARTBEAT_MS    = 4000   // broadcast interval — 4s is enough with NTP correction
+const NTP_INTERVAL_MS = 30000  // re-sync clock every 30s
+const NTP_SAMPLES     = 5      // rolling window size
+const DRIFT_THRESHOLD = 1.5    // seconds — apply correction above this drift
+const DRIFT_ACTION    = 0.8    // seconds — lower threshold for explicit actions
+
 type ChatMsg = {
   id: string
   user_id: string
@@ -17,6 +24,14 @@ type ChatMsg = {
 
 type FloatingEmote = { id: string; emote: string; x: number }
 type PresenceUser = { user_id: string; name: string; device: 'phone' | 'tablet' | 'desktop' }
+
+type SyncPayload = {
+  kind: 'heartbeat' | 'action'
+  state: 'playing' | 'paused'
+  position: number       // video.currentTime (seconds) at time of send
+  sentAt: number         // server-normalized timestamp: Date.now() - clockOffset
+  from: string
+}
 
 type Props = {
   sessionId: string
@@ -43,6 +58,13 @@ export default function WatchPlayer({
   const applyingRemote = useRef(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const syncChannelRef = useRef<any>(null)
+
+  // ── NTP state (Teleparty rolling-median algorithm) ────────────────────────
+  const rttSamples    = useRef<number[]>([])
+  const offsetSamples = useRef<number[]>([])
+  const clockOffset   = useRef(0)     // best estimate of: localTime - serverTime
+  const hasFirstSync  = useRef(false) // force-apply first received sync unconditionally
+
   const [localFile, setLocalFile] = useState<File | null>(null)
   const [visibleMessages, setVisibleMessages] = useState<ChatMsg[]>([])
   const [floatingEmotes, setFloatingEmotes] = useState<FloatingEmote[]>([])
@@ -73,57 +95,111 @@ export default function WatchPlayer({
     return `${m}:${String(sec).padStart(2, '0')}`
   }
 
+  // ── NTP: rolling-median clock sync ───────────────────────────────────────
+  function rollingMedian(arr: number[]) {
+    if (!arr.length) return 0
+    const s = [...arr].sort((a, b) => a - b)
+    return s[Math.floor(s.length / 2)]
+  }
+
+  function pushSample<T>(ref: React.MutableRefObject<T[]>, val: T) {
+    ref.current.push(val)
+    if (ref.current.length > NTP_SAMPLES) ref.current.splice(0, ref.current.length - NTP_SAMPLES)
+  }
+
+  async function syncClock() {
+    try {
+      const sentAt = Date.now()
+      const res = await fetch('/api/time')
+      const { t } = await res.json() as { t: number }
+      const now = Date.now()
+      const rtt = now - sentAt
+      pushSample(rttSamples, rtt)
+      const rttMedian = rollingMedian(rttSamples.current)
+      // offset = localTime - serverTime, corrected for half RTT
+      pushSample(offsetSamples, now - Math.round(rttMedian / 2) - t)
+      clockOffset.current = rollingMedian(offsetSamples.current)
+    } catch { /* ignore — keep previous estimate */ }
+  }
+
+  // Run NTP sync immediately on mount, then every 30s
+  useEffect(() => {
+    syncClock()
+    const id = setInterval(syncClock, NTP_INTERVAL_MS)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Broadcast helpers ─────────────────────────────────────────────────────
+  // sentAt is normalized to server time so the receiver can reconstruct live position
+  function makeSentAt() { return Date.now() - clockOffset.current }
+
+  // Reconstruct the expected video position from a sync payload,
+  // accounting for clock offset and travel time (Teleparty zn() equivalent).
+  function reconstructPos(payload: SyncPayload): number {
+    if (payload.state !== 'playing' || !payload.sentAt) return payload.position
+    const travelMs = Math.max(0, Date.now() - clockOffset.current - payload.sentAt)
+    return payload.position + travelMs / 1000
+  }
+
   // ── Push state: blocked only while actively applying a remote event ───────
   const pushState = useCallback(async (state: 'playing' | 'paused', position: number) => {
     if (applyingRemote.current) return
-    syncChannelRef.current?.send({
-      type: 'broadcast',
-      event: 'sync',
-      payload: { kind: 'action', state, position, from: userId },
-    })
+    const payload: SyncPayload = { kind: 'action', state, position, sentAt: makeSentAt(), from: userId }
+    syncChannelRef.current?.send({ type: 'broadcast', event: 'sync', payload })
     await supabase.from('watch_sessions').update({
       state,
       playback_position_seconds: position,
       last_updated_by: userId,
       updated_at: new Date().toISOString(),
     }).eq('id', sessionId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, userId, supabase])
+
+  // ── Apply incoming sync payload ───────────────────────────────────────────
+  function applySync(payload: SyncPayload) {
+    const video = videoRef.current
+    if (!video) return
+
+    setPartnerPosition(payload.position)
+    setPartnerPlaying(payload.state === 'playing')
+    setPartnerName(profileMap[payload.from] ?? 'Partner')
+
+    const expectedPos = reconstructPos(payload)
+    const drift = Math.abs(video.currentTime - expectedPos)
+    const threshold = payload.kind === 'action' ? DRIFT_ACTION : DRIFT_THRESHOLD
+    const forceApply = !hasFirstSync.current
+
+    if (forceApply || drift > threshold) {
+      hasFirstSync.current = true
+      applyingRemote.current = true
+      video.currentTime = expectedPos
+      // onSeeked clears applyingRemote
+    }
+
+    if (payload.state === 'playing' && video.paused) {
+      applyingRemote.current = true
+      setNeedsUserPlay(false)
+      video.play().catch(() => {
+        setNeedsUserPlay(true)
+        applyingRemote.current = false
+      })
+      // cleared via onPlay or safety timeout
+      setTimeout(() => { applyingRemote.current = false }, 200)
+    } else if (payload.state === 'paused' && !video.paused) {
+      applyingRemote.current = true
+      video.pause()
+      setTimeout(() => { applyingRemote.current = false }, 200)
+    }
+  }
 
   // ── Sync + Presence ──────────────────────────────────────────────────────
   useEffect(() => {
     const channel = supabase
       .channel(`watch:${sessionId}`)
-      .on('broadcast', { event: 'sync' }, ({ payload }) => {
+      .on('broadcast', { event: 'sync' }, ({ payload }: { payload: SyncPayload }) => {
         if (payload.from === userId) return
-
-        const video = videoRef.current
-        if (!video) return
-
-        setPartnerPosition(payload.position)
-        setPartnerPlaying(payload.state === 'playing')
-        setPartnerName(profileMap[payload.from] ?? 'Partner')
-
-        const isAction = payload.kind === 'action'
-        const driftBig = Math.abs(video.currentTime - payload.position) > (isAction ? 1 : 2)
-
-        // Correct position
-        if (driftBig) {
-          applyingRemote.current = true
-          video.currentTime = payload.position
-          // cleared in onSeeked
-        }
-
-        // Correct play/pause state
-        if (payload.state === 'playing' && video.paused) {
-          applyingRemote.current = true
-          setNeedsUserPlay(false)
-          video.play().catch(() => setNeedsUserPlay(true))
-          setTimeout(() => { applyingRemote.current = false }, 100)
-        } else if (payload.state === 'paused' && !video.paused) {
-          applyingRemote.current = true
-          video.pause()
-          setTimeout(() => { applyingRemote.current = false }, 100)
-        }
+        applySync(payload)
       })
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<PresenceUser>()
@@ -145,20 +221,25 @@ export default function WatchPlayer({
       channel.untrack()
       supabase.removeChannel(channel)
     }
-  }, [sessionId, userId, supabase])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, userId])
 
-  // ── Heartbeat: 1s broadcast keeps both devices in sync ───────────────────
+  // ── Heartbeat: 4s broadcast with NTP-normalized sentAt ───────────────────
   useEffect(() => {
     const interval = setInterval(() => {
       const video = videoRef.current
       if (!video || !syncChannelRef.current) return
-      syncChannelRef.current.send({
-        type: 'broadcast',
-        event: 'sync',
-        payload: { kind: 'heartbeat', state: video.paused ? 'paused' : 'playing', position: video.currentTime, from: userId },
-      })
-    }, 1000)
+      const payload: SyncPayload = {
+        kind: 'heartbeat',
+        state: video.paused ? 'paused' : 'playing',
+        position: video.currentTime,
+        sentAt: makeSentAt(),
+        from: userId,
+      }
+      syncChannelRef.current.send({ type: 'broadcast', event: 'sync', payload })
+    }, HEARTBEAT_MS)
     return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
   // ── Chat: subscribe to incoming messages ────────────────────────────────
