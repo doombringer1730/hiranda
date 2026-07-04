@@ -1,22 +1,70 @@
 import { createClient } from '@/lib/supabase/server'
 import { getProfileMap } from '@/lib/profiles'
 import Link from 'next/link'
-import { Plus, Camera, Map } from 'lucide-react'
+import { Plus, Camera, Map, History } from 'lucide-react'
+
+type Flashback = {
+  id: string
+  title: string
+  happened_at: string
+  photos: { id: string; storage_path: string }[] | null
+}
 
 export default async function HomePage() {
   const supabase = await createClient()
 
-  const [{ data: memories }, profiles] = await Promise.all([
+  const [{ data: memories }, { data: pastMemories }, profiles] = await Promise.all([
     supabase
       .from('memories')
       .select('*, photos(id, storage_path)')
       .order('happened_at', { ascending: false })
       .limit(20),
+    supabase
+      .from('memories')
+      .select('id, title, happened_at, photos(id, storage_path)')
+      .lt('happened_at', new Date().toISOString().slice(0, 10)),
     getProfileMap(),
   ])
 
+  // "On this day" — memories from the same month/day in a past year.
+  // happened_at is a plain YYYY-MM-DD date; compare parts to avoid TZ shifts.
+  const now = new Date()
+  const flashbacks: Flashback[] = ((pastMemories ?? []) as Flashback[]).filter(m => {
+    const [y, mo, da] = m.happened_at.split('-').map(Number)
+    return mo === now.getMonth() + 1 && da === now.getDate() && y < now.getFullYear()
+  })
+
   return (
     <div className="px-4 pt-8 max-w-2xl mx-auto">
+      {flashbacks.length > 0 && (
+        <div className="mb-8 flex flex-col gap-3">
+          {flashbacks.map(fb => {
+            const yearsAgo = now.getFullYear() - Number(fb.happened_at.slice(0, 4))
+            const coverPhoto = fb.photos?.[0]
+            return (
+              <Link
+                key={fb.id}
+                href={`/memories/${fb.id}`}
+                className="group bg-amber-900/20 border border-amber-800/40 rounded-2xl p-5 hover:border-amber-700/60 card-glow flex items-center gap-4"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="flex items-center gap-1.5 text-amber-500 text-xs uppercase tracking-widest mb-1.5">
+                    <History size={12} />
+                    On this day · {yearsAgo} year{yearsAgo !== 1 ? 's' : ''} ago
+                  </p>
+                  <h3 className="font-serif text-xl text-amber-100 group-hover:text-amber-300 transition-colors truncate">
+                    {fb.title}
+                  </h3>
+                </div>
+                {coverPhoto && (
+                  <PhotoThumb path={coverPhoto.storage_path} supabase={supabase} />
+                )}
+              </Link>
+            )
+          })}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-8">
         <h2 className="font-serif text-3xl text-amber-100">Memories</h2>
         <div className="flex items-center gap-2">
