@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { submitResponse, getNextPrompt } from './actions'
+import { useState, useTransition, useEffect } from 'react'
+import { submitResponse, getNextPrompt, getPromptState } from './actions'
 import { Loader2 } from 'lucide-react'
 
 type PromptType = 'question' | 'would_you_rather' | 'this_or_that'
@@ -80,6 +80,21 @@ export default function GameClient({ tabs, partnerName }: Props) {
 
   const bothAnswered = !!(current?.myResponse && current?.partnerResponse)
   const iWaiting = !!(current?.myResponse && !current?.partnerResponse)
+
+  // While waiting for the partner to answer, poll for their response so the
+  // reveal appears without a manual reload. Stops as soon as it arrives.
+  useEffect(() => {
+    if (!iWaiting || !current) return
+    const promptId = current.prompt.id
+    const type = activeTab
+    const interval = setInterval(async () => {
+      const fresh = await getPromptState(promptId)
+      if (fresh?.partnerResponse) {
+        setStates(prev => ({ ...prev, [type]: fresh }))
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [iWaiting, current, activeTab])
 
   return (
     <div className="flex flex-col gap-6">
