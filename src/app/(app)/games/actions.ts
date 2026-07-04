@@ -48,25 +48,11 @@ export async function getActivePrompt(type: PromptType) {
     .limit(1)
     .maybeSingle()
 
-  let promptId: string | null = null
-
-  if (activeResponse) {
-    // Check if both have answered this prompt
-    const { data: responses } = await supabase
-      .from('prompt_responses')
-      .select('user_id, response')
-      .eq('prompt_id', activeResponse.prompt_id)
-
-    const myRes = responses?.find(r => r.user_id === user.id)
-    const partnerRes = responses?.find(r => r.user_id === partnerId)
-
-    // If both answered, this one is done — find a new unanswered one
-    if (myRes && partnerRes) {
-      promptId = null
-    } else {
-      promptId = activeResponse.prompt_id
-    }
-  }
+  // Resume the most recently active prompt, whether one or both members have
+  // answered. If both have answered it stays here so the reveal is shown —
+  // the user leaves it explicitly via "Next prompt" (getNextPrompt). Skipping
+  // fully-answered prompts here made the reveal unreachable.
+  let promptId: string | null = activeResponse?.prompt_id ?? null
 
   if (!promptId) {
     // Pick a random prompt of this type that neither has answered
@@ -124,9 +110,48 @@ export async function submitResponse(promptId: string, response: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Uniqueness is on (prompt_id, user_id), not the default primary key, so an
+  // answer change would otherwise hit a unique-constraint violation.
   await supabase
     .from('prompt_responses')
-    .upsert({ prompt_id: promptId, user_id: user.id, response })
+    .upsert({ prompt_id: promptId, user_id: user.id, response }, { onConflict: 'prompt_id,user_id' })
+}
+
+// Re-read a single prompt's state (my answer + partner's). Used by the client
+// to poll while waiting for the partner to answer, so the reveal appears
+// without a manual page reload.
+export async function getPromptState(promptId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: couple } = await supabase
+    .from('couple')
+    .select('user1_id, user2_id')
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .maybeSingle()
+
+  const partnerId = couple
+    ? couple.user1_id === user.id ? couple.user2_id : couple.user1_id
+    : null
+
+  const { data: prompt } = await supabase
+    .from('prompts')
+    .select('id, type, text, option_a, option_b')
+    .eq('id', promptId)
+    .single()
+
+  if (!prompt) return null
+
+  const { data: responses } = await supabase
+    .from('prompt_responses')
+    .select('user_id, response')
+    .eq('prompt_id', promptId)
+
+  const myResponse = responses?.find(r => r.user_id === user.id)?.response ?? null
+  const partnerResponse = responses?.find(r => r.user_id === partnerId)?.response ?? null
+
+  return { prompt, myResponse, partnerResponse }
 }
 
 export async function getNextPrompt(type: PromptType, excludePromptId: string) {
