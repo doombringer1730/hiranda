@@ -1,6 +1,7 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { saveProfile } from './profile-actions'
@@ -38,6 +39,10 @@ export default function ProfileEditor({ profile, onClose }: { profile: EditableP
   const [error, setError] = useState<string | null>(null)
   const avatarInput = useRef<HTMLInputElement>(null)
   const bannerInput = useRef<HTMLInputElement>(null)
+  // Portal to <body> so the modal escapes the hub's transformed stacking
+  // context (animate-page-in), otherwise the bottom tab bar paints over it.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   function pickFile(kind: 'avatar' | 'banner', e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -73,15 +78,17 @@ export default function ProfileEditor({ profile, onClose }: { profile: EditableP
     onClose()
   }
 
-  return (
+  if (!mounted) return null
+
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-5" onClick={onClose}>
+      <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-5" onClick={onClose}>
         <div
           onClick={e => e.stopPropagation()}
-          className="w-full sm:max-w-md bg-stone-900 border border-stone-800 rounded-t-3xl sm:rounded-2xl overflow-hidden max-h-[92vh] overflow-y-auto animate-page-in"
+          className="w-full sm:max-w-md bg-stone-900 border border-stone-800 rounded-t-3xl sm:rounded-2xl overflow-hidden max-h-[92vh] flex flex-col animate-page-in"
         >
           {/* Banner */}
-          <div className="relative h-28 w-full" style={bannerStyle(bannerUrl, accent)}>
+          <div className="relative h-28 w-full shrink-0" style={bannerStyle(bannerUrl, accent)}>
             <button onClick={onClose} aria-label="Close" className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur text-white/90 hover:text-white flex items-center justify-center">
               <X size={16} />
             </button>
@@ -93,7 +100,7 @@ export default function ProfileEditor({ profile, onClose }: { profile: EditableP
             </button>
           </div>
 
-          <div className="px-5 pb-5">
+          <div className="px-5 pb-4 flex-1 overflow-y-auto">
             {/* Avatar */}
             <div className="-mt-10 mb-4">
               <button
@@ -145,13 +152,15 @@ export default function ProfileEditor({ profile, onClose }: { profile: EditableP
                 </div>
               </Field>
 
-              <div className="flex gap-2 pt-1">
-                <button onClick={onClose} className="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-xl py-3 text-sm transition-colors">Cancel</button>
-                <button onClick={save} disabled={saving} className="flex-1 bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 rounded-xl py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2">
-                  {saving && <Loader2 size={14} className="animate-spin" />} Save profile
-                </button>
-              </div>
             </div>
+          </div>
+
+          {/* Sticky action footer — always reachable on mobile */}
+          <div className="shrink-0 border-t border-stone-800 bg-stone-900 px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex gap-2">
+            <button onClick={onClose} className="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-xl py-3 text-sm transition-colors">Cancel</button>
+            <button onClick={save} disabled={saving} className="flex-1 bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 rounded-xl py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2">
+              {saving && <Loader2 size={14} className="animate-spin" />} Save profile
+            </button>
           </div>
 
           <input ref={avatarInput} type="file" accept="image/*" onChange={e => pickFile('avatar', e)} className="hidden" />
@@ -169,7 +178,8 @@ export default function ProfileEditor({ profile, onClose }: { profile: EditableP
           onApply={handleCropped}
         />
       )}
-    </>
+    </>,
+    document.body,
   )
 }
 

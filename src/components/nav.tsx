@@ -11,18 +11,29 @@ import { SidebarTimer } from './couple-timer'
 import SpotifyStatus from './spotify-status'
 import { logout } from '@/app/(auth)/actions'
 
-const links = [
-  { href: '/',            label: 'Home',        icon: Home          },
-  { href: '/memories',    label: 'Memories',    icon: BookOpen      },
-  { href: '/journal',     label: 'Journal',     icon: PenLine       },
-  { href: '/todos',       label: 'Todos',       icon: CheckSquare   },
-  { href: '/bucket-list', label: 'Bucket List', icon: Star          },
-  { href: '/dates',       label: 'Dates',       icon: CalendarHeart },
-  { href: '/watch',       label: 'Watch',       icon: Play          },
-  { href: '/watchlist',   label: 'Watchlist',   icon: Clapperboard  },
-  { href: '/library',     label: 'Library',     icon: Library       },
-  { href: '/music',       label: 'Music',       icon: Music         },
-  { href: '/games',       label: 'Games',       icon: Gamepad2      },
+// ── Desktop sidebar: Home pinned, then labelled groups ──
+const sections: { label: string | null; items: { href: string; label: string; icon: React.ElementType }[] }[] = [
+  { label: null, items: [
+    { href: '/', label: 'Home', icon: Home },
+  ] },
+  { label: 'Together', items: [
+    { href: '/memories',    label: 'Memories',    icon: BookOpen      },
+    { href: '/journal',     label: 'Journal',     icon: PenLine       },
+    { href: '/dates',       label: 'Dates',       icon: CalendarHeart },
+  ] },
+  { label: 'Plan', items: [
+    { href: '/todos',       label: 'Todos',       icon: CheckSquare   },
+    { href: '/bucket-list', label: 'Bucket List', icon: Star          },
+  ] },
+  { label: 'Watch & read', items: [
+    { href: '/watch',       label: 'Watch',       icon: Play          },
+    { href: '/watchlist',   label: 'Watchlist',   icon: Clapperboard  },
+    { href: '/library',     label: 'Library',     icon: Library       },
+    { href: '/music',       label: 'Music',       icon: Music         },
+  ] },
+  { label: 'Play', items: [
+    { href: '/games',       label: 'Games',       icon: Gamepad2      },
+  ] },
 ]
 
 // ── Mobile: grouped bottom tab bar ──
@@ -131,11 +142,18 @@ export default function Nav() {
           <p className="font-serif text-2xl text-amber-100">Hiranda</p>
           <div className="mt-1.5 h-px bg-gradient-to-r from-amber-800/60 to-transparent" />
         </div>
-        <nav className="flex flex-col gap-0.5 flex-1 overflow-y-auto">
-          {links.map(({ href, label, icon: Icon }) => {
-            const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
-            return <NavLink key={href} href={href} label={label} icon={Icon} active={active} />
-          })}
+        <nav className="flex flex-col gap-4 flex-1 overflow-y-auto">
+          {sections.map((section, i) => (
+            <div key={section.label ?? i} className="flex flex-col gap-0.5">
+              {section.label && (
+                <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-widest text-stone-600">{section.label}</p>
+              )}
+              {section.items.map(({ href, label, icon: Icon }) => {
+                const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
+                return <NavLink key={href} href={href} label={label} icon={Icon} active={active} />
+              })}
+            </div>
+          ))}
         </nav>
         <SpotifyStatus />
         <SidebarTimer />

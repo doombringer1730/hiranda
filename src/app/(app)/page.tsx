@@ -6,6 +6,7 @@ import {
   MessageCircleQuestion, ChevronRight, Heart,
 } from 'lucide-react'
 import PresenceCards, { type PresonProfile } from './presence-cards'
+import { FlameWidget } from './flame-pet'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio'
 
@@ -36,6 +37,17 @@ function daysUntil(dateStr: string, recurring: boolean): number | null {
   return Math.round((next.getTime() - today.getTime()) / 86_400_000)
 }
 
+// Shared streak: consecutive days (ending today, or yesterday as grace) with
+// any couple activity — a journal entry, memory, or answered prompt.
+const dayKey = (d: Date) => d.toISOString().slice(0, 10)
+function computeStreak(days: Set<string>): number {
+  const d = new Date()
+  if (!days.has(dayKey(d))) d.setUTCDate(d.getUTCDate() - 1) // grace: today not logged yet
+  let n = 0
+  while (days.has(dayKey(d))) { n++; d.setUTCDate(d.getUTCDate() - 1) }
+  return n
+}
+
 const jumpIn = [
   { href: '/memories', label: 'Memories', icon: BookOpen },
   { href: '/journal', label: 'Journal', icon: PenLine },
@@ -58,6 +70,8 @@ export default async function HomeHub() {
     ? couple.user1_id === user.id ? couple.user2_id : couple.user1_id
     : null
 
+  const since = new Date(Date.now() - 45 * 86_400_000).toISOString()
+
   const [
     { data: profiles },
     { data: partnerTurns },
@@ -65,6 +79,8 @@ export default async function HomeHub() {
     { data: partnerJournal },
     { data: dates },
     { data: continueWatching },
+    { data: journalDays },
+    { data: memoryDays },
   ] = await Promise.all([
     supabase.from('profiles').select(PROFILE_FIELDS).in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
     partnerId
@@ -82,6 +98,9 @@ export default async function HomeHub() {
     supabase.from('watch_sessions')
       .select('id, title, playback_position_seconds, updated_at')
       .gt('playback_position_seconds', 5).order('updated_at', { ascending: false }).limit(1),
+    // activity for the shared flame streak (couple-scoped by RLS)
+    supabase.from('journal_entries').select('created_by, created_at').gte('created_at', since),
+    supabase.from('memories').select('created_by, created_at').gte('created_at', since),
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
@@ -110,6 +129,23 @@ export default async function HomeHub() {
   const partnerFirst = partner?.display_name.split(' ')[0] ?? 'your partner'
   const days = daysTogether(couple?.together_since ?? null)
 
+  // Shared flame streak: a day is "fed" when BOTH partners did the same kind of
+  // thing that day — both journalled, or both added a memory. (Study joins later.)
+  const byDay = new Map<string, { mem: Set<string>; jrn: Set<string> }>()
+  const mark = (day: string, kind: 'mem' | 'jrn', uid: string) => {
+    const e = byDay.get(day) ?? { mem: new Set<string>(), jrn: new Set<string>() }
+    e[kind].add(uid); byDay.set(day, e)
+  }
+  for (const r of (journalDays ?? []) as { created_by: string; created_at: string }[]) mark(r.created_at.slice(0, 10), 'jrn', r.created_by)
+  for (const r of (memoryDays ?? []) as { created_by: string; created_at: string }[]) mark(r.created_at.slice(0, 10), 'mem', r.created_by)
+  const fedDays = new Set<string>()
+  if (partnerId) {
+    const both = (s: Set<string>) => s.has(user.id) && s.has(partnerId)
+    for (const [day, e] of byDay) if (both(e.mem) || both(e.jrn)) fedDays.add(day)
+  }
+  const streak = computeStreak(fedDays)
+  const fedToday = fedDays.has(dayKey(new Date()))
+
   const hasWaiting = yourTurnPrompt || journalFresh
 
   return (
@@ -131,6 +167,9 @@ export default async function HomeHub() {
 
       {/* Presence — the "double stack" */}
       {couple && <PresenceCards coupleId={couple.id} me={me} partner={partner} />}
+
+      {/* Flame pet — the shared streak */}
+      {couple && <FlameWidget streak={streak} fedToday={fedToday} partnerMissing={!partnerId} />}
 
       {/* Waiting for you */}
       {hasWaiting && (
