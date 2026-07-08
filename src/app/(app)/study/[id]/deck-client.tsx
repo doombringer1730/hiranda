@@ -120,11 +120,12 @@ function CardManager({ deckId, cards }: { deckId: string; cards: Card[] }) {
         {cards.map(c => <CardRow key={c.id} card={c} deckId={deckId} />)}
       </div>
 
-      {cards.length > 0 && (
-        <form action={deleteDeck.bind(null, deckId)} className="mt-8">
-          <button className="text-stone-600 hover:text-red-400 text-xs transition-colors">Delete this deck</button>
-        </form>
-      )}
+      <button
+        onClick={() => { if (confirm('Delete this deck and all its cards? This can’t be undone.')) deleteDeck(deckId) }}
+        className="mt-8 self-start inline-flex items-center gap-1.5 text-stone-500 hover:text-red-400 text-xs transition-colors"
+      >
+        <Trash2 size={13} /> Delete deck
+      </button>
     </section>
   )
 }
