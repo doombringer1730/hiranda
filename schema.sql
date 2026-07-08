@@ -86,7 +86,9 @@ create table profiles (
   spotify_token_expires_at  timestamptz,
   spotify_display_name      text,
   bio                       text,
-  status_text               text
+  status_text               text,
+  accent_color              text,   -- hex '#rrggbb'; profile accent + banner fallback gradient
+  banner_url                text    -- public URL in the `banners` storage bucket (migration 004)
 );
 
 alter table profiles enable row level security;

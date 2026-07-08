@@ -1,5 +1,6 @@
 import { getOrCreateCouple, disconnectSpotify } from './actions'
 import { headers } from 'next/headers'
+import Link from 'next/link'
 import SettingsClient from './settings-client'
 import { logout } from '@/app/(auth)/actions'
 import { LogOut } from 'lucide-react'
@@ -35,11 +36,16 @@ export default async function SettingsPage() {
           <SettingsClient type="theme" currentTheme={theme} />
         </section>
 
-        {/* Avatar */}
+        {/* Profile — photo, banner, colour now live on your profile */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
-          <h3 className="text-amber-200 font-medium mb-1">Avatar</h3>
-          <p className="text-stone-500 text-sm mb-4">Shown on your profile and next to things you add.</p>
-          <SettingsClient type="avatar" avatarUrl={profile?.avatar_url ?? null} userId={user!.id} />
+          <h3 className="text-amber-200 font-medium mb-1">Profile</h3>
+          <p className="text-stone-500 text-sm mb-4">Your photo, banner, colour, and bio — edit them on your profile.</p>
+          <Link
+            href={profile?.username ? `/profile/${profile.username}` : '/'}
+            className="inline-flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-stone-200 text-sm rounded-xl px-4 py-2.5 transition-colors"
+          >
+            Edit your profile →
+          </Link>
         </section>
 
         {/* Username */}

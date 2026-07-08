@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
 async function refreshToken(userId: string, refreshToken: string) {
   const credentials = Buffer.from(
@@ -34,12 +34,54 @@ async function refreshToken(userId: string, refreshToken: string) {
   return tokens.access_token as string
 }
 
-export async function GET() {
+// Returns the currently-playing track for a given user, or null.
+async function trackFor(targetId: string) {
+  const admin = createAdminClient()
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('spotify_access_token, spotify_refresh_token, spotify_token_expires_at, display_name')
+    .eq('id', targetId)
+    .maybeSingle()
+
+  if (!profile?.spotify_access_token) return null
+
+  let accessToken = profile.spotify_access_token
+  const expiresAt = profile.spotify_token_expires_at ? new Date(profile.spotify_token_expires_at) : null
+  if (expiresAt && expiresAt.getTime() - Date.now() < 60_000) {
+    if (!profile.spotify_refresh_token) return null
+    const refreshed = await refreshToken(targetId, profile.spotify_refresh_token)
+    if (!refreshed) return null
+    accessToken = refreshed
+  }
+
+  const nowRes = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    next: { revalidate: 0 },
+  })
+  if (nowRes.status === 204 || !nowRes.ok) return null
+
+  const nowData = await nowRes.json()
+  if (!nowData?.is_playing || nowData?.currently_playing_type !== 'track') return null
+
+  const track = nowData.item
+  return {
+    song: track.name,
+    artist: track.artists.map((a: { name: string }) => a.name).join(', '),
+    albumArt: track.album.images?.[2]?.url ?? track.album.images?.[0]?.url ?? null,
+    partnerName: profile.display_name,
+  }
+}
+
+export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json(null)
 
-  // Find partner
+  // ?who=self returns the caller's own track; default (partner) preserves the
+  // sidebar's original behaviour.
+  const who = request.nextUrl.searchParams.get('who')
+  if (who === 'self') return NextResponse.json(await trackFor(user.id))
+
   const { data: couple } = await supabase
     .from('couple')
     .select('user1_id, user2_id')
@@ -51,49 +93,5 @@ export async function GET() {
     : null
 
   if (!partnerId) return NextResponse.json(null)
-
-  // Read partner's tokens via admin (bypasses RLS for sensitive columns)
-  const admin = createAdminClient()
-  const { data: partnerProfile } = await admin
-    .from('profiles')
-    .select('spotify_access_token, spotify_refresh_token, spotify_token_expires_at, display_name')
-    .eq('id', partnerId)
-    .maybeSingle()
-
-  if (!partnerProfile?.spotify_access_token) return NextResponse.json(null)
-
-  // Refresh if expired (with 60s buffer)
-  let accessToken = partnerProfile.spotify_access_token
-  const expiresAt = partnerProfile.spotify_token_expires_at
-    ? new Date(partnerProfile.spotify_token_expires_at)
-    : null
-
-  if (expiresAt && expiresAt.getTime() - Date.now() < 60_000) {
-    if (!partnerProfile.spotify_refresh_token) return NextResponse.json(null)
-    const refreshed = await refreshToken(partnerId, partnerProfile.spotify_refresh_token)
-    if (!refreshed) return NextResponse.json(null)
-    accessToken = refreshed
-  }
-
-  // Fetch currently playing
-  const nowRes = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    next: { revalidate: 0 },
-  })
-
-  if (nowRes.status === 204 || !nowRes.ok) return NextResponse.json(null)
-
-  const nowData = await nowRes.json()
-
-  if (!nowData?.is_playing || nowData?.currently_playing_type !== 'track') {
-    return NextResponse.json(null)
-  }
-
-  const track = nowData.item
-  return NextResponse.json({
-    song: track.name,
-    artist: track.artists.map((a: { name: string }) => a.name).join(', '),
-    albumArt: track.album.images?.[2]?.url ?? track.album.images?.[0]?.url ?? null,
-    partnerName: partnerProfile.display_name,
-  })
+  return NextResponse.json(await trackFor(partnerId))
 }

@@ -1,9 +1,8 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { updateTogetherSince, toggleTimer, updateDisplayName, saveJellyfinSettings, saveRealDebridSettings, saveTorBoxSettings, saveTheme, saveUsername, saveAvatarUrl } from './actions'
-import { Copy, Check, UserCircle, Loader2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { useState } from 'react'
+import { updateTogetherSince, toggleTimer, updateDisplayName, saveJellyfinSettings, saveRealDebridSettings, saveTorBoxSettings, saveTheme, saveUsername } from './actions'
+import { Copy, Check } from 'lucide-react'
 
 type InviteProps = { type: 'invite'; inviteLink: string }
 type TimerProps = { type: 'timer'; showTimer: boolean; togetherSince: string }
@@ -13,14 +12,12 @@ type RealDebridProps = { type: 'realdebrid'; rdApiKey: string }
 type TorBoxProps = { type: 'torbox'; apiKey: string }
 type ThemeProps = { type: 'theme'; currentTheme: string }
 type UsernameProps = { type: 'username'; username: string | null }
-type AvatarProps = { type: 'avatar'; avatarUrl: string | null; userId: string }
-type Props = InviteProps | TimerProps | NameProps | JellyfinProps | RealDebridProps | TorBoxProps | ThemeProps | UsernameProps | AvatarProps
+type Props = InviteProps | TimerProps | NameProps | JellyfinProps | RealDebridProps | TorBoxProps | ThemeProps | UsernameProps
 
 export default function SettingsClient(props: Props) {
   if (props.type === 'invite') return <InviteSection {...props} />
   if (props.type === 'name') return <NameSection {...props} />
   if (props.type === 'username') return <UsernameSection {...props} />
-  if (props.type === 'avatar') return <AvatarSection {...props} />
   if (props.type === 'jellyfin') return <JellyfinSection {...props} />
   if (props.type === 'realdebrid') return <RealDebridSection {...props} />
   if (props.type === 'torbox') return <TorBoxSection {...props} />
@@ -75,53 +72,6 @@ function UsernameSection({ username }: UsernameProps) {
       </div>
       {error && <p className="text-red-400 text-sm">{error}</p>}
       <p className="text-stone-600 text-xs px-1">Becomes your profile URL — can't be changed after saving.</p>
-    </div>
-  )
-}
-
-function AvatarSection({ avatarUrl, userId }: AvatarProps) {
-  const [preview, setPreview] = useState<string | null>(avatarUrl)
-  const [uploading, setUploading] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-
-    const supabase = createClient()
-    const { error } = await supabase.storage
-      .from('avatars')
-      .upload(userId, file, { upsert: true, contentType: file.type })
-
-    if (!error) {
-      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${userId}`
-      setPreview(url + '?t=' + Date.now())
-      await saveAvatarUrl(url)
-    }
-    setUploading(false)
-  }
-
-  return (
-    <div className="flex items-center gap-4">
-      <button
-        onClick={() => inputRef.current?.click()}
-        className="relative w-16 h-16 rounded-2xl bg-stone-800 border border-stone-700 overflow-hidden flex-shrink-0 hover:border-amber-700 transition-colors flex items-center justify-center"
-      >
-        {preview
-          ? <img src={preview} alt="Avatar" className="w-full h-full object-cover" />
-          : <UserCircle size={32} className="text-stone-600" />}
-        {uploading && (
-          <div className="absolute inset-0 bg-stone-950/70 flex items-center justify-center">
-            <Loader2 size={18} className="animate-spin text-amber-500" />
-          </div>
-        )}
-      </button>
-      <div>
-        <p className="text-stone-300 text-sm mb-1">{preview ? 'Tap to change' : 'Upload a photo'}</p>
-        <p className="text-stone-600 text-xs">Square images look best.</p>
-      </div>
-      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
     </div>
   )
 }

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import PresenceCards, { type PresonProfile } from './presence-cards'
 
-const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text'
+const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -85,7 +85,7 @@ export default async function HomeHub() {
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
-  const me = profileMap.get(user.id) ?? { id: user.id, display_name: 'You', avatar_url: null, username: null, status_text: null }
+  const me = profileMap.get(user.id) ?? { id: user.id, display_name: 'You', avatar_url: null, username: null, status_text: null, accent_color: null, banner_url: null, bio: null }
   const partner = partnerId ? profileMap.get(partnerId) ?? null : null
   const firstName = me.display_name.split(' ')[0]
 
@@ -113,24 +113,24 @@ export default async function HomeHub() {
   const hasWaiting = yourTurnPrompt || journalFresh
 
   return (
-    <div className="px-4 pt-8 pb-12 max-w-2xl mx-auto flex flex-col gap-8">
-      {/* Greeting */}
-      <div>
-        <p className="text-stone-500 text-sm">{greeting()},</p>
-        <h1 className="font-serif text-3xl text-amber-100 mt-0.5">{firstName}</h1>
-      </div>
+    <div className="px-4 pt-4 pb-8 max-w-2xl mx-auto flex flex-col gap-6">
+      {/* Header: greeting + days-together chip */}
+      <header className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-stone-500 text-sm">{greeting()},</p>
+          <h1 className="font-serif text-3xl text-amber-100 mt-0.5">{firstName}</h1>
+        </div>
+        {days !== null && (
+          <Link href={partner?.username ? `/profile/${partner.username}` : '/settings'}
+            className="flex items-center gap-1.5 bg-stone-900/70 border border-stone-800 rounded-full px-3 py-1.5 text-xs text-stone-400 shrink-0 hover:border-amber-800/50 transition-colors">
+            <Heart size={12} className="text-amber-600" />
+            <span className="text-amber-100 font-medium">{days.toLocaleString()}</span> days
+          </Link>
+        )}
+      </header>
 
       {/* Presence — the "double stack" */}
       {couple && <PresenceCards coupleId={couple.id} me={me} partner={partner} />}
-
-      {/* Together status */}
-      {days !== null && (
-        <Link href={partner?.username ? `/profile/${partner.username}` : '/settings'}
-          className="flex items-center justify-center gap-2 text-stone-400 text-sm">
-          <Heart size={14} className="text-amber-700" />
-          <span className="text-amber-100 font-medium">{days.toLocaleString()}</span> days together
-        </Link>
-      )}
 
       {/* Waiting for you */}
       {hasWaiting && (

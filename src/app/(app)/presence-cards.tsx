@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { UserCircle } from 'lucide-react'
+import { UserCircle, Pencil } from 'lucide-react'
+import ProfileEditor, { type EditableProfile } from './profile-editor'
 
 export type PresonProfile = {
   id: string
@@ -10,21 +11,60 @@ export type PresonProfile = {
   avatar_url: string | null
   username: string | null
   status_text: string | null
+  accent_color: string | null
+  banner_url: string | null
+  bio: string | null
 }
 
-// Deterministic warm banner gradient from a user id, so each person's card
-// reads as "theirs" without needing an uploaded banner yet.
-function bannerFor(id: string): string {
-  let h = 0
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) & 0xffff
-  const hue = 15 + (h % 45) // warm band: amber → rust
-  return `linear-gradient(135deg, hsl(${hue} 45% 22%), hsl(${(hue + 20) % 360} 35% 12%))`
+const DEFAULT_ACCENT = '#b45309'
+
+function bannerStyle(p: PresonProfile) {
+  const accent = p.accent_color || DEFAULT_ACCENT
+  if (p.banner_url) return { backgroundImage: `url(${p.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  return { background: `linear-gradient(135deg, ${accent}, ${accent}22 70%, transparent)` }
 }
 
-function Card({ person, online, isYou }: { person: PresonProfile; online: boolean; isYou: boolean }) {
+type Track = { song: string; artist: string; albumArt: string | null }
+
+function SpotifyLine({ who }: { who: 'self' | 'partner' }) {
+  const [track, setTrack] = useState<Track | null>(null)
+  useEffect(() => {
+    let alive = true
+    const url = `/api/spotify/now-playing${who === 'self' ? '?who=self' : ''}`
+    const poll = async () => {
+      try { const r = await fetch(url); const d = r.ok ? await r.json() : null; if (alive) setTrack(d) }
+      catch { if (alive) setTrack(null) }
+    }
+    poll()
+    const iv = setInterval(poll, 30_000)
+    return () => { alive = false; clearInterval(iv) }
+  }, [who])
+
+  if (!track) return null
   return (
-    <div className="rounded-2xl bg-stone-900/70 border border-stone-800 overflow-hidden">
-      <div className="h-12 w-full" style={{ background: bannerFor(person.id) }} />
+    <div className="mt-2 flex items-center gap-2 bg-green-950/30 border border-green-900/40 rounded-lg px-2 py-1.5">
+      {track.albumArt
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={track.albumArt} alt="" className="w-6 h-6 rounded object-cover shrink-0" />
+        : <span className="w-6 h-6 rounded bg-green-900/40 shrink-0" />}
+      <div className="min-w-0">
+        <p className="text-green-300 text-[11px] leading-tight truncate font-medium">{track.song}</p>
+        <p className="text-green-600/90 text-[11px] leading-tight truncate">{track.artist}</p>
+      </div>
+    </div>
+  )
+}
+
+function Card({ person, online, isYou, onEdit }: { person: PresonProfile; online: boolean; isYou: boolean; onEdit?: () => void }) {
+  return (
+    <div className="relative rounded-2xl bg-stone-900/70 border border-stone-800 overflow-hidden">
+      <div className="h-12 w-full" style={bannerStyle(person)} />
+      {isYou && onEdit && (
+        <button onClick={onEdit} aria-label="Edit profile"
+          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur text-white/85 hover:text-white flex items-center justify-center">
+          <Pencil size={13} />
+        </button>
+      )}
       <div className="px-4 pb-4">
         <div className="flex items-end gap-3 -mt-6">
           <div className="relative">
@@ -35,9 +75,7 @@ function Card({ person, online, isYou }: { person: PresonProfile; online: boolea
                 : <UserCircle size={28} className="text-stone-600" />}
             </div>
             <span
-              className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-[3px] border-stone-900 ${
-                online ? 'bg-emerald-500' : 'bg-stone-600'
-              }`}
+              className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-[3px] border-stone-900 ${online ? 'bg-emerald-500' : 'bg-stone-600'}`}
               aria-label={online ? 'online' : 'offline'}
             />
           </div>
@@ -48,13 +86,10 @@ function Card({ person, online, isYou }: { person: PresonProfile; online: boolea
             </p>
           </div>
         </div>
-        <p className={`text-xs mt-2 flex items-center gap-1.5 ${online ? 'text-emerald-400' : 'text-stone-500'}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${online ? 'bg-emerald-500' : 'bg-stone-600'}`} />
-          {online ? 'online' : 'offline'}
-        </p>
         {person.status_text && (
           <p className="text-stone-400 text-sm mt-1.5 italic truncate">&ldquo;{person.status_text}&rdquo;</p>
         )}
+        <SpotifyLine who={isYou ? 'self' : 'partner'} />
       </div>
     </div>
   )
@@ -63,43 +98,43 @@ function Card({ person, online, isYou }: { person: PresonProfile; online: boolea
 export default function PresenceCards({
   coupleId, me, partner,
 }: { coupleId: string; me: PresonProfile; partner: PresonProfile | null }) {
-  // Start optimistic: you're always online on your own screen.
   const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set([me.id]))
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase.channel(`presence-couple-${coupleId}`, {
       config: { presence: { key: me.id } },
     })
-
-    const sync = () => {
-      const state = channel.presenceState()
-      setOnlineIds(new Set([me.id, ...Object.keys(state)]))
-    }
-
+    const sync = () => setOnlineIds(new Set([me.id, ...Object.keys(channel.presenceState())]))
     channel
       .on('presence', { event: 'sync' }, sync)
       .on('presence', { event: 'join' }, sync)
       .on('presence', { event: 'leave' }, sync)
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ online_at: new Date().toISOString() })
-        }
+        if (status === 'SUBSCRIBED') await channel.track({ online_at: new Date().toISOString() })
       })
-
     return () => { supabase.removeChannel(channel) }
   }, [coupleId, me.id])
 
+  const editable: EditableProfile = {
+    id: me.id, display_name: me.display_name, avatar_url: me.avatar_url,
+    banner_url: me.banner_url, accent_color: me.accent_color, bio: me.bio, status_text: me.status_text,
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <Card person={me} online isYou />
-      {partner
-        ? <Card person={partner} online={onlineIds.has(partner.id)} isYou={false} />
-        : (
-          <div className="rounded-2xl bg-stone-900/40 border border-dashed border-stone-800 flex items-center justify-center p-4 text-center">
-            <p className="text-stone-600 text-xs">Your partner&rsquo;s card appears once they join.</p>
-          </div>
-        )}
-    </div>
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <Card person={me} online isYou onEdit={() => setEditing(true)} />
+        {partner
+          ? <Card person={partner} online={onlineIds.has(partner.id)} isYou={false} />
+          : (
+            <div className="rounded-2xl bg-stone-900/40 border border-dashed border-stone-800 flex items-center justify-center p-4 text-center">
+              <p className="text-stone-600 text-xs">Your partner&rsquo;s card appears once they join.</p>
+            </div>
+          )}
+      </div>
+      {editing && <ProfileEditor profile={editable} onClose={() => setEditing(false)} />}
+    </>
   )
 }
