@@ -23,8 +23,10 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup')
+  // /demo is the public walkthrough space (static example data, no user content)
+  const isPublicPage = isAuthPage || request.nextUrl.pathname.startsWith('/demo')
 
-  if (!user && !isAuthPage) {
+  if (!user && !isPublicPage) {
     const url = request.nextUrl.clone()
     const next = request.nextUrl.pathname + request.nextUrl.search
     url.pathname = '/login'

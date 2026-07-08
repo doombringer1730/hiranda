@@ -199,6 +199,23 @@ button, a, input, textarea, select {
   animation: page-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* ── Story progress fill (login walkthrough) ── */
+@keyframes story-fill {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+.animate-story {
+  animation: story-fill 6s linear forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-story {
+    animation: none;
+    width: 100%;
+  }
+}
+
 /* ── Subtle ambient glow on cards (applied via Tailwind hover) ── */
 .card-glow {
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
