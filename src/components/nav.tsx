@@ -3,13 +3,14 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRef, useState, useEffect } from 'react'
-import { BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X, Clapperboard, LogOut, Gamepad2, Music } from 'lucide-react'
+import { Home, BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X, Clapperboard, LogOut, Gamepad2, Music } from 'lucide-react'
 import { SidebarTimer } from './couple-timer'
 import SpotifyStatus from './spotify-status'
 import { logout } from '@/app/(auth)/actions'
 
 const links = [
-  { href: '/',            label: 'Memories',    icon: BookOpen      },
+  { href: '/',            label: 'Home',        icon: Home          },
+  { href: '/memories',    label: 'Memories',    icon: BookOpen      },
   { href: '/journal',     label: 'Journal',     icon: PenLine       },
   { href: '/todos',       label: 'Todos',       icon: CheckSquare   },
   { href: '/bucket-list', label: 'Bucket List', icon: Star          },

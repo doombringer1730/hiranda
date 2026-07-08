@@ -1,155 +1,204 @@
 import { createClient } from '@/lib/supabase/server'
-import { getProfileMap } from '@/lib/profiles'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Camera, Map, History } from 'lucide-react'
+import {
+  BookOpen, PenLine, Library, Gamepad2, CalendarHeart, Play,
+  MessageCircleQuestion, ChevronRight, Heart,
+} from 'lucide-react'
+import PresenceCards, { type PresonProfile } from './presence-cards'
 
-type Flashback = {
-  id: string
-  title: string
-  happened_at: string
-  photos: { id: string; storage_path: string }[] | null
+const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text'
+
+function greeting(): string {
+  const h = new Date().getHours()
+  if (h < 5) return 'still up'
+  if (h < 12) return 'good morning'
+  if (h < 18) return 'good afternoon'
+  return 'good evening'
 }
 
-export default async function HomePage() {
-  const supabase = await createClient()
+function daysTogether(since: string | null): number | null {
+  if (!since) return null
+  const ms = Date.now() - new Date(since).getTime()
+  return Math.max(0, Math.floor(ms / 86_400_000))
+}
 
-  const [{ data: memories }, { data: pastMemories }, profiles] = await Promise.all([
-    supabase
-      .from('memories')
-      .select('*, photos(id, storage_path)')
-      .order('happened_at', { ascending: false })
-      .limit(20),
-    supabase
-      .from('memories')
-      .select('id, title, happened_at, photos(id, storage_path)')
-      .lt('happened_at', new Date().toISOString().slice(0, 10)),
-    getProfileMap(),
+// Next occurrence (in whole days from today) for an important date.
+function daysUntil(dateStr: string, recurring: boolean): number | null {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const [y, m, d] = dateStr.split('-').map(Number)
+  let next = new Date(y, m - 1, d)
+  if (recurring) {
+    next = new Date(today.getFullYear(), m - 1, d)
+    if (next < today) next = new Date(today.getFullYear() + 1, m - 1, d)
+  }
+  if (next < today) return null // one-off in the past
+  return Math.round((next.getTime() - today.getTime()) / 86_400_000)
+}
+
+const jumpIn = [
+  { href: '/memories', label: 'Memories', icon: BookOpen },
+  { href: '/journal', label: 'Journal', icon: PenLine },
+  { href: '/library', label: 'Library', icon: Library },
+  { href: '/games', label: 'Games', icon: Gamepad2 },
+]
+
+export default async function HomeHub() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: couple } = await supabase
+    .from('couple')
+    .select('id, user1_id, user2_id, together_since')
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .maybeSingle()
+
+  const partnerId = couple
+    ? couple.user1_id === user.id ? couple.user2_id : couple.user1_id
+    : null
+
+  const [
+    { data: profiles },
+    { data: partnerTurns },
+    { data: myResponses },
+    { data: partnerJournal },
+    { data: dates },
+    { data: continueWatching },
+  ] = await Promise.all([
+    supabase.from('profiles').select(PROFILE_FIELDS).in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
+    partnerId
+      ? supabase.from('prompt_responses')
+          .select('prompt_id, responded_at, prompts!inner(text, type)')
+          .eq('user_id', partnerId).order('responded_at', { ascending: false }).limit(20)
+      : Promise.resolve({ data: [] as never[] }),
+    supabase.from('prompt_responses').select('prompt_id').eq('user_id', user.id),
+    partnerId
+      ? supabase.from('journal_entries')
+          .select('id, title, created_at').eq('created_by', partnerId)
+          .order('created_at', { ascending: false }).limit(1)
+      : Promise.resolve({ data: [] as never[] }),
+    supabase.from('important_dates').select('id, label, date, recurring'),
+    supabase.from('watch_sessions')
+      .select('id, title, playback_position_seconds, updated_at')
+      .gt('playback_position_seconds', 5).order('updated_at', { ascending: false }).limit(1),
   ])
 
-  // "On this day" — memories from the same month/day in a past year.
-  // happened_at is a plain YYYY-MM-DD date; compare parts to avoid TZ shifts.
-  const now = new Date()
-  const flashbacks: Flashback[] = ((pastMemories ?? []) as Flashback[]).filter(m => {
-    const [y, mo, da] = m.happened_at.split('-').map(Number)
-    return mo === now.getMonth() + 1 && da === now.getDate() && y < now.getFullYear()
-  })
+  const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
+  const me = profileMap.get(user.id) ?? { id: user.id, display_name: 'You', avatar_url: null, username: null, status_text: null }
+  const partner = partnerId ? profileMap.get(partnerId) ?? null : null
+  const firstName = me.display_name.split(' ')[0]
+
+  // "Your turn" — a prompt the partner answered that you haven't.
+  const answeredByMe = new Set((myResponses ?? []).map(r => r.prompt_id))
+  const yourTurn = (partnerTurns ?? []).find(t => !answeredByMe.has(t.prompt_id))
+  const yourTurnPrompt = yourTurn
+    ? (Array.isArray(yourTurn.prompts) ? yourTurn.prompts[0] : yourTurn.prompts) as { text: string; type: string } | undefined
+    : undefined
+
+  const latestJournal = (partnerJournal ?? [])[0] as { id: string; title: string | null; created_at: string } | undefined
+  // Only surface the journal entry if it's fresh (last 7 days).
+  const journalFresh = latestJournal && (Date.now() - new Date(latestJournal.created_at).getTime()) < 7 * 86_400_000
+
+  // Soonest upcoming date.
+  const upcoming = (dates ?? [])
+    .map(d => ({ ...d, inDays: daysUntil(d.date, d.recurring ?? true) }))
+    .filter((d): d is typeof d & { inDays: number } => d.inDays !== null)
+    .sort((a, b) => a.inDays - b.inDays)[0]
+
+  const watching = (continueWatching ?? [])[0] as { id: string; title: string } | undefined
+  const partnerFirst = partner?.display_name.split(' ')[0] ?? 'your partner'
+  const days = daysTogether(couple?.together_since ?? null)
+
+  const hasWaiting = yourTurnPrompt || journalFresh
 
   return (
-    <div className="px-4 pt-8 max-w-2xl mx-auto">
-      {flashbacks.length > 0 && (
-        <div className="mb-8 flex flex-col gap-3">
-          {flashbacks.map(fb => {
-            const yearsAgo = now.getFullYear() - Number(fb.happened_at.slice(0, 4))
-            const coverPhoto = fb.photos?.[0]
-            return (
-              <Link
-                key={fb.id}
-                href={`/memories/${fb.id}`}
-                className="group bg-amber-900/20 border border-amber-800/40 rounded-2xl p-5 hover:border-amber-700/60 card-glow flex items-center gap-4"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="flex items-center gap-1.5 text-amber-500 text-xs uppercase tracking-widest mb-1.5">
-                    <History size={12} />
-                    On this day · {yearsAgo} year{yearsAgo !== 1 ? 's' : ''} ago
-                  </p>
-                  <h3 className="font-serif text-xl text-amber-100 group-hover:text-amber-300 transition-colors truncate">
-                    {fb.title}
-                  </h3>
+    <div className="px-4 pt-8 pb-12 max-w-2xl mx-auto flex flex-col gap-8">
+      {/* Greeting */}
+      <div>
+        <p className="text-stone-500 text-sm">{greeting()},</p>
+        <h1 className="font-serif text-3xl text-amber-100 mt-0.5">{firstName}</h1>
+      </div>
+
+      {/* Presence — the "double stack" */}
+      {couple && <PresenceCards coupleId={couple.id} me={me} partner={partner} />}
+
+      {/* Together status */}
+      {days !== null && (
+        <Link href={partner?.username ? `/profile/${partner.username}` : '/settings'}
+          className="flex items-center justify-center gap-2 text-stone-400 text-sm">
+          <Heart size={14} className="text-amber-700" />
+          <span className="text-amber-100 font-medium">{days.toLocaleString()}</span> days together
+        </Link>
+      )}
+
+      {/* Waiting for you */}
+      {hasWaiting && (
+        <section>
+          <h2 className="text-stone-500 text-xs uppercase tracking-widest mb-3">Waiting for you</h2>
+          <div className="flex flex-col gap-2.5">
+            {yourTurnPrompt && (
+              <Link href="/games" className="group flex items-center gap-3 bg-amber-900/20 border border-amber-800/40 rounded-2xl p-4 hover:border-amber-700/60 card-glow">
+                <MessageCircleQuestion size={18} className="text-amber-500 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-amber-100 text-sm">{partnerFirst} answered — your turn</p>
+                  <p className="text-stone-500 text-xs truncate mt-0.5">&ldquo;{yourTurnPrompt.text}&rdquo;</p>
                 </div>
-                {coverPhoto && (
-                  <PhotoThumb path={coverPhoto.storage_path} supabase={supabase} />
-                )}
+                <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
               </Link>
-            )
-          })}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="font-serif text-3xl text-amber-100">Memories</h2>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/memories/map"
-            className="flex items-center gap-2 bg-stone-800 hover:bg-stone-700 text-stone-300 text-sm font-medium px-3 py-2.5 rounded-xl transition-colors"
-          >
-            <Map size={16} />
-          </Link>
-          <Link
-            href="/memories/new"
-            className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
-          >
-            <Plus size={16} />
-            New
-          </Link>
-        </div>
-      </div>
-
-      {!memories?.length && (
-        <div className="text-center py-24">
-          <Camera size={40} className="mx-auto text-stone-700 mb-4" />
-          <p className="text-stone-500">No memories yet. Add your first one.</p>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-4">
-        {memories?.map((memory) => {
-          const coverPhoto = memory.photos?.[0]
-          return (
-            <Link
-              key={memory.id}
-              href={`/memories/${memory.id}`}
-              className="group bg-stone-900/80 border border-stone-800/80 rounded-2xl overflow-hidden hover:border-amber-800/50 card-glow"
-            >
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-serif text-xl text-amber-100 group-hover:text-amber-300 transition-colors truncate">
-                      {memory.title}
-                    </h3>
-                    <p className="text-stone-500 text-sm mt-1">
-                      {new Date(memory.happened_at).toLocaleDateString('en-US', {
-                        year: 'numeric', month: 'long', day: 'numeric'
-                      })}
-                      {profiles.get(memory.created_by) && (
-                        <span className="text-stone-600"> · {profiles.get(memory.created_by)}</span>
-                      )}
-                    </p>
-                    {memory.body && (
-                      <p className="text-stone-400 text-sm mt-2 line-clamp-2">{memory.body}</p>
-                    )}
-                  </div>
-                  {coverPhoto && (
-                    <PhotoThumb path={coverPhoto.storage_path} supabase={supabase} />
-                  )}
+            )}
+            {journalFresh && latestJournal && (
+              <Link href={`/journal`} className="group flex items-center gap-3 bg-stone-900/70 border border-stone-800 rounded-2xl p-4 hover:border-amber-800/50 card-glow">
+                <PenLine size={18} className="text-amber-600 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-amber-100 text-sm truncate">{partnerFirst} wrote a journal entry</p>
+                  <p className="text-stone-500 text-xs truncate mt-0.5">{latestJournal.title || 'Untitled entry'}</p>
                 </div>
+                <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
 
-                {memory.tags?.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {memory.tags.map((tag: string) => (
-                      <span key={tag} className="text-xs bg-stone-800 text-stone-400 px-2 py-0.5 rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
+      {/* Coming up */}
+      {(upcoming || watching) && (
+        <section>
+          <h2 className="text-stone-500 text-xs uppercase tracking-widest mb-3">Coming up</h2>
+          <div className="grid grid-cols-2 gap-2.5">
+            {upcoming && (
+              <Link href="/dates" className="bg-stone-900/70 border border-stone-800 rounded-2xl p-4 hover:border-amber-800/50 card-glow flex flex-col gap-1">
+                <CalendarHeart size={16} className="text-amber-600" />
+                <p className="text-amber-100 text-sm mt-1 truncate">{upcoming.label}</p>
+                <p className="text-amber-200/80 text-xs">
+                  {upcoming.inDays === 0 ? 'today' : upcoming.inDays === 1 ? 'tomorrow' : `in ${upcoming.inDays} days`}
+                </p>
+              </Link>
+            )}
+            {watching && (
+              <Link href={`/watch/${watching.id}`} className="bg-stone-900/70 border border-stone-800 rounded-2xl p-4 hover:border-amber-800/50 card-glow flex flex-col gap-1">
+                <Play size={16} className="text-amber-600" fill="currentColor" />
+                <p className="text-amber-100 text-sm mt-1 truncate">{watching.title}</p>
+                <p className="text-stone-500 text-xs">continue watching</p>
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
 
-                {memory.photos?.length > 0 && (
-                  <p className="text-stone-600 text-xs mt-3 flex items-center gap-1">
-                    <Camera size={12} /> {memory.photos.length} photo{memory.photos.length !== 1 ? 's' : ''}
-                  </p>
-                )}
-              </div>
+      {/* Jump in */}
+      <section>
+        <h2 className="text-stone-500 text-xs uppercase tracking-widest mb-3">Jump in</h2>
+        <div className="grid grid-cols-4 gap-2.5">
+          {jumpIn.map(({ href, label, icon: Icon }) => (
+            <Link key={href} href={href}
+              className="flex flex-col items-center gap-2 bg-stone-900/70 border border-stone-800 rounded-2xl py-4 hover:border-amber-800/50 hover:text-amber-200 text-stone-400 transition-colors card-glow">
+              <Icon size={20} />
+              <span className="text-[11px]">{label}</span>
             </Link>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      </section>
     </div>
   )
-}
-
-async function PhotoThumb({ path, supabase }: { path: string; supabase: Awaited<ReturnType<typeof createClient>> }) {
-  const { data } = await supabase.storage.from('photos').createSignedUrl(path, 3600)
-  if (!data?.signedUrl) return null
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={data.signedUrl} alt="" width={64} height={64} loading="lazy" className="w-16 h-16 object-cover rounded-xl flex-shrink-0" />
 }
