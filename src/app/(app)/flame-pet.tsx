@@ -1,4 +1,4 @@
-import { Flame } from 'lucide-react'
+import { Flame, Heart } from 'lucide-react'
 
 const MILESTONES = [3, 7, 30, 100, 365]
 
@@ -47,17 +47,25 @@ export function FlamePet({ streak, size = 72 }: { streak: number; size?: number 
   )
 }
 
-export function FlameWidget({ streak, fedToday, partnerMissing }: {
+export function FlameWidget({ streak, fedToday, partnerMissing, days }: {
   streak: number
   fedToday: boolean
   partnerMissing: boolean
+  days?: number | null
 }) {
   const next = MILESTONES.find(m => m > streak) ?? null
   const prev = [...MILESTONES].reverse().find(m => m <= streak) ?? 0
   const pct = next ? Math.round(((streak - prev) / (next - prev)) * 100) : 100
 
   return (
-    <section className="rounded-2xl bg-stone-900/70 border border-stone-800 p-4 flex items-center gap-4 card-glow">
+    <section className="relative rounded-2xl bg-stone-900/70 border border-stone-800 p-4 flex items-center gap-4 card-glow">
+      {days != null && (
+        <span className="absolute top-3 right-3 flex items-center gap-1.5 text-xs text-stone-400">
+          <Heart size={12} className="text-amber-600" />
+          <span className="text-amber-100 font-medium">{days.toLocaleString()}</span>
+          <span className="text-stone-500">days</span>
+        </span>
+      )}
       <div className="shrink-0">
         <FlamePet streak={streak} size={64} />
       </div>

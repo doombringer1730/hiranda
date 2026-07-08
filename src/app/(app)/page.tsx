@@ -2,8 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  BookOpen, PenLine, Library, Gamepad2, CalendarHeart, Play,
-  MessageCircleQuestion, ChevronRight, Heart,
+  PenLine, CalendarHeart, Play, MessageCircleQuestion, ChevronRight,
 } from 'lucide-react'
 import PresenceCards, { type PresonProfile } from './presence-cards'
 import { FlameWidget } from './flame-pet'
@@ -47,13 +46,6 @@ function computeStreak(days: Set<string>): number {
   while (days.has(dayKey(d))) { n++; d.setUTCDate(d.getUTCDate() - 1) }
   return n
 }
-
-const jumpIn = [
-  { href: '/memories', label: 'Memories', icon: BookOpen },
-  { href: '/journal', label: 'Journal', icon: PenLine },
-  { href: '/library', label: 'Library', icon: Library },
-  { href: '/games', label: 'Games', icon: Gamepad2 },
-]
 
 export default async function HomeHub() {
   const supabase = await createClient()
@@ -152,31 +144,25 @@ export default async function HomeHub() {
   const hasWaiting = yourTurnPrompt || journalFresh
 
   return (
-    <div className="px-4 pt-4 pb-8 max-w-2xl mx-auto flex flex-col gap-6">
-      {/* Header: greeting + days-together chip */}
-      <header className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-stone-500 text-sm">{greeting()},</p>
-          <h1 className="font-serif text-3xl text-amber-100 mt-0.5">{firstName}</h1>
-        </div>
-        {days !== null && (
-          <Link href={partner?.username ? `/profile/${partner.username}` : '/settings'}
-            className="flex items-center gap-1.5 bg-stone-900/70 border border-stone-800 rounded-full px-3 py-1.5 text-xs text-stone-400 shrink-0 hover:border-amber-800/50 transition-colors">
-            <Heart size={12} className="text-amber-600" />
-            <span className="text-amber-100 font-medium">{days.toLocaleString()}</span> days
-          </Link>
-        )}
+    <div className="px-4 pt-4 pb-8 max-w-2xl md:max-w-4xl mx-auto">
+      {/* Greeting */}
+      <header className="mb-6">
+        <p className="text-stone-500 text-sm">{greeting()},</p>
+        <h1 className="font-serif text-3xl text-amber-100 mt-0.5">{firstName}</h1>
       </header>
 
-      {/* Presence — the "double stack" */}
-      {couple && <PresenceCards coupleId={couple.id} me={me} partner={partner} />}
+      {/* Bento grid — size signals importance: presence + flame are the
+          full-width heroes; waiting & coming-up sit side by side beneath. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+        {/* Presence — the "double stack" */}
+        {couple && <div className="md:col-span-2"><PresenceCards coupleId={couple.id} me={me} partner={partner} /></div>}
 
-      {/* Flame pet — the shared streak */}
-      {couple && <FlameWidget streak={streak} fedToday={fedToday} partnerMissing={!partnerId} />}
+        {/* Flame pet + days — the shared "us" hero */}
+        {couple && <div className="md:col-span-2"><FlameWidget streak={streak} fedToday={fedToday} partnerMissing={!partnerId} days={days} /></div>}
 
-      {/* Waiting for you */}
-      {hasWaiting && (
-        <section>
+        {/* Waiting for you */}
+        {hasWaiting && (
+        <section className="md:col-span-1">
           <h2 className="text-stone-500 text-xs uppercase tracking-widest mb-3">Waiting for you</h2>
           <div className="flex flex-col gap-2.5">
             {yourTurnPrompt && (
@@ -203,9 +189,9 @@ export default async function HomeHub() {
         </section>
       )}
 
-      {/* Coming up */}
-      {(upcoming || watching) && (
-        <section>
+        {/* Coming up */}
+        {(upcoming || watching) && (
+        <section className="md:col-span-1">
           <h2 className="text-stone-500 text-xs uppercase tracking-widest mb-3">Coming up</h2>
           <div className="grid grid-cols-2 gap-2.5">
             {upcoming && (
@@ -226,21 +212,8 @@ export default async function HomeHub() {
             )}
           </div>
         </section>
-      )}
-
-      {/* Jump in */}
-      <section>
-        <h2 className="text-stone-500 text-xs uppercase tracking-widest mb-3">Jump in</h2>
-        <div className="grid grid-cols-4 gap-2.5">
-          {jumpIn.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href}
-              className="flex flex-col items-center gap-2 bg-stone-900/70 border border-stone-800 rounded-2xl py-4 hover:border-amber-800/50 hover:text-amber-200 text-stone-400 transition-colors card-glow">
-              <Icon size={20} />
-              <span className="text-[11px]">{label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+        )}
+      </div>
     </div>
   )
 }
