@@ -2,8 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useRef, useState, useEffect } from 'react'
-import { Home, BookOpen, CheckSquare, Star, Play, Library, Menu, Settings, PenLine, CalendarHeart, X, Clapperboard, LogOut, Gamepad2, Music } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import {
+  Home, BookOpen, CheckSquare, Star, Play, Library, Settings, PenLine,
+  CalendarHeart, Clapperboard, LogOut, Gamepad2, Music, Heart, MoreHorizontal, X,
+} from 'lucide-react'
 import { SidebarTimer } from './couple-timer'
 import SpotifyStatus from './spotify-status'
 import { logout } from '@/app/(auth)/actions'
@@ -21,6 +24,42 @@ const links = [
   { href: '/music',       label: 'Music',       icon: Music         },
   { href: '/games',       label: 'Games',       icon: Gamepad2      },
 ]
+
+// ── Mobile: grouped bottom tab bar ──
+// 11 destinations don't fit a tab bar, so we group the long tail into sheets.
+// Home and Play are direct; Together / Watch / More open a bottom sheet.
+type SheetItem = { href: string; label: string; icon: React.ElementType }
+const groups: Record<string, { label: string; icon: React.ElementType; items: SheetItem[] }> = {
+  together: {
+    label: 'Together', icon: Heart,
+    items: [
+      { href: '/memories',    label: 'Memories',    icon: BookOpen      },
+      { href: '/journal',     label: 'Journal',     icon: PenLine       },
+      { href: '/dates',       label: 'Dates',       icon: CalendarHeart },
+      { href: '/bucket-list', label: 'Bucket List', icon: Star          },
+      { href: '/todos',       label: 'Todos',       icon: CheckSquare   },
+    ],
+  },
+  watch: {
+    label: 'Watch', icon: Clapperboard,
+    items: [
+      { href: '/watch',     label: 'Watch',     icon: Play         },
+      { href: '/watchlist', label: 'Watchlist', icon: Clapperboard },
+      { href: '/library',   label: 'Library',   icon: Library      },
+      { href: '/music',     label: 'Music',     icon: Music        },
+    ],
+  },
+  more: {
+    label: 'More', icon: MoreHorizontal,
+    items: [
+      { href: '/settings', label: 'Settings', icon: Settings },
+    ],
+  },
+}
+
+function pathInGroup(pathname: string, items: SheetItem[]) {
+  return items.some(i => pathname === i.href || pathname.startsWith(i.href + '/'))
+}
 
 function NavLink({ href, label, icon: Icon, active, onClick }: {
   href: string
@@ -45,35 +84,41 @@ function NavLink({ href, label, icon: Icon, active, onClick }: {
   )
 }
 
+function TabButton({ label, icon: Icon, active, onClick, href }: {
+  label: string
+  icon: React.ElementType
+  active: boolean
+  onClick?: () => void
+  href?: string
+}) {
+  const cls = `flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-0 transition-colors ${
+    active ? 'text-amber-400' : 'text-stone-500 active:text-stone-300'
+  }`
+  const inner = (
+    <>
+      <Icon size={20} />
+      <span className="text-[10px] leading-none">{label}</span>
+    </>
+  )
+  return href
+    ? <Link href={href} className={cls}>{inner}</Link>
+    : <button onClick={onClick} className={cls} aria-label={label}>{inner}</button>
+}
+
 export default function Nav() {
   const pathname = usePathname()
-  const [open, setOpen] = useState(false)
-  const touchStartX = useRef(0)
+  const [sheet, setSheet] = useState<string | null>(null)
 
+  // Close the sheet on navigation.
+  useEffect(() => { setSheet(null) }, [pathname])
+
+  // Lock body scroll while a sheet is open.
   useEffect(() => {
-    function onTouchStart(e: TouchEvent) {
-      touchStartX.current = e.touches[0].clientX
-    }
-    function onTouchEnd(e: TouchEvent) {
-      const dx = e.changedTouches[0].clientX - touchStartX.current
-      if (dx > 60 && touchStartX.current < 30) setOpen(true)
-      if (dx < -60) setOpen(false)
-    }
-    document.addEventListener('touchstart', onTouchStart, { passive: true })
-    document.addEventListener('touchend', onTouchEnd, { passive: true })
-    return () => {
-      document.removeEventListener('touchstart', onTouchStart)
-      document.removeEventListener('touchend', onTouchEnd)
-    }
-  }, [])
-
-  useEffect(() => { setOpen(false) }, [pathname])
-
-  // Lock body scroll when drawer is open
-  useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : ''
+    document.body.style.overflow = sheet ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
-  }, [open])
+  }, [sheet])
+
+  const openGroup = sheet ? groups[sheet] : null
 
   return (
     <>
@@ -103,79 +148,46 @@ export default function Nav() {
         </form>
       </aside>
 
-      {/* ── Mobile: hamburger button ── */}
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Open menu"
-        className="md:hidden fixed top-4 left-4 z-50 w-10 h-10 rounded-xl bg-stone-900/95 backdrop-blur border border-stone-800/80 text-stone-400 hover:text-amber-300 hover:border-stone-700 transition-all duration-200 flex items-center justify-center shadow-lg"
-      >
-        <Menu size={18} />
-      </button>
-
-      {/* ── Mobile: backdrop ── */}
-      {open && (
-        <div
-          onClick={() => setOpen(false)}
-          className="md:hidden fixed inset-0 bg-black/60 z-40"
-        />
+      {/* ── Mobile: group sheet (slides up above the tab bar) ── */}
+      {openGroup && (
+        <div className="md:hidden fixed inset-0 z-40" onClick={() => setSheet(null)}>
+          <div className="absolute inset-0 bg-black/60" />
+          <div
+            onClick={e => e.stopPropagation()}
+            className="absolute left-0 right-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] bg-stone-900 border-t border-stone-800 rounded-t-3xl px-3 pt-3 pb-4 shadow-2xl animate-page-in"
+          >
+            <div className="flex items-center justify-between px-3 pb-2">
+              <p className="text-stone-400 text-xs uppercase tracking-widest">{openGroup.label}</p>
+              <button onClick={() => setSheet(null)} aria-label="Close" className="text-stone-500 hover:text-amber-300 p-1 -mr-1">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {openGroup.items.map(({ href, label, icon: Icon }) => {
+                const active = pathname === href || pathname.startsWith(href + '/')
+                return <NavLink key={href} href={href} label={label} icon={Icon} active={active} onClick={() => setSheet(null)} />
+              })}
+              {sheet === 'more' && (
+                <form action={logout}>
+                  <button type="submit" className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-stone-500 hover:text-red-400 hover:bg-stone-800/70 transition-all duration-200 w-full">
+                    <LogOut size={17} />
+                    <span>Sign out</span>
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* ── Mobile: full drawer ── */}
-      <aside
-        className={`md:hidden fixed top-0 left-0 h-full w-64 bg-stone-900 border-r border-stone-800/60 z-50 flex flex-col overflow-hidden transition-transform duration-300 ease-out shadow-2xl ${
-          open ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        {/* Header */}
-        <div className="px-6 pt-8 pb-6 flex items-start justify-between flex-shrink-0">
-          <div>
-            <p className="font-serif text-2xl text-amber-100">Hiranda</p>
-            <div className="mt-1.5 h-px bg-gradient-to-r from-amber-800/60 to-transparent w-32" />
-          </div>
-          <button
-            onClick={() => setOpen(false)}
-            aria-label="Close menu"
-            className="text-stone-500 hover:text-amber-300 transition-colors p-1 mt-0.5 -mr-1"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Nav items */}
-        <nav className="flex flex-col gap-0.5 flex-1 px-3 overflow-y-auto">
-          {links.map(({ href, label, icon: Icon }) => {
-            const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
-            return (
-              <NavLink
-                key={href}
-                href={href}
-                label={label}
-                icon={Icon}
-                active={active}
-                onClick={() => setOpen(false)}
-              />
-            )
-          })}
-        </nav>
-
-        {/* Settings + logout at bottom */}
-        <div className="px-3 pb-8 flex-shrink-0">
-          <div className="h-px bg-stone-800/60 mb-3" />
-          <NavLink
-            href="/settings"
-            label="Settings"
-            icon={Settings}
-            active={pathname === '/settings'}
-            onClick={() => setOpen(false)}
-          />
-          <form action={logout}>
-            <button type="submit" className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-stone-500 hover:text-red-400 hover:bg-stone-800/70 transition-all duration-200 w-full">
-              <LogOut size={17} />
-              <span>Sign out</span>
-            </button>
-          </form>
-        </div>
-      </aside>
+      {/* ── Mobile: bottom tab bar ── */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 h-16 pb-[env(safe-area-inset-bottom)] bg-stone-900/95 backdrop-blur border-t border-stone-800/80 flex items-stretch">
+        <TabButton label="Home" icon={Home} href="/" active={pathname === '/'} />
+        <TabButton label="Together" icon={Heart} active={sheet === 'together' || pathInGroup(pathname, groups.together.items)} onClick={() => setSheet(s => s === 'together' ? null : 'together')} />
+        <TabButton label="Watch" icon={Clapperboard} active={sheet === 'watch' || pathInGroup(pathname, groups.watch.items)} onClick={() => setSheet(s => s === 'watch' ? null : 'watch')} />
+        <TabButton label="Play" icon={Gamepad2} href="/games" active={pathname.startsWith('/games')} />
+        <TabButton label="More" icon={MoreHorizontal} active={sheet === 'more' || pathname.startsWith('/settings')} onClick={() => setSheet(s => s === 'more' ? null : 'more')} />
+      </nav>
     </>
   )
 }
