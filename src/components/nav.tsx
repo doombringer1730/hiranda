@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import {
   Home, BookOpen, CheckSquare, Star, Play, Library, Settings, PenLine,
-  CalendarHeart, Clapperboard, LogOut, Gamepad2, Music, Heart, MoreHorizontal, X,
+  CalendarHeart, Clapperboard, LogOut, Gamepad2, Music, Heart, MoreHorizontal, X, GraduationCap,
 } from 'lucide-react'
 import { SidebarTimer } from './couple-timer'
 import SpotifyStatus from './spotify-status'
@@ -33,6 +33,7 @@ const sections: { label: string | null; items: { href: string; label: string; ic
   ] },
   { label: 'Play', items: [
     { href: '/games',       label: 'Games',       icon: Gamepad2      },
+    { href: '/study',       label: 'Study',       icon: GraduationCap },
   ] },
 ]
 
@@ -58,6 +59,13 @@ const groups: Record<string, { label: string; icon: React.ElementType; items: Sh
       { href: '/watchlist', label: 'Watchlist', icon: Clapperboard },
       { href: '/library',   label: 'Library',   icon: Library      },
       { href: '/music',     label: 'Music',     icon: Music        },
+    ],
+  },
+  play: {
+    label: 'Play', icon: Gamepad2,
+    items: [
+      { href: '/games', label: 'Games', icon: Gamepad2 },
+      { href: '/study', label: 'Study', icon: GraduationCap },
     ],
   },
   more: {
@@ -203,7 +211,7 @@ export default function Nav() {
         <TabButton label="Home" icon={Home} href="/" active={pathname === '/'} />
         <TabButton label="Together" icon={Heart} active={sheet === 'together' || pathInGroup(pathname, groups.together.items)} onClick={() => setSheet(s => s === 'together' ? null : 'together')} />
         <TabButton label="Watch" icon={Clapperboard} active={sheet === 'watch' || pathInGroup(pathname, groups.watch.items)} onClick={() => setSheet(s => s === 'watch' ? null : 'watch')} />
-        <TabButton label="Play" icon={Gamepad2} href="/games" active={pathname.startsWith('/games')} />
+        <TabButton label="Play" icon={Gamepad2} active={sheet === 'play' || pathInGroup(pathname, groups.play.items)} onClick={() => setSheet(s => s === 'play' ? null : 'play')} />
         <TabButton label="More" icon={MoreHorizontal} active={sheet === 'more' || pathname.startsWith('/settings')} onClick={() => setSheet(s => s === 'more' ? null : 'more')} />
       </nav>
     </>

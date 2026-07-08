@@ -81,6 +81,7 @@ export default async function HomeHub() {
     { data: continueWatching },
     { data: journalDays },
     { data: memoryDays },
+    { data: studyDays },
   ] = await Promise.all([
     supabase.from('profiles').select(PROFILE_FIELDS).in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
     partnerId
@@ -101,6 +102,7 @@ export default async function HomeHub() {
     // activity for the shared flame streak (couple-scoped by RLS)
     supabase.from('journal_entries').select('created_by, created_at').gte('created_at', since),
     supabase.from('memories').select('created_by, created_at').gte('created_at', since),
+    supabase.from('study_attempts').select('user_id, created_at').gte('created_at', since),
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
@@ -131,17 +133,18 @@ export default async function HomeHub() {
 
   // Shared flame streak: a day is "fed" when BOTH partners did the same kind of
   // thing that day — both journalled, or both added a memory. (Study joins later.)
-  const byDay = new Map<string, { mem: Set<string>; jrn: Set<string> }>()
-  const mark = (day: string, kind: 'mem' | 'jrn', uid: string) => {
-    const e = byDay.get(day) ?? { mem: new Set<string>(), jrn: new Set<string>() }
+  const byDay = new Map<string, { mem: Set<string>; jrn: Set<string>; std: Set<string> }>()
+  const mark = (day: string, kind: 'mem' | 'jrn' | 'std', uid: string) => {
+    const e = byDay.get(day) ?? { mem: new Set<string>(), jrn: new Set<string>(), std: new Set<string>() }
     e[kind].add(uid); byDay.set(day, e)
   }
   for (const r of (journalDays ?? []) as { created_by: string; created_at: string }[]) mark(r.created_at.slice(0, 10), 'jrn', r.created_by)
   for (const r of (memoryDays ?? []) as { created_by: string; created_at: string }[]) mark(r.created_at.slice(0, 10), 'mem', r.created_by)
+  for (const r of (studyDays ?? []) as { user_id: string; created_at: string }[]) mark(r.created_at.slice(0, 10), 'std', r.user_id)
   const fedDays = new Set<string>()
   if (partnerId) {
     const both = (s: Set<string>) => s.has(user.id) && s.has(partnerId)
-    for (const [day, e] of byDay) if (both(e.mem) || both(e.jrn)) fedDays.add(day)
+    for (const [day, e] of byDay) if (both(e.mem) || both(e.jrn) || both(e.std)) fedDays.add(day)
   }
   const streak = computeStreak(fedDays)
   const fedToday = fedDays.has(dayKey(new Date()))

@@ -598,6 +598,15 @@ create policy "Users can insert their own responses"
 
 
 -- ─────────────────────────────────────────
+-- STUDY (decks, cards, competitive attempts, spaced-repetition) — migration 005
+-- ─────────────────────────────────────────
+-- study_decks, study_cards, study_attempts, study_progress.
+-- Couple-scoped like bucket_list (via created_by / user_id sharing a couple);
+-- study_progress is private per user. See migrations/005_study_section.sql for
+-- the full table + policy definitions.
+
+
+-- ─────────────────────────────────────────
 -- STORAGE BUCKETS (create in the Supabase dashboard or via CLI)
 -- ─────────────────────────────────────────
 
