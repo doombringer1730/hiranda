@@ -36,11 +36,39 @@ create policy "User can create couple"
   on couple for insert with check (auth.uid() = user1_id);
 create policy "Couple members can read their couple"
   on couple for select using ((auth.uid() = user1_id) or (auth.uid() = user2_id));
--- Lets an invited partner (user2) claim an open couple via the invite flow.
-create policy "Authenticated user can accept invite"
-  on couple for update using (user2_id is null) with check (auth.uid() = user2_id);
 create policy "Members can update couple settings"
   on couple for update using ((auth.uid() = user1_id) or (auth.uid() = user2_id));
+
+-- Invited partners claim the open slot via accept_invite() below (SECURITY
+-- DEFINER, token-validated). Do NOT add an UPDATE policy for non-members:
+-- migration 002 removed one that let any signed-in user claim any open couple.
+
+create or replace function public.accept_invite(token text, new_user_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  claimed int;
+begin
+  if auth.uid() is null or new_user_id is distinct from auth.uid() then
+    return false;
+  end if;
+
+  update couple
+     set user2_id = new_user_id
+   where invite_token = accept_invite.token
+     and user2_id is null
+     and user1_id <> new_user_id;
+
+  get diagnostics claimed = row_count;
+  return claimed = 1;
+exception
+  when unique_violation then
+    return false;
+end;
+$$;
 
 
 -- ─────────────────────────────────────────
