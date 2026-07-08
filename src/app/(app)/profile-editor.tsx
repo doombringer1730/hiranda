@@ -87,7 +87,8 @@ export default function ProfileEditor({ profile, onClose }: { profile: EditableP
           onClick={e => e.stopPropagation()}
           className="w-full sm:max-w-md bg-stone-900 border border-stone-800 rounded-t-3xl sm:rounded-2xl overflow-hidden max-h-[92vh] flex flex-col animate-page-in"
         >
-          {/* Banner */}
+          {/* Banner + overlapping avatar — both live outside the scroll area so
+              the avatar can hang past the banner edge without being clipped. */}
           <div className="relative h-28 w-full shrink-0" style={bannerStyle(bannerUrl, accent)}>
             <button onClick={onClose} aria-label="Close" className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 backdrop-blur text-white/90 hover:text-white flex items-center justify-center">
               <X size={16} />
@@ -98,25 +99,21 @@ export default function ProfileEditor({ profile, onClose }: { profile: EditableP
             >
               <Camera size={13} /> Banner
             </button>
+            <button
+              onClick={() => avatarInput.current?.click()}
+              className="group absolute -bottom-10 left-5 z-10 w-20 h-20 rounded-full bg-stone-800 border-4 border-stone-900 overflow-hidden flex items-center justify-center"
+            >
+              {avatarUrl
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+                : <UserCircle size={40} className="text-stone-600" />}
+              <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Camera size={18} className="text-white" />
+              </span>
+            </button>
           </div>
 
-          <div className="px-5 pb-4 flex-1 overflow-y-auto">
-            {/* Avatar */}
-            <div className="-mt-10 mb-4">
-              <button
-                onClick={() => avatarInput.current?.click()}
-                className="group relative w-20 h-20 rounded-full bg-stone-800 border-4 border-stone-900 overflow-hidden flex items-center justify-center"
-              >
-                {avatarUrl
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-                  : <UserCircle size={40} className="text-stone-600" />}
-                <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Camera size={18} className="text-white" />
-                </span>
-              </button>
-            </div>
-
+          <div className="px-5 pt-12 pb-4 flex-1 overflow-y-auto">
             {error && <p className="text-red-400 text-sm bg-red-950/30 rounded-lg px-3 py-2 mb-3">{error}</p>}
 
             <div className="flex flex-col gap-4">
