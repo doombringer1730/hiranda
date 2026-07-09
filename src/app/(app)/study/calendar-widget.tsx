@@ -40,6 +40,7 @@ export default function CalendarWidget({ assignments, onXp }: { assignments: Ass
   const monthName = month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   async function turnIn(a: Assignment) {
+    if (!a.turned_in && !confirm(`Turn in “${a.title}”? You only earn the XP once.`)) return
     await turnInAssignment(a.id, a.turned_in)
     if (!a.turned_in) onXp?.()
     router.refresh()

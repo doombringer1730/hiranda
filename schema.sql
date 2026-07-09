@@ -610,6 +610,9 @@ create policy "Users can insert their own responses"
 -- ('quiz','match','review','write','learn','assignment').
 -- Migration 007: study_attempts.coins (spendable currency, earned alongside XP)
 -- and profiles.xp_goal (per-user weekly XP goal). Health is computed, not stored.
+-- Migration 008: `coupons` table — spend coins on "partner has to…" coupons
+-- (couple-scoped; bought_by = buyer, redeemed when fulfilled).
+-- Migration 009: assignments.xp_awarded so turn-in XP is granted only once.
 
 
 -- ─────────────────────────────────────────

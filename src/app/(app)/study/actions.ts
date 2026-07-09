@@ -74,6 +74,8 @@ export async function deleteDeck(id: string): Promise<void> {
 }
 
 const GRADED = ['quiz', 'match', 'write', 'learn']
+const DAILY_COIN_CAP = 50
+const TEST_COIN_EXTRA = 20
 export async function recordAttempt(
   deckId: string | null, mode: 'quiz' | 'match' | 'review' | 'write' | 'learn', correct: number, total: number, xp: number, durationMs?: number,
 ): Promise<void> {
@@ -97,6 +99,17 @@ export async function recordAttempt(
     coins = Math.round(finalXp * 0.4)
   }
 
+  // Daily coin cap so you can't grind coins forever; "tests" (quiz/write) get
+  // a little extra headroom past the cap.
+  if (coins > 0) {
+    const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0)
+    const { data: todayRows } = await supabase.from('study_attempts')
+      .select('coins').eq('user_id', user.id).gte('created_at', startOfDay.toISOString())
+    const earnedToday = (todayRows ?? []).reduce((s, r) => s + (r.coins ?? 0), 0)
+    const cap = DAILY_COIN_CAP + (mode === 'quiz' || mode === 'write' ? TEST_COIN_EXTRA : 0)
+    coins = Math.max(0, Math.min(coins, cap - earnedToday))
+  }
+
   await supabase.from('study_attempts').insert({
     deck_id: deckId, user_id: user.id, mode,
     correct: Math.max(0, correct | 0), total: Math.max(0, total | 0),
@@ -104,6 +117,41 @@ export async function recordAttempt(
   })
   revalidatePath('/study')
   if (deckId) revalidatePath(`/study/${deckId}`)
+}
+
+// Current spendable coin balance = coins earned − coins spent on coupons.
+async function coinBalance(supabase: Awaited<ReturnType<typeof createClient>>, userId: string): Promise<number> {
+  const [{ data: earned }, { data: spent }] = await Promise.all([
+    supabase.from('study_attempts').select('coins').eq('user_id', userId),
+    supabase.from('coupons').select('cost').eq('bought_by', userId),
+  ])
+  const e = (earned ?? []).reduce((s, r) => s + (r.coins ?? 0), 0)
+  const p = (spent ?? []).reduce((s, r) => s + (r.cost ?? 0), 0)
+  return e - p
+}
+
+export async function buyCoupon(title: string, emoji: string, cost: number): Promise<{ error?: string }> {
+  const { supabase, user } = await requireUser()
+  const t = title.trim().slice(0, 120)
+  const c = Math.max(0, Math.min(100_000, Math.round(cost)))
+  if (!t) return { error: 'Give the coupon a title.' }
+  if (await coinBalance(supabase, user.id) < c) return { error: 'Not enough coins yet.' }
+  const { error } = await supabase.from('coupons').insert({ title: t, emoji: emoji || null, cost: c, bought_by: user.id })
+  if (error) return { error: error.message }
+  revalidatePath('/study/shop'); revalidatePath('/study')
+  return {}
+}
+
+export async function redeemCoupon(id: string, undo = false): Promise<void> {
+  const { supabase } = await requireUser()
+  await supabase.from('coupons').update({ redeemed: !undo, redeemed_at: undo ? null : new Date().toISOString() }).eq('id', id)
+  revalidatePath('/study/shop')
+}
+
+export async function deleteCoupon(id: string): Promise<void> {
+  const { supabase } = await requireUser()
+  await supabase.from('coupons').delete().eq('id', id)
+  revalidatePath('/study/shop'); revalidatePath('/study')
 }
 
 export async function setXpGoal(goal: number): Promise<void> {
@@ -126,15 +174,17 @@ export async function createAssignment(formData: FormData): Promise<void> {
 const TURN_IN_XP = 25
 export async function turnInAssignment(id: string, undo = false): Promise<void> {
   const { supabase, user } = await requireUser()
+  const { data: a } = await supabase.from('assignments').select('xp_awarded').eq('id', id).maybeSingle()
   await supabase.from('assignments').update({
     turned_in: !undo,
     turned_in_at: undo ? null : new Date().toISOString(),
   }).eq('id', id)
-  // Award XP + coins once, on turn-in (not on undo).
-  if (!undo) {
+  // Award XP + coins ONCE ever, on the first turn-in — so undo/redo can't farm it.
+  if (!undo && a && !a.xp_awarded) {
     await supabase.from('study_attempts').insert({
       deck_id: null, user_id: user.id, mode: 'assignment', correct: 1, total: 1, xp: TURN_IN_XP, coins: 10,
     })
+    await supabase.from('assignments').update({ xp_awarded: true }).eq('id', id)
   }
   revalidatePath('/study')
 }
