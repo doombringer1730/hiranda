@@ -112,9 +112,9 @@ export default async function StudyPage() {
         {/* Goals (merged) */}
         <div className="col-span-2"><GoalsWidget people={goalPeople} /></div>
 
-        {/* Study smarter */}
+        {/* Study smarter — full-width banner */}
         {hasDecks && (
-          <Link href={smart.href} className="md:col-span-2 group flex items-center gap-4 rounded-2xl bg-gradient-to-br from-indigo-950/70 to-stone-900 border border-indigo-800/50 p-4 hover:border-indigo-600/70 transition-colors">
+          <Link href={smart.href} className="col-span-2 md:col-span-4 group flex items-center gap-4 rounded-2xl bg-gradient-to-br from-indigo-950/70 to-stone-900 border border-indigo-800/50 p-4 hover:border-indigo-600/70 transition-colors">
             <span className="w-11 h-11 rounded-xl bg-indigo-600/30 border border-indigo-700/50 flex items-center justify-center shrink-0"><SmartIcon size={20} className="text-indigo-300" /></span>
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 text-indigo-300/80 text-[10px] uppercase tracking-widest"><Sparkles size={11} /> Study smarter</p>
@@ -125,8 +125,8 @@ export default async function StudyPage() {
           </Link>
         )}
 
-        {/* Leaderboard */}
-        <div className={`${hasDecks ? 'md:col-span-2' : 'md:col-span-4'} rounded-2xl bg-stone-900/70 border border-stone-800 p-4`}>
+        {/* Leaderboard — pairs with Activity on desktop */}
+        <div className="col-span-2 rounded-2xl bg-stone-900/70 border border-stone-800 p-4">
           <div className="flex items-center gap-2 mb-2"><Trophy size={13} className="text-amber-400" /><h2 className="text-stone-400 text-xs uppercase tracking-widest">This week</h2></div>
           <div className="flex flex-col gap-1.5">
             {people.map((p, i) => (

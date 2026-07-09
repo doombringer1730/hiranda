@@ -147,7 +147,7 @@ export default async function HomeHub() {
   const hasWaiting = yourTurnPrompt || journalFresh
 
   return (
-    <div className="px-4 pt-4 pb-8 max-w-2xl md:max-w-4xl mx-auto">
+    <div className="px-4 pt-4 pb-8 max-w-2xl mx-auto">
       {/* Greeting */}
       <header className="mb-6">
         <p className="text-stone-500 text-sm">{greeting()},</p>
