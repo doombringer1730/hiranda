@@ -88,7 +88,7 @@ function Card({ person, online, isYou, onEdit }: { person: PresonProfile; online
             />
           </div>
           <div className="min-w-0 pb-1">
-            <p className="text-amber-100 font-medium leading-tight truncate">{person.display_name}</p>
+            <p className="text-amber-100 font-medium leading-tight line-clamp-2">{person.display_name}</p>
             <p className="text-stone-500 text-xs truncate">
               {person.username ? `@${person.username}` : ''}{isYou && (person.username ? ' · you' : 'you')}
             </p>
