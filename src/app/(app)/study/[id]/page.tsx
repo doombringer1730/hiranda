@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import DeckClient from './deck-client'
+import { studyStats, type Attempt } from '../stats'
 
 export default async function DeckPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -16,12 +17,15 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`).maybeSingle()
   const partnerId = couple ? (couple.user1_id === user.id ? couple.user2_id : couple.user1_id) : null
 
-  const [{ data: cards }, { data: attempts }, { data: progress }, { data: profiles }] = await Promise.all([
+  const [{ data: cards }, { data: attempts }, { data: myAttempts }, { data: progress }, { data: profiles }] = await Promise.all([
     supabase.from('study_cards').select('id, term, definition, position').eq('deck_id', id).order('position'),
     supabase.from('study_attempts').select('user_id, mode, correct, total, xp').eq('deck_id', id),
+    supabase.from('study_attempts').select('user_id, mode, correct, total, xp, coins, created_at').eq('user_id', user.id),
     supabase.from('study_progress').select('card_id, due_at').eq('user_id', user.id),
     supabase.from('profiles').select('id, display_name').in('id', partnerId ? [partnerId] : ['00000000-0000-0000-0000-000000000000']),
   ])
+
+  const health = studyStats((myAttempts ?? []) as Attempt[], user.id).health
 
   const today = new Date().toISOString().slice(0, 10)
   const progMap = new Map((progress ?? []).map(p => [p.card_id, p.due_at]))
@@ -42,6 +46,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
       deck={deck}
       cards={cards ?? []}
       dueCount={dueCount}
+      health={health}
       myBest={best(user.id)}
       partnerBest={partnerId ? best(partnerId) : null}
       partnerName={(profiles ?? [])[0]?.display_name?.split(' ')[0] ?? null}

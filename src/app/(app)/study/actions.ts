@@ -73,17 +73,44 @@ export async function deleteDeck(id: string): Promise<void> {
   redirect('/study')
 }
 
+const GRADED = ['quiz', 'match', 'write', 'learn']
 export async function recordAttempt(
   deckId: string | null, mode: 'quiz' | 'match' | 'review' | 'write' | 'learn', correct: number, total: number, xp: number, durationMs?: number,
 ): Promise<void> {
   const { supabase, user } = await requireUser()
+  let finalXp = Math.max(0, Math.min(10_000, xp | 0))
+  let coins = 0
+
+  if (GRADED.includes(mode) && deckId) {
+    // Anti-grind (Duolingo-style): repeating the same deck+mode today earns
+    // steeply less, so you can't farm the same set.
+    const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0)
+    const { count } = await supabase.from('study_attempts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id).eq('deck_id', deckId).eq('mode', mode).gte('created_at', startOfDay.toISOString())
+    const reps = count ?? 0
+    const mult = reps === 0 ? 1 : reps === 1 ? 0.4 : 0.15
+    finalXp = Math.round(finalXp * mult)
+    const flawless = total > 0 && correct === total
+    coins = Math.round(finalXp * 0.4) + (flawless ? 3 : 0)
+  } else {
+    coins = Math.round(finalXp * 0.4)
+  }
+
   await supabase.from('study_attempts').insert({
     deck_id: deckId, user_id: user.id, mode,
     correct: Math.max(0, correct | 0), total: Math.max(0, total | 0),
-    xp: Math.max(0, Math.min(10_000, xp | 0)), duration_ms: durationMs ? Math.max(0, durationMs | 0) : null,
+    xp: finalXp, coins, duration_ms: durationMs ? Math.max(0, durationMs | 0) : null,
   })
   revalidatePath('/study')
-  revalidatePath(`/study/${deckId}`)
+  if (deckId) revalidatePath(`/study/${deckId}`)
+}
+
+export async function setXpGoal(goal: number): Promise<void> {
+  const { supabase, user } = await requireUser()
+  const g = Math.max(50, Math.min(100_000, Math.round(goal)))
+  await supabase.from('profiles').update({ xp_goal: g }).eq('id', user.id)
+  revalidatePath('/study')
 }
 
 // ── Assignments (due dates + turn-in) ──
@@ -103,10 +130,10 @@ export async function turnInAssignment(id: string, undo = false): Promise<void> 
     turned_in: !undo,
     turned_in_at: undo ? null : new Date().toISOString(),
   }).eq('id', id)
-  // Award XP once, on turn-in (not on undo).
+  // Award XP + coins once, on turn-in (not on undo).
   if (!undo) {
     await supabase.from('study_attempts').insert({
-      deck_id: null, user_id: user.id, mode: 'assignment', correct: 1, total: 1, xp: TURN_IN_XP,
+      deck_id: null, user_id: user.id, mode: 'assignment', correct: 1, total: 1, xp: TURN_IN_XP, coins: 10,
     })
   }
   revalidatePath('/study')

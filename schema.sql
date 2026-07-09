@@ -608,6 +608,8 @@ create policy "Users can insert their own responses"
 -- Migration 006: `assignments` table (due dates + turn-in, awards XP) and the
 -- study_attempts.mode check widened to
 -- ('quiz','match','review','write','learn','assignment').
+-- Migration 007: study_attempts.coins (spendable currency, earned alongside XP)
+-- and profiles.xp_goal (per-user weekly XP goal). Health is computed, not stored.
 
 
 -- ─────────────────────────────────────────

@@ -19,10 +19,11 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-export default function DeckClient({ deck, cards, dueCount, myBest, partnerBest, partnerName }: {
+export default function DeckClient({ deck, cards, dueCount, health, myBest, partnerBest, partnerName }: {
   deck: { id: string; title: string; description: string | null }
   cards: Card[]
   dueCount: number
+  health: number
   myBest: Best
   partnerBest: Best
   partnerName: string | null
@@ -39,6 +40,8 @@ export default function DeckClient({ deck, cards, dueCount, myBest, partnerBest,
   if (mode === 'learn') return <Learn deckId={deck.id} cards={cards} onExit={done} />
 
   const enough = cards.length >= 4
+  const noHealth = health <= 0
+  const gradedHint = (base: string) => noHealth ? 'no health — rest or review' : base
   return (
     <div className="px-4 pt-4 pb-8 max-w-2xl mx-auto flex flex-col gap-6">
       <div>
@@ -58,12 +61,14 @@ export default function DeckClient({ deck, cards, dueCount, myBest, partnerBest,
         </div>
       )}
 
-      {/* Modes — ordered by learning effectiveness (recall-first) */}
+      {/* Modes — ordered by learning effectiveness (recall-first).
+          Graded modes cost health on misses, so they're locked at 0 health;
+          Review & Flashcards stay free. */}
       <div className="grid grid-cols-2 gap-3">
-        <ModeButton icon={Brain} label="Learn" hint={enough ? 'adaptive · masters weak cards' : 'add 4+ cards'} disabled={!enough} onClick={() => setMode('learn')} accent />
-        <ModeButton icon={Keyboard} label="Write" hint={cards.length >= 1 ? 'type it · best recall · 3× XP' : 'add cards'} disabled={cards.length < 1} onClick={() => setMode('write')} accent />
-        <ModeButton icon={Zap} label="Quiz" hint={enough ? 'timed multiple choice' : 'add 4+ cards'} disabled={!enough} onClick={() => setMode('quiz')} />
-        <ModeButton icon={Grid3x3} label="Match" hint={enough ? 'beat the clock' : 'add 4+ cards'} disabled={!enough} onClick={() => setMode('match')} />
+        <ModeButton icon={Brain} label="Learn" hint={gradedHint(enough ? 'adaptive · masters weak cards' : 'add 4+ cards')} disabled={!enough || noHealth} onClick={() => setMode('learn')} accent />
+        <ModeButton icon={Keyboard} label="Write" hint={gradedHint(cards.length >= 1 ? 'type it · best recall · 3× XP' : 'add cards')} disabled={cards.length < 1 || noHealth} onClick={() => setMode('write')} accent />
+        <ModeButton icon={Zap} label="Quiz" hint={gradedHint(enough ? 'timed multiple choice' : 'add 4+ cards')} disabled={!enough || noHealth} onClick={() => setMode('quiz')} />
+        <ModeButton icon={Grid3x3} label="Match" hint={gradedHint(enough ? 'beat the clock' : 'add 4+ cards')} disabled={!enough || noHealth} onClick={() => setMode('match')} />
         <ModeButton icon={RotateCcw} label="Review" hint={dueCount > 0 ? `${dueCount} due now` : 'all caught up'} disabled={dueCount < 1} onClick={() => setMode('review')} badge={dueCount > 0 ? dueCount : undefined} />
         <ModeButton icon={Layers} label="Flashcards" hint={`${cards.length} card${cards.length !== 1 ? 's' : ''}`} disabled={cards.length < 1} onClick={() => setMode('flash')} />
       </div>
