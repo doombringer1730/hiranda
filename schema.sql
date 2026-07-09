@@ -623,3 +623,6 @@ create policy "Users can insert their own responses"
 -- insert into storage.buckets (id, name, public) values ('videos', 'videos', false);
 -- insert into storage.buckets (id, name, public) values ('journal', 'journal', false);
 -- insert into storage.buckets (id, name, public) values ('books', 'books', false);
+
+-- Migration 010: profiles.activity + activity_at — transient status
+-- (e.g. "quizzing") shown on presence cards, live for ~10 min.

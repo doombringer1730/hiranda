@@ -7,7 +7,7 @@ import {
   ArrowLeft, Plus, Trash2, Layers, Zap, Grid3x3, RotateCcw, Check, X, Trophy, Clock,
   Keyboard, Brain, ClipboardList,
 } from 'lucide-react'
-import { addCard, addCardsBulk, updateCard, deleteCard, deleteDeck, recordAttempt, reviewCard } from '../actions'
+import { addCard, addCardsBulk, updateCard, deleteCard, deleteDeck, recordAttempt, reviewCard, setActivity } from '../actions'
 
 type Card = { id: string; term: string; definition: string; position: number }
 type Best = { correct: number; total: number } | null
@@ -31,6 +31,12 @@ export default function DeckClient({ deck, cards, dueCount, health, myBest, part
   const router = useRouter()
   const [mode, setMode] = useState<Mode>('overview')
   const done = () => { setMode('overview'); router.refresh() }
+
+  // Show "quizzing" on your presence card while in a graded mode; clear on exit.
+  useEffect(() => {
+    setActivity(['quiz', 'write', 'learn', 'match'].includes(mode) ? 'quizzing' : null)
+  }, [mode])
+  useEffect(() => () => { setActivity(null) }, [])
 
   if (mode === 'flash') return <Flashcards cards={cards} onExit={() => setMode('overview')} />
   if (mode === 'quiz') return <Quiz deckId={deck.id} cards={cards} myBest={myBest} onExit={done} />

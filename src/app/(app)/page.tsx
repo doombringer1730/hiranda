@@ -7,7 +7,7 @@ import {
 import PresenceCards, { type PresonProfile } from './presence-cards'
 import { FlameWidget } from './flame-pet'
 
-const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio'
+const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -74,6 +74,7 @@ export default async function HomeHub() {
     { data: journalDays },
     { data: memoryDays },
     { data: studyDays },
+    { data: activeCoupons },
   ] = await Promise.all([
     supabase.from('profiles').select(PROFILE_FIELDS).in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
     partnerId
@@ -95,10 +96,12 @@ export default async function HomeHub() {
     supabase.from('journal_entries').select('created_by, created_at').gte('created_at', since),
     supabase.from('memories').select('created_by, created_at').gte('created_at', since),
     supabase.from('study_attempts').select('user_id, created_at').gte('created_at', since),
+    // redeemed ("activated") coupons — someone's cashing them in
+    supabase.from('coupons').select('id, title, emoji, bought_by, redeemed_at').eq('redeemed', true).order('redeemed_at', { ascending: false }).limit(6),
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
-  const me = profileMap.get(user.id) ?? { id: user.id, display_name: 'You', avatar_url: null, username: null, status_text: null, accent_color: null, banner_url: null, bio: null }
+  const me = profileMap.get(user.id) ?? { id: user.id, display_name: 'You', avatar_url: null, username: null, status_text: null, accent_color: null, banner_url: null, bio: null, activity: null, activity_at: null }
   const partner = partnerId ? profileMap.get(partnerId) ?? null : null
   const firstName = me.display_name.split(' ')[0]
 
@@ -159,6 +162,22 @@ export default async function HomeHub() {
 
         {/* Flame pet + days — the shared "us" hero */}
         {couple && <div className="md:col-span-2"><FlameWidget streak={streak} fedToday={fedToday} partnerMissing={!partnerId} days={days} /></div>}
+
+        {/* Active coupons — someone's cashing one in */}
+        {(activeCoupons ?? []).length > 0 && (
+          <Link href="/study/shop" className="md:col-span-2 rounded-2xl bg-gradient-to-br from-amber-950/40 to-stone-900 border border-amber-900/40 p-4 hover:border-amber-700/60 transition-colors">
+            <p className="text-amber-300/80 text-[10px] uppercase tracking-widest mb-2">Coupons to honor 💌</p>
+            <div className="flex flex-col gap-1.5">
+              {(activeCoupons as { id: string; title: string; emoji: string | null; bought_by: string }[]).map(c => (
+                <p key={c.id} className="text-sm flex items-center gap-2">
+                  <span className="text-lg">{c.emoji ?? '🎁'}</span>
+                  <span className="text-amber-100 truncate">{c.title}</span>
+                  <span className="text-stone-500 text-xs ml-auto shrink-0">{c.bought_by === user.id ? `${partnerFirst} owes you` : 'you owe!'}</span>
+                </p>
+              ))}
+            </div>
+          </Link>
+        )}
 
         {/* Waiting for you */}
         {hasWaiting && (

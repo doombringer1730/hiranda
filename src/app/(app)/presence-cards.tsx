@@ -14,6 +14,14 @@ export type PresonProfile = {
   accent_color: string | null
   banner_url: string | null
   bio: string | null
+  activity: string | null
+  activity_at: string | null
+}
+
+// An activity (e.g. "quizzing") counts as live only if set in the last 10 min.
+function liveActivity(p: PresonProfile): string | null {
+  if (!p.activity || !p.activity_at) return null
+  return Date.now() - new Date(p.activity_at).getTime() < 10 * 60_000 ? p.activity : null
 }
 
 const DEFAULT_ACCENT = '#b45309'
@@ -86,7 +94,11 @@ function Card({ person, online, isYou, onEdit }: { person: PresonProfile; online
             </p>
           </div>
         </div>
-        {person.status_text && (
+        {liveActivity(person) === 'quizzing' ? (
+          <p className="mt-1.5 inline-flex items-center gap-1.5 bg-indigo-950/50 border border-indigo-800/50 rounded-full px-2.5 py-1 text-xs text-indigo-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" /> quizzing 📚
+          </p>
+        ) : person.status_text && (
           <p className="text-stone-400 text-sm mt-1.5 italic truncate">&ldquo;{person.status_text}&rdquo;</p>
         )}
         <SpotifyLine who={isYou ? 'self' : 'partner'} />

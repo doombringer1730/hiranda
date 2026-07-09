@@ -154,6 +154,15 @@ export async function deleteCoupon(id: string): Promise<void> {
   revalidatePath('/study/shop'); revalidatePath('/study')
 }
 
+// Transient activity shown on presence cards (e.g. "quizzing"); cleared on exit.
+export async function setActivity(activity: string | null): Promise<void> {
+  const { supabase, user } = await requireUser()
+  await supabase.from('profiles').update({
+    activity: activity || null,
+    activity_at: activity ? new Date().toISOString() : null,
+  }).eq('id', user.id)
+}
+
 export async function setXpGoal(goal: number): Promise<void> {
   const { supabase, user } = await requireUser()
   const g = Math.max(50, Math.min(100_000, Math.round(goal)))

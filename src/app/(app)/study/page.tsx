@@ -5,7 +5,10 @@ import { Plus, GraduationCap, Trophy, Brain, RotateCcw, Sparkles, ChevronRight, 
 import { type Assignment } from './assignments-panel'
 import CalendarWidget from './calendar-widget'
 import GoalsWidget, { type GoalPerson } from './goal-widget'
+import ActivityLog, { type LogEvent } from './activity-log'
 import { studyStats, HEALTH_MAX, type Attempt } from './stats'
+
+const MODE_LABEL: Record<string, string> = { quiz: 'Quiz', write: 'Write', learn: 'Learn', match: 'Match', review: 'Review', assignment: 'Turned in' }
 
 const DEFAULT_GOAL = 500
 
@@ -26,7 +29,7 @@ export default async function StudyPage() {
     supabase.from('study_attempts').select('user_id, deck_id, mode, correct, total, xp, coins, created_at'),
     supabase.from('assignments').select('id, title, due_date, turned_in').order('due_date'),
     supabase.from('study_progress').select('due_at').eq('user_id', user.id),
-    supabase.from('coupons').select('cost, bought_by'),
+    supabase.from('coupons').select('cost, bought_by, title, emoji, created_at'),
   ])
   const attempts = (attemptsRaw ?? []) as Attempt[]
   const profMap = new Map((profiles ?? []).map(p => [p.id, p]))
@@ -39,8 +42,24 @@ export default async function StudyPage() {
   const me = studyStats(attempts, user.id)
   const partner = partnerId ? studyStats(attempts, partnerId) : null
   const firstName = (id: string) => (profMap.get(id)?.display_name ?? 'Partner').split(' ')[0]
-  const mySpent = (coupons ?? []).filter(c => c.bought_by === user.id).reduce((s, c) => s + c.cost, 0)
-  const coinBalance = me.coins - mySpent
+  const myCoupons = (coupons ?? []).filter(c => c.bought_by === user.id)
+  const mySpent = myCoupons.reduce((s, c) => s + c.cost, 0)
+  const coinBalance = Math.max(0, me.coins - mySpent)
+
+  // Gains/losses activity feed (your own events).
+  const events: LogEvent[] = [
+    ...attempts.filter(a => a.user_id === user.id).map(a => {
+      const chips: LogEvent['chips'] = []
+      if (a.xp > 0) chips.push({ label: `+${a.xp}`, tone: 'xp' })
+      if ((a.coins ?? 0) > 0) chips.push({ label: `+${a.coins}`, tone: 'coin' })
+      const wrong = a.mode !== 'assignment' && a.total > 0 ? a.total - a.correct : 0
+      if (wrong > 0) chips.push({ label: `−${wrong}`, tone: 'life' })
+      const label = MODE_LABEL[a.mode] ?? a.mode
+      const text = a.mode === 'assignment' ? 'Turned in an assignment' : `${label}${a.total > 0 ? ` · ${a.correct}/${a.total}` : ''}`
+      return { key: `a-${a.created_at}-${a.mode}`, emoji: a.mode === 'assignment' ? '✅' : '📚', text, chips, when: a.created_at }
+    }),
+    ...myCoupons.map(c => ({ key: `c-${c.created_at}`, emoji: c.emoji ?? '🎁', text: `Bought “${c.title}”`, chips: [{ label: `−${c.cost}`, tone: 'coin' as const }], when: c.created_at })),
+  ].sort((a, b) => b.when.localeCompare(a.when)).slice(0, 14)
 
   const goalPeople: GoalPerson[] = [
     { id: user.id, name: 'You', status: profMap.get(user.id)?.status_text ?? null, weeklyXp: me.weeklyXp, goal: profMap.get(user.id)?.xp_goal ?? DEFAULT_GOAL, editable: true },
@@ -119,6 +138,9 @@ export default async function StudyPage() {
             ))}
           </div>
         </div>
+
+        {/* Gains / losses activity log */}
+        <div className="col-span-2"><ActivityLog events={events} /></div>
 
         {/* Apple-style calendar — full width */}
         <div className="col-span-2 md:col-span-4">
