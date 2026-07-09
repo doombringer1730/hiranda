@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Nav from '@/components/nav'
 import CoupleTimer from '@/components/couple-timer'
+import { getTheaterState } from '@/lib/theater'
 
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -25,9 +26,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     if (!couple?.user2_id) redirect('/invite-partner')
   }
 
+  const { unlocked } = await getTheaterState()
+
   return (
     <div className="min-h-screen bg-stone-950">
-      <Nav />
+      <Nav theaterUnlocked={unlocked} />
       <CoupleTimer />
       <main className="md:ml-56 pt-6 md:pt-0 pb-24 md:pb-0 min-h-screen animate-page-in">
         {children}

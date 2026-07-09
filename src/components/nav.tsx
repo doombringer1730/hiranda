@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import {
-  Home, BookOpen, CheckSquare, Star, Play, Library, Settings, PenLine,
+  Home, BookOpen, CheckSquare, Star, Film, Library, Settings, PenLine,
   CalendarHeart, Clapperboard, LogOut, Gamepad2, Music, Heart, MoreHorizontal, X, GraduationCap,
 } from 'lucide-react'
 import { SidebarTimer } from './couple-timer'
@@ -26,7 +26,6 @@ const sections: { label: string | null; items: { href: string; label: string; ic
     { href: '/bucket-list', label: 'Bucket List', icon: Star          },
   ] },
   { label: 'Watch & read', items: [
-    { href: '/watch',       label: 'Watch',       icon: Play          },
     { href: '/watchlist',   label: 'Watchlist',   icon: Clapperboard  },
     { href: '/library',     label: 'Library',     icon: Library       },
     { href: '/music',       label: 'Music',       icon: Music         },
@@ -55,7 +54,6 @@ const groups: Record<string, { label: string; icon: React.ElementType; items: Sh
   watch: {
     label: 'Watch', icon: Clapperboard,
     items: [
-      { href: '/watch',     label: 'Watch',     icon: Play         },
       { href: '/watchlist', label: 'Watchlist', icon: Clapperboard },
       { href: '/library',   label: 'Library',   icon: Library      },
       { href: '/music',     label: 'Music',     icon: Music        },
@@ -124,7 +122,7 @@ function TabButton({ label, icon: Icon, active, onClick, href }: {
     : <button onClick={onClick} className={cls} aria-label={label}>{inner}</button>
 }
 
-export default function Nav() {
+export default function Nav({ theaterUnlocked = false }: { theaterUnlocked?: boolean }) {
   const pathname = usePathname()
   const [sheet, setSheet] = useState<string | null>(null)
 
@@ -137,7 +135,16 @@ export default function Nav() {
     return () => { document.body.style.overflow = '' }
   }, [sheet])
 
-  const openGroup = sheet ? groups[sheet] : null
+  // The gated "Theater" (watch/sync) only appears once unlocked this session.
+  const theaterItem: SheetItem = { href: '/watch', label: 'Theater', icon: Film }
+  const displaySections: typeof sections = theaterUnlocked
+    ? sections.map(s => s.label === 'Watch & read' ? { ...s, items: [...s.items, theaterItem] } : s)
+    : sections
+  const displayGroups: typeof groups = theaterUnlocked
+    ? { ...groups, watch: { ...groups.watch, items: [...groups.watch.items, theaterItem] } }
+    : groups
+
+  const openGroup = sheet ? displayGroups[sheet] : null
 
   return (
     <>
@@ -151,7 +158,7 @@ export default function Nav() {
           <div className="mt-1.5 h-px bg-gradient-to-r from-amber-800/60 to-transparent" />
         </div>
         <nav className="flex flex-col gap-4 flex-1 overflow-y-auto">
-          {sections.map((section, i) => (
+          {displaySections.map((section, i) => (
             <div key={section.label ?? i} className="flex flex-col gap-0.5">
               {section.label && (
                 <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-widest text-stone-600">{section.label}</p>
@@ -210,7 +217,7 @@ export default function Nav() {
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 h-16 pb-[env(safe-area-inset-bottom)] bg-stone-900/95 backdrop-blur border-t border-stone-800/80 flex items-stretch">
         <TabButton label="Home" icon={Home} href="/" active={pathname === '/'} />
         <TabButton label="Together" icon={Heart} active={sheet === 'together' || pathInGroup(pathname, groups.together.items)} onClick={() => setSheet(s => s === 'together' ? null : 'together')} />
-        <TabButton label="Watch" icon={Clapperboard} active={sheet === 'watch' || pathInGroup(pathname, groups.watch.items)} onClick={() => setSheet(s => s === 'watch' ? null : 'watch')} />
+        <TabButton label="Watch" icon={Clapperboard} active={sheet === 'watch' || pathInGroup(pathname, displayGroups.watch.items)} onClick={() => setSheet(s => s === 'watch' ? null : 'watch')} />
         <TabButton label="Play" icon={Gamepad2} active={sheet === 'play' || pathInGroup(pathname, groups.play.items)} onClick={() => setSheet(s => s === 'play' ? null : 'play')} />
         <TabButton label="More" icon={MoreHorizontal} active={sheet === 'more' || pathname.startsWith('/settings')} onClick={() => setSheet(s => s === 'more' ? null : 'more')} />
       </nav>

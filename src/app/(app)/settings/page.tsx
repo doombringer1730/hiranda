@@ -2,11 +2,14 @@ import { getOrCreateCouple, disconnectSpotify } from './actions'
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import SettingsClient from './settings-client'
+import TheaterGate from './theater-gate'
 import { logout } from '@/app/(auth)/actions'
-import { LogOut } from 'lucide-react'
+import { LogOut, Film } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { getTheaterState } from '@/lib/theater'
 
 export default async function SettingsPage() {
+  const theater = await getTheaterState()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase
@@ -94,42 +97,39 @@ export default async function SettingsPage() {
           />
         </section>
 
-        {/* Jellyfin */}
+        {/* Theater — passcode-gated watch/sync + streaming sources */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
-          <h3 className="text-amber-200 font-medium mb-1">Jellyfin</h3>
+          <h3 className="text-amber-200 font-medium mb-1 flex items-center gap-2"><Film size={16} className="text-indigo-400" /> Theater</h3>
           <p className="text-stone-500 text-sm mb-4">
-            Connect your Raspberry Pi media server to browse your library from the Watch page.
+            Watch-together and its streaming sources live behind a shared passcode. {theater.hasPasscode ? 'Enter it to unlock for this session.' : 'Set a passcode to enable it.'}
           </p>
-          <SettingsClient
-            type="jellyfin"
-            jellyfinUrl={couple?.jellyfin_url ?? ''}
-            jellyfinApiKey={couple?.jellyfin_api_key ?? ''}
-          />
+          <TheaterGate hasPasscode={theater.hasPasscode} unlocked={theater.unlocked} />
         </section>
 
-        {/* Real-Debrid */}
-        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
-          <h3 className="text-amber-200 font-medium mb-1">Real-Debrid</h3>
-          <p className="text-stone-500 text-sm mb-4">
-            Search and stream movies and TV shows from the Watch page.
-          </p>
-          <SettingsClient
-            type="realdebrid"
-            rdApiKey={couple?.real_debrid_api_key ?? ''}
-          />
-        </section>
+        {/* Streaming sources — only while the Theater is unlocked */}
+        {theater.unlocked && (
+          <>
+            <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+              <h3 className="text-amber-200 font-medium mb-1">Jellyfin</h3>
+              <p className="text-stone-500 text-sm mb-4">
+                Connect your Raspberry Pi media server to browse your library from the Watch page.
+              </p>
+              <SettingsClient type="jellyfin" jellyfinUrl={couple?.jellyfin_url ?? ''} jellyfinApiKey={couple?.jellyfin_api_key ?? ''} />
+            </section>
 
-        {/* TorBox */}
-        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
-          <h3 className="text-amber-200 font-medium mb-1">TorBox</h3>
-          <p className="text-stone-500 text-sm mb-4">
-            Optional second debrid service — streams from TorBox are shown alongside Real-Debrid for more coverage.
-          </p>
-          <SettingsClient
-            type="torbox"
-            apiKey={couple?.torbox_api_key ?? ''}
-          />
-        </section>
+            <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+              <h3 className="text-amber-200 font-medium mb-1">Real-Debrid</h3>
+              <p className="text-stone-500 text-sm mb-4">Search and stream movies and TV shows from the Watch page.</p>
+              <SettingsClient type="realdebrid" rdApiKey={couple?.real_debrid_api_key ?? ''} />
+            </section>
+
+            <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+              <h3 className="text-amber-200 font-medium mb-1">TorBox</h3>
+              <p className="text-stone-500 text-sm mb-4">Optional second debrid service — streams from TorBox are shown alongside Real-Debrid for more coverage.</p>
+              <SettingsClient type="torbox" apiKey={couple?.torbox_api_key ?? ''} />
+            </section>
+          </>
+        )}
 
         {/* Spotify */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">

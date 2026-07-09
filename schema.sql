@@ -626,3 +626,7 @@ create policy "Users can insert their own responses"
 
 -- Migration 010: profiles.activity + activity_at — transient status
 -- (e.g. "quizzing") shown on presence cards, live for ~10 min.
+
+-- Migration 011: couple.theater_passcode_hash — the "Theater" (watch/sync +
+-- streaming sources) is hidden behind a shared passcode; unlock is a session
+-- cookie whose value must equal this hash. UI-gating only (data is RLS-scoped).

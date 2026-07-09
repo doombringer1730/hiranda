@@ -4,6 +4,43 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
+import { hashPasscode, THEATER_COOKIE } from '@/lib/theater'
+
+// ── Theater passcode gate ──
+export async function setTheaterPasscode(passcode: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const p = passcode.trim()
+  if (p.length < 4) return { error: 'Use at least 4 characters.' }
+  const hash = hashPasscode(p)
+  const { error } = await supabase.from('couple').update({ theater_passcode_hash: hash })
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+  if (error) return { error: error.message }
+  ;(await cookies()).set(THEATER_COOKIE, hash, { httpOnly: true, sameSite: 'lax', path: '/' })
+  revalidatePath('/settings')
+  return {}
+}
+
+export async function unlockTheater(passcode: string): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  const { data: couple } = await supabase.from('couple').select('theater_passcode_hash')
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`).maybeSingle()
+  const hash = couple?.theater_passcode_hash
+  if (!hash) return { error: 'No passcode set yet.' }
+  if (hashPasscode(passcode) !== hash) return { error: 'Wrong passcode.' }
+  ;(await cookies()).set(THEATER_COOKIE, hash, { httpOnly: true, sameSite: 'lax', path: '/' })
+  revalidatePath('/settings'); revalidatePath('/watch')
+  return {}
+}
+
+export async function lockTheater(): Promise<void> {
+  ;(await cookies()).delete(THEATER_COOKIE)
+  revalidatePath('/settings')
+}
 
 export async function getOrCreateCouple() {
   const supabase = await createClient()
