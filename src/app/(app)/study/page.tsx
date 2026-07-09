@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, GraduationCap, Trophy, Layers } from 'lucide-react'
+import { Plus, GraduationCap, Trophy, Layers, Brain, RotateCcw, Sparkles, ChevronRight } from 'lucide-react'
+import AssignmentsPanel, { type Assignment } from './assignments-panel'
 
 type Attempt = { user_id: string; deck_id: string | null; mode: string; correct: number; total: number; xp: number; created_at: string }
 
@@ -15,11 +16,21 @@ export default async function StudyPage() {
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`).maybeSingle()
   const partnerId = couple ? (couple.user1_id === user.id ? couple.user2_id : couple.user1_id) : null
 
-  const [{ data: profiles }, { data: decks }, { data: attempts }] = await Promise.all([
+  const today = new Date().toISOString().slice(0, 10)
+  const [{ data: profiles }, { data: decks }, { data: attempts }, { data: assignments }, { data: progress }] = await Promise.all([
     supabase.from('profiles').select('id, display_name').in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
     supabase.from('study_decks').select('id, title, study_cards(count)').order('created_at', { ascending: false }),
     supabase.from('study_attempts').select('user_id, deck_id, mode, correct, total, xp, created_at'),
+    supabase.from('assignments').select('id, title, due_date, turned_in').order('due_date'),
+    supabase.from('study_progress').select('due_at').eq('user_id', user.id),
   ])
+
+  // Cards due across all decks (spaced repetition): total cards minus those
+  // scheduled for a future day. New/unseen cards count as due.
+  const totalCards = (decks ?? []).reduce((s, d) => s + ((d.study_cards as unknown as { count: number }[])?.[0]?.count ?? 0), 0)
+  const notDue = (progress ?? []).filter(p => p.due_at > today).length
+  const dueCount = Math.max(0, totalCards - notDue)
+  const firstDeckId = (decks ?? [])[0]?.id
 
   const nameOf = new Map((profiles ?? []).map(p => [p.id, p.display_name.split(' ')[0]]))
   const weekAgo = Date.now() - 7 * 86_400_000
@@ -48,10 +59,38 @@ export default async function StudyPage() {
           <GraduationCap size={22} className="text-amber-500" />
           <h1 className="font-serif text-3xl text-amber-100">Study</h1>
         </div>
-        <Link href="/study/new" className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors">
+        <Link href="/study/new" className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors">
           <Plus size={16} /> New deck
         </Link>
       </header>
+
+      {/* Study smarter — coaches the research-optimal next action */}
+      {(() => {
+        const s = totalCards === 0
+          ? { href: '/study/new', icon: Plus, title: 'Create your first deck', hint: 'Add cards, then quiz each other for XP' }
+          : dueCount > 0
+            ? { href: '/study/review', icon: RotateCcw, title: `Review ${dueCount} card${dueCount !== 1 ? 's' : ''} due`, hint: 'Spaced repetition — the biggest retention win' }
+            : firstDeckId
+              ? { href: `/study/${firstDeckId}`, icon: Brain, title: 'Learn a deck', hint: 'Active recall beats rereading, every time' }
+              : { href: '/study/new', icon: Plus, title: 'Create a deck', hint: '' }
+        const Icon = s.icon
+        return (
+          <Link href={s.href} className="group flex items-center gap-4 rounded-2xl bg-gradient-to-br from-indigo-950/70 to-stone-900 border border-indigo-800/50 p-4 hover:border-indigo-600/70 transition-colors">
+            <span className="w-11 h-11 rounded-xl bg-indigo-600/30 border border-indigo-700/50 flex items-center justify-center shrink-0">
+              <Icon size={20} className="text-indigo-300" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 text-indigo-300/80 text-[10px] uppercase tracking-widest"><Sparkles size={11} /> Study smarter</p>
+              <p className="text-amber-50 font-medium mt-0.5 truncate">{s.title}</p>
+              {s.hint && <p className="text-stone-500 text-xs truncate">{s.hint}</p>}
+            </div>
+            <ChevronRight size={18} className="text-indigo-400/60 group-hover:text-indigo-300 transition-colors shrink-0" />
+          </Link>
+        )
+      })()}
+
+      {/* Assignments calendar */}
+      <AssignmentsPanel assignments={(assignments ?? []) as Assignment[]} />
 
       {/* Competitive XP leaderboard */}
       <section className="rounded-2xl bg-stone-900/70 border border-stone-800 p-4">

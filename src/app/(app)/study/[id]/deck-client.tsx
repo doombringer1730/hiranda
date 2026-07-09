@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Plus, Trash2, Layers, Zap, Grid3x3, RotateCcw, Check, X, Trophy, Clock,
+  Keyboard, Brain, ClipboardList,
 } from 'lucide-react'
-import { addCard, updateCard, deleteCard, deleteDeck, recordAttempt, reviewCard } from '../actions'
+import { addCard, addCardsBulk, updateCard, deleteCard, deleteDeck, recordAttempt, reviewCard } from '../actions'
 
 type Card = { id: string; term: string; definition: string; position: number }
 type Best = { correct: number; total: number } | null
-type Mode = 'overview' | 'flash' | 'quiz' | 'match' | 'review'
+type Mode = 'overview' | 'flash' | 'quiz' | 'match' | 'review' | 'write' | 'learn'
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr]
@@ -34,6 +35,8 @@ export default function DeckClient({ deck, cards, dueCount, myBest, partnerBest,
   if (mode === 'quiz') return <Quiz deckId={deck.id} cards={cards} myBest={myBest} onExit={done} />
   if (mode === 'match') return <Match deckId={deck.id} cards={cards} onExit={done} />
   if (mode === 'review') return <Review deckId={deck.id} cards={cards} onExit={done} />
+  if (mode === 'write') return <Write deckId={deck.id} cards={cards} onExit={done} />
+  if (mode === 'learn') return <Learn deckId={deck.id} cards={cards} onExit={done} />
 
   const enough = cards.length >= 4
   return (
@@ -55,12 +58,14 @@ export default function DeckClient({ deck, cards, dueCount, myBest, partnerBest,
         </div>
       )}
 
-      {/* Modes */}
+      {/* Modes — ordered by learning effectiveness (recall-first) */}
       <div className="grid grid-cols-2 gap-3">
+        <ModeButton icon={Brain} label="Learn" hint={enough ? 'adaptive · masters weak cards' : 'add 4+ cards'} disabled={!enough} onClick={() => setMode('learn')} accent />
+        <ModeButton icon={Keyboard} label="Write" hint={cards.length >= 1 ? 'type it · best recall · 3× XP' : 'add cards'} disabled={cards.length < 1} onClick={() => setMode('write')} accent />
+        <ModeButton icon={Zap} label="Quiz" hint={enough ? 'timed multiple choice' : 'add 4+ cards'} disabled={!enough} onClick={() => setMode('quiz')} />
+        <ModeButton icon={Grid3x3} label="Match" hint={enough ? 'beat the clock' : 'add 4+ cards'} disabled={!enough} onClick={() => setMode('match')} />
+        <ModeButton icon={RotateCcw} label="Review" hint={dueCount > 0 ? `${dueCount} due now` : 'all caught up'} disabled={dueCount < 1} onClick={() => setMode('review')} badge={dueCount > 0 ? dueCount : undefined} />
         <ModeButton icon={Layers} label="Flashcards" hint={`${cards.length} card${cards.length !== 1 ? 's' : ''}`} disabled={cards.length < 1} onClick={() => setMode('flash')} />
-        <ModeButton icon={Zap} label="Quiz for XP" hint={enough ? 'multiple choice' : 'add 4+ cards'} disabled={!enough} onClick={() => setMode('quiz')} accent />
-        <ModeButton icon={Grid3x3} label="Match" hint={enough ? 'beat the clock' : 'add 4+ cards'} disabled={!enough} onClick={() => setMode('match')} accent />
-        <ModeButton icon={RotateCcw} label="Review" hint={dueCount > 0 ? `${dueCount} due` : 'all caught up'} disabled={dueCount < 1} onClick={() => setMode('review')} badge={dueCount > 0 ? dueCount : undefined} />
       </div>
 
       <CardManager deckId={deck.id} cards={cards} />
@@ -84,11 +89,24 @@ function ModeButton({ icon: Icon, label, hint, onClick, disabled, accent, badge 
 }
 
 // ────────────────────────── Card manager ──────────────────────────
+// Parse pasted text into term/definition pairs. Each line is one card; the
+// term/definition split is the first tab, " - ", " — ", " = " or ": ".
+function parsePairs(text: string): { term: string; definition: string }[] {
+  return text.split(/\r?\n/).map(line => {
+    const m = line.match(/^(.*?)(?:\t| [—–-] | = |: |\|)(.*)$/)
+    if (!m) return null
+    return { term: m[1].trim(), definition: m[2].trim() }
+  }).filter((p): p is { term: string; definition: string } => !!p && !!p.term && !!p.definition)
+}
+
 function CardManager({ deckId, cards }: { deckId: string; cards: Card[] }) {
   const router = useRouter()
   const [term, setTerm] = useState('')
   const [def, setDef] = useState('')
   const [busy, setBusy] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [paste, setPaste] = useState('')
+  const [importMsg, setImportMsg] = useState<string | null>(null)
   const termRef = useRef<HTMLInputElement>(null)
 
   async function add() {
@@ -100,9 +118,42 @@ function CardManager({ deckId, cards }: { deckId: string; cards: Card[] }) {
     router.refresh()
   }
 
+  const parsed = parsePairs(paste)
+  async function doImport() {
+    setBusy(true); setImportMsg(null)
+    const res = await addCardsBulk(deckId, parsed)
+    setBusy(false)
+    if (res.error) { setImportMsg(res.error); return }
+    setPaste(''); setImporting(false)
+    router.refresh()
+  }
+
   return (
     <section>
-      <h2 className="text-stone-500 text-xs uppercase tracking-widest mb-3">{cards.length} card{cards.length !== 1 ? 's' : ''}</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-stone-500 text-xs uppercase tracking-widest">{cards.length} card{cards.length !== 1 ? 's' : ''}</h2>
+        <button onClick={() => setImporting(v => !v)} className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 text-xs">
+          <ClipboardList size={13} /> {importing ? 'Close import' : 'Paste to import'}
+        </button>
+      </div>
+
+      {importing && (
+        <div className="mb-4 rounded-2xl bg-stone-900/70 border border-stone-800 p-3 flex flex-col gap-2">
+          <textarea
+            value={paste} onChange={e => setPaste(e.target.value)} rows={5}
+            placeholder={'Paste one card per line:\nhola - hello\nadiós - goodbye\ngato: cat'}
+            className="w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2.5 text-amber-50 placeholder:text-stone-600 text-sm focus:outline-none focus:border-indigo-500 resize-y" />
+          <div className="flex items-center justify-between">
+            <span className="text-stone-500 text-xs">{parsed.length} card{parsed.length !== 1 ? 's' : ''} detected · splits on tab, “-”, “:”, “=”</span>
+            <button onClick={doImport} disabled={busy || !parsed.length}
+              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-sm rounded-xl px-4 py-2 transition-colors">
+              Import {parsed.length || ''}
+            </button>
+          </div>
+          {importMsg && <p className="text-red-400 text-xs">{importMsg}</p>}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
         <input ref={termRef} value={term} onChange={e => setTerm(e.target.value)} placeholder="Term"
           onKeyDown={e => { if (e.key === 'Enter') document.getElementById('def-input')?.focus() }}
@@ -285,6 +336,141 @@ function Quiz({ deckId, cards, myBest, onExit }: { deckId: string; cards: Card[]
   )
 }
 
+// ────────────────────────── Write (type the answer — active recall) ──────────────────────────
+const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ').replace(/[.,!?;:]$/, '')
+function Write({ deckId, cards, onExit }: { deckId: string; cards: Card[]; onExit: () => void }) {
+  const order = useMemo(() => shuffle(cards).slice(0, Math.min(12, cards.length)), [cards])
+  const [i, setI] = useState(0)
+  const [val, setVal] = useState('')
+  const [checked, setChecked] = useState<null | boolean>(null)
+  const [correct, setCorrect] = useState(0)
+  const [finished, setFinished] = useState(false)
+  const start = useRef(Date.now())
+  const c = order[i]
+
+  function submit() {
+    if (checked !== null || !val.trim()) return
+    const ok = norm(val) === norm(c.definition)
+    setChecked(ok)
+    if (ok) setCorrect(x => x + 1)
+  }
+  function next() {
+    if (i + 1 >= order.length) {
+      const xp = correct * 15 + (correct === order.length ? 30 : 0)
+      setFinished(true)
+      recordAttempt(deckId, 'write', correct, order.length, xp, Date.now() - start.current)
+    } else { setI(i + 1); setVal(''); setChecked(null) }
+  }
+
+  if (finished) return <ResultScreen title="Write" correct={correct} total={order.length} xp={correct * 15 + (correct === order.length ? 30 : 0)} onExit={onExit} />
+
+  return (
+    <ModeShell title="Write" onExit={onExit} progress={`${i + 1} / ${order.length}`}>
+      <div className="rounded-2xl bg-stone-900 border border-stone-800 p-6 text-center mb-4">
+        <p className="text-stone-600 text-[10px] uppercase tracking-widest mb-2">Type the answer</p>
+        <p className="font-serif text-2xl text-amber-100">{c.term}</p>
+      </div>
+      <input
+        autoFocus value={val} onChange={e => setVal(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') (checked === null ? submit() : next()) }}
+        disabled={checked !== null}
+        placeholder="your answer…"
+        className={`w-full rounded-xl px-4 py-3.5 text-lg border focus:outline-none transition-colors ${
+          checked === null ? 'bg-stone-950 border-stone-800 text-amber-50 focus:border-indigo-500'
+          : checked ? 'bg-emerald-900/40 border-emerald-700 text-emerald-100'
+          : 'bg-red-900/40 border-red-800 text-red-100'}`}
+      />
+      {checked === false && (
+        <p className="text-stone-400 text-sm mt-3">Answer: <span className="text-emerald-300">{c.definition}</span></p>
+      )}
+      <button
+        onClick={() => (checked === null ? submit() : next())}
+        disabled={checked === null && !val.trim()}
+        className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-xl py-3 text-sm font-medium">
+        {checked === null ? 'Check' : (i + 1 >= order.length ? 'See results' : 'Next')}
+      </button>
+    </ModeShell>
+  )
+}
+
+// ────────────────────────── Learn (adaptive — repeats what you miss) ──────────────────────────
+function Learn({ deckId, cards, onExit }: { deckId: string; cards: Card[]; onExit: () => void }) {
+  const all = useMemo(() => shuffle(cards), [cards])
+  const [queue, setQueue] = useState<string[]>(() => all.map(c => c.id))
+  const missed = useRef<Set<string>>(new Set())
+  const [picked, setPicked] = useState<string | null>(null)
+  const [finished, setFinished] = useState(false)
+  const start = useRef(Date.now())
+  const byId = useMemo(() => new Map(all.map(c => [c.id, c])), [all])
+
+  const currentId = queue[0]
+  const c = currentId ? byId.get(currentId)! : null
+  const options = useMemo(() => {
+    if (!c) return []
+    const distractors = shuffle(all.filter(x => x.id !== c.id)).slice(0, 3).map(x => x.definition)
+    return shuffle([c.definition, ...distractors])
+  }, [currentId, all]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function choose(opt: string) {
+    if (picked !== null || !c) return
+    setPicked(opt)
+    if (opt !== c.definition) missed.current.add(c.id)
+  }
+  function advance() {
+    if (!c) return
+    const right = picked === c.definition
+    setPicked(null)
+    const rest = queue.slice(1)
+    const nq = right ? rest : [...rest, c.id] // requeue a missed card to the back
+    if (nq.length === 0) {
+      const firstTry = all.length - missed.current.size
+      const xp = all.length * 12 + firstTry * 3
+      setFinished(true)
+      recordAttempt(deckId, 'learn', firstTry, all.length, xp, Date.now() - start.current)
+    } else { setQueue(nq) }
+  }
+
+  if (finished) {
+    const firstTry = all.length - missed.current.size
+    return <ResultScreen title="Learn" correct={firstTry} total={all.length} xp={all.length * 12 + firstTry * 3} label="first-try correct" onExit={onExit} />
+  }
+  if (!c) return null
+
+  const remaining = new Set(queue).size
+  const pct = Math.round(((all.length - remaining) / all.length) * 100)
+
+  return (
+    <ModeShell title="Learn" onExit={onExit} progress={`${all.length - remaining} / ${all.length} mastered`}>
+      <div className="h-1.5 rounded-full bg-stone-800 overflow-hidden mb-4">
+        <div className="h-full bg-indigo-500 transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="rounded-2xl bg-stone-900 border border-stone-800 p-6 text-center mb-4">
+        <p className="text-stone-600 text-[10px] uppercase tracking-widest mb-2">What matches</p>
+        <p className="font-serif text-2xl text-amber-100">{c.term}</p>
+      </div>
+      <div className="grid grid-cols-1 gap-2">
+        {options.map(opt => {
+          const isRight = opt === c.definition
+          const state = picked === null ? '' : isRight ? 'right' : picked === opt ? 'wrong' : 'dim'
+          return (
+            <button key={opt} onClick={() => choose(opt)} disabled={picked !== null}
+              className={`w-full text-left rounded-xl px-4 py-3.5 border transition-colors ${
+                state === 'right' ? 'bg-emerald-900/40 border-emerald-700 text-emerald-100'
+                : state === 'wrong' ? 'bg-red-900/40 border-red-800 text-red-100'
+                : state === 'dim' ? 'bg-stone-950/60 border-stone-800 text-stone-500'
+                : 'bg-stone-950 border-stone-800 text-amber-50 hover:border-indigo-500'}`}>
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+      {picked !== null && (
+        <button onClick={advance} className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-3 text-sm font-medium">Continue</button>
+      )}
+    </ModeShell>
+  )
+}
+
 // ────────────────────────── Match game ──────────────────────────
 function Match({ deckId, cards, onExit }: { deckId: string; cards: Card[]; onExit: () => void }) {
   const pairs = useMemo(() => shuffle(cards).slice(0, Math.min(6, cards.length)), [cards])
@@ -419,6 +605,30 @@ function Review({ deckId, cards, onExit }: { deckId: string; cards: Card[]; onEx
           <button onClick={() => rate(true)} className="flex-1 bg-emerald-900/40 hover:bg-emerald-900/60 border border-emerald-800/60 text-emerald-100 rounded-xl py-3 text-sm flex items-center justify-center gap-2"><Check size={16} /> Got it</button>
         </div>
       )}
+    </ModeShell>
+  )
+}
+
+// ────────────────────────── Shared celebratory result ──────────────────────────
+function ResultScreen({ title, correct, total, xp, label, onExit }: {
+  title: string; correct: number; total: number; xp: number; label?: string; onExit: () => void
+}) {
+  const perfect = correct === total && total > 0
+  return (
+    <ModeShell title={title} onExit={onExit}>
+      <div className="text-center py-8">
+        <div className="text-5xl mb-2">{perfect ? '🎉' : correct / Math.max(1, total) >= 0.6 ? '💪' : '🌱'}</div>
+        <p className="text-stone-500 text-xs uppercase tracking-widest">{label ?? 'You scored'}</p>
+        <p className="font-serif text-6xl text-amber-100 my-2">{correct}<span className="text-stone-600 text-3xl">/{total}</span></p>
+        <p className="inline-flex items-center gap-2 text-lg font-semibold text-indigo-300 bg-indigo-950/50 border border-indigo-800/50 rounded-full px-4 py-1.5">
+          <Zap size={18} className="text-indigo-400" />+{xp} XP
+        </p>
+        {perfect && <p className="text-emerald-300 text-sm mt-3">Perfect run! 🔥</p>}
+        <div className="flex gap-2 mt-8">
+          <button onClick={onExit} className="flex-1 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-xl py-3 text-sm">Done</button>
+          <button onClick={() => location.reload()} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-3 text-sm font-medium">Again</button>
+        </div>
+      </div>
     </ModeShell>
   )
 }

@@ -604,6 +604,10 @@ create policy "Users can insert their own responses"
 -- Couple-scoped like bucket_list (via created_by / user_id sharing a couple);
 -- study_progress is private per user. See migrations/005_study_section.sql for
 -- the full table + policy definitions.
+--
+-- Migration 006: `assignments` table (due dates + turn-in, awards XP) and the
+-- study_attempts.mode check widened to
+-- ('quiz','match','review','write','learn','assignment').
 
 
 -- ─────────────────────────────────────────

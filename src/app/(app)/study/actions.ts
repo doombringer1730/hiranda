@@ -37,6 +37,23 @@ export async function addCard(deckId: string, term: string, definition: string):
   return {}
 }
 
+// Bulk create from pasted text (Quizlet-style). Pairs are parsed client-side.
+export async function addCardsBulk(deckId: string, pairs: { term: string; definition: string }[]): Promise<{ error?: string; added?: number }> {
+  const { supabase } = await requireUser()
+  const clean = pairs
+    .map(p => ({ term: p.term.trim().slice(0, 500), definition: p.definition.trim().slice(0, 1000) }))
+    .filter(p => p.term && p.definition)
+    .slice(0, 500)
+  if (!clean.length) return { error: 'Nothing to import — check the format.' }
+  const { count } = await supabase.from('study_cards').select('id', { count: 'exact', head: true }).eq('deck_id', deckId)
+  const base = count ?? 0
+  const rows = clean.map((p, i) => ({ deck_id: deckId, term: p.term, definition: p.definition, position: base + i }))
+  const { error } = await supabase.from('study_cards').insert(rows)
+  if (error) return { error: error.message }
+  revalidatePath(`/study/${deckId}`)
+  return { added: clean.length }
+}
+
 export async function updateCard(id: string, deckId: string, term: string, definition: string): Promise<void> {
   const { supabase } = await requireUser()
   await supabase.from('study_cards').update({ term: term.trim().slice(0, 500), definition: definition.trim().slice(0, 1000) }).eq('id', id)
@@ -57,7 +74,7 @@ export async function deleteDeck(id: string): Promise<void> {
 }
 
 export async function recordAttempt(
-  deckId: string, mode: 'quiz' | 'match' | 'review', correct: number, total: number, xp: number, durationMs?: number,
+  deckId: string | null, mode: 'quiz' | 'match' | 'review' | 'write' | 'learn', correct: number, total: number, xp: number, durationMs?: number,
 ): Promise<void> {
   const { supabase, user } = await requireUser()
   await supabase.from('study_attempts').insert({
@@ -67,6 +84,38 @@ export async function recordAttempt(
   })
   revalidatePath('/study')
   revalidatePath(`/study/${deckId}`)
+}
+
+// ── Assignments (due dates + turn-in) ──
+export async function createAssignment(formData: FormData): Promise<void> {
+  const { supabase, user } = await requireUser()
+  const title = (formData.get('title') as string)?.trim()
+  const due = (formData.get('due_date') as string)?.trim()
+  if (!title || !due) return
+  await supabase.from('assignments').insert({ title: title.slice(0, 200), due_date: due, created_by: user.id })
+  revalidatePath('/study')
+}
+
+const TURN_IN_XP = 25
+export async function turnInAssignment(id: string, undo = false): Promise<void> {
+  const { supabase, user } = await requireUser()
+  await supabase.from('assignments').update({
+    turned_in: !undo,
+    turned_in_at: undo ? null : new Date().toISOString(),
+  }).eq('id', id)
+  // Award XP once, on turn-in (not on undo).
+  if (!undo) {
+    await supabase.from('study_attempts').insert({
+      deck_id: null, user_id: user.id, mode: 'assignment', correct: 1, total: 1, xp: TURN_IN_XP,
+    })
+  }
+  revalidatePath('/study')
+}
+
+export async function deleteAssignment(id: string): Promise<void> {
+  const { supabase } = await requireUser()
+  await supabase.from('assignments').delete().eq('id', id)
+  revalidatePath('/study')
 }
 
 // Leitner spaced repetition: intervals (days) by box level.
