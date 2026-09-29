@@ -18,6 +18,11 @@ function SignupForm() {
 
   const inviteToken = mode === 'join' ? manualToken : ''
 
+  // An invitee who already has an account signs in instead — send them back
+  // through /join afterwards so the token isn't lost on the detour.
+  const afterLogin = next || (tokenFromUrl ? `/join/${encodeURIComponent(tokenFromUrl)}` : '')
+  const loginHref = afterLogin ? `/login?next=${encodeURIComponent(afterLogin)}` : '/login'
+
   if (mode === 'choose') {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center px-6 bg-stone-950 relative overflow-hidden">
@@ -47,7 +52,7 @@ function SignupForm() {
           <p className="text-stone-500 text-sm text-center mt-8">
             Already have an account?{' '}
             <Link
-              href={next ? `/login?next=${encodeURIComponent(next)}` : '/login'}
+              href={loginHref}
               className="text-amber-500 hover:text-amber-400 transition-colors"
             >
               Sign in
@@ -55,7 +60,7 @@ function SignupForm() {
           </p>
 
           <Link
-            href={next ? `/login?next=${encodeURIComponent(next)}` : '/login'}
+            href={loginHref}
             className="text-stone-600 hover:text-stone-400 text-sm text-center mt-4 block transition-colors"
           >
             ← Back
@@ -135,7 +140,7 @@ function SignupForm() {
 
         <p className="text-stone-500 text-sm text-center mt-4">
           Already have an account?{' '}
-          <Link href="/login" className="text-amber-500 hover:text-amber-400 transition-colors">Sign in</Link>
+          <Link href={loginHref} className="text-amber-500 hover:text-amber-400 transition-colors">Sign in</Link>
         </p>
       </div>
     </main>

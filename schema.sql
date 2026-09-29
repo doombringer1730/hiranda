@@ -50,23 +50,43 @@ security definer
 set search_path = public
 as $$
 declare
-  claimed int;
+  target_id uuid;
+  claimed   int;
 begin
   if auth.uid() is null or new_user_id is distinct from auth.uid() then
     return false;
   end if;
 
-  update couple
-     set user2_id = new_user_id
+  select id into target_id
+    from couple
    where invite_token = accept_invite.token
      and user2_id is null
      and user1_id <> new_user_id;
 
-  get diagnostics claimed = row_count;
-  return claimed = 1;
-exception
-  when unique_violation then
+  if target_id is null then
     return false;
+  end if;
+
+  -- Migration 014: an invitee who already started a space of their own gives
+  -- up that empty shell here. Being in two couples breaks the `(app)` layout,
+  -- which resolves membership with .maybeSingle(). Never touches a paired row.
+  begin
+    delete from couple
+     where user1_id = new_user_id
+       and user2_id is null;
+
+    update couple
+       set user2_id = new_user_id
+     where id = target_id
+       and user2_id is null;
+
+    get diagnostics claimed = row_count;
+  exception
+    when unique_violation then
+      return false;
+  end;
+
+  return claimed = 1;
 end;
 $$;
 

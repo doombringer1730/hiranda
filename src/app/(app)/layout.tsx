@@ -17,13 +17,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .single()
     if (!profile?.display_name) redirect('/setup')
 
-    const { data: couple } = await supabase
+    // A user should only ever be in one couple, but user1_id and user2_id are
+    // independently unique, so someone who started their own space and then
+    // accepted an invite ends up in two rows. .maybeSingle() errors on that and
+    // yields null, which bounced them between here and /invite-partner forever.
+    // Prefer the paired space; nullsFirst: false sorts a real partner ahead.
+    const { data: couples } = await supabase
       .from('couple')
       .select('user2_id')
       .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-      .maybeSingle()
+      .order('user2_id', { nullsFirst: false })
+      .limit(1)
 
-    if (!couple?.user2_id) redirect('/invite-partner')
+    if (!couples?.[0]?.user2_id) redirect('/invite-partner')
   }
 
   const { unlocked } = await getTheaterState()

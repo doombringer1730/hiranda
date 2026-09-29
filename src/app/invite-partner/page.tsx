@@ -9,14 +9,50 @@ export default async function InvitePartnerPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: couple } = await supabase
+  // .limit(1) rather than .maybeSingle(): see the note in (app)/layout.tsx.
+  // A user in two couples made .maybeSingle() error into a null row, and the
+  // `!couple -> redirect('/')` below then bounced them straight back into the
+  // layout that sent them here — an infinite redirect.
+  const { data: couples } = await supabase
     .from('couple')
     .select('invite_token, user1_id, user2_id')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-    .maybeSingle()
+    .order('user2_id', { nullsFirst: false })
+    .limit(1)
 
-  // Already paired, is Person 2, or has no couple — nothing to do here
-  if (!couple || couple.user2_id || couple.user1_id !== user.id) redirect('/')
+  let couple = couples?.[0]
+
+  // No space at all — signup's couple insert failed and was never checked.
+  // Repair it here instead of redirecting, which is the other half of the loop.
+  if (!couple) {
+    const { data: created, error } = await supabase
+      .from('couple')
+      .insert({ user1_id: user.id })
+      .select('invite_token, user1_id, user2_id')
+      .single()
+    if (error || !created) {
+      return (
+        <main className="min-h-screen flex flex-col items-center justify-center px-6 bg-stone-950">
+          <div className="w-full max-w-sm text-center">
+            <h1 className="font-serif text-4xl text-amber-100 mb-3">Something went wrong</h1>
+            <p className="text-stone-400 text-sm mb-8">
+              We couldn&apos;t set up your space. Try reloading — if it keeps happening,
+              sign out and back in.
+            </p>
+            <form action={logout}>
+              <button type="submit" className="text-amber-500 hover:text-amber-400 text-sm transition-colors">
+                Sign out
+              </button>
+            </form>
+          </div>
+        </main>
+      )
+    }
+    couple = created
+  }
+
+  // Already paired, or is Person 2 — nothing to do here
+  if (couple.user2_id || couple.user1_id !== user.id) redirect('/')
 
   const headersList = await headers()
   const host = headersList.get('host') ?? 'localhost:3000'

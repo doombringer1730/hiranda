@@ -38,7 +38,12 @@ export async function signup(_: unknown, formData: FormData) {
       if (joinError || !joined) return { error: 'That invite link is invalid or has already been used.' }
       redirect(safeNext ?? '/')
     } else {
-      await supabase.from('couple').insert({ user1_id: data.user.id })
+      // An unchecked failure here left the account with no couple row, and the
+      // (app) layout and /invite-partner then redirected to each other forever.
+      const { error: coupleError } = await supabase
+        .from('couple')
+        .insert({ user1_id: data.user.id })
+      if (coupleError) return { error: "We couldn't create your space. Please try again." }
       redirect('/invite-partner')
     }
   }
