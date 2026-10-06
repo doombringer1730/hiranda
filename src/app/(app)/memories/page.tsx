@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProfileMap } from '@/lib/profiles'
 import Link from 'next/link'
 import { Plus, Camera, Map, History } from 'lucide-react'
+import PageHeader from '@/components/page-header'
 
 type Flashback = {
   id: string
@@ -65,8 +66,8 @@ export default async function MemoriesPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="font-serif text-3xl text-amber-100">Memories</h2>
+      <div className="flex items-end justify-between gap-3 mb-8">
+        <PageHeader eyebrow="The good stuff" title="Memories" />
         <div className="flex items-center gap-2">
           <Link
             href="/memories/map"

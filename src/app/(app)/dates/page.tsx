@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Plus, CalendarHeart, Trash2 } from 'lucide-react'
 import { deleteDate } from './actions'
+import PageHeader from '@/components/page-header'
 
 type DateRow = {
   id: string
@@ -60,8 +61,8 @@ export default async function DatesPage() {
 
   return (
     <div className="px-4 pt-8 max-w-2xl mx-auto pb-12">
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="font-serif text-3xl text-amber-100">Dates</h2>
+      <div className="flex items-end justify-between gap-3 mb-8">
+        <PageHeader eyebrow="The ones that matter" title="Dates" />
         <Link
           href="/dates/new"
           className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"

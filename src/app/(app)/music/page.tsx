@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProfileMap } from '@/lib/profiles'
 import { addMusicMoment, deleteMusicMoment } from './actions'
 import { Music, Plus, ExternalLink, Trash2 } from 'lucide-react'
+import PageHeader from '@/components/page-header'
 
 async function fetchAlbumArt(spotifyUrl: string): Promise<string | null> {
   try {
@@ -34,10 +35,7 @@ export default async function MusicPage() {
 
   return (
     <div className="px-4 pt-8 max-w-2xl mx-auto pb-12">
-      <div className="flex items-center gap-3 mb-8">
-        <Music size={28} className="text-amber-700" />
-        <h2 className="font-serif text-3xl text-amber-100">Music</h2>
-      </div>
+      <PageHeader eyebrow="Songs that are ours" title="Music" className="mb-8" />
 
       {/* Add form */}
       <form action={addMusicMoment} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-8 flex flex-col gap-3">

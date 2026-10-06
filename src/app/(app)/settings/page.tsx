@@ -8,6 +8,7 @@ import { logout } from '@/app/(auth)/actions'
 import { LogOut, Film } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getTheaterState } from '@/lib/theater'
+import PageHeader from '@/components/page-header'
 
 export default async function SettingsPage() {
   const theater = await getTheaterState()
@@ -29,7 +30,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="px-4 pt-8 max-w-lg mx-auto pb-12">
-      <h2 className="font-serif text-3xl text-amber-100 mb-8">Settings</h2>
+      <PageHeader eyebrow="Your little corner" title="Settings" className="mb-8" />
 
       <div className="flex flex-col gap-4">
 

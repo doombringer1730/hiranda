@@ -218,8 +218,12 @@ body::after {
 }
 
 /* ── Tap targets ── */
-button, a, input, textarea, select {
-  min-height: 44px;
+/* Touch screens only — on a mouse/trackpad this just made small links and
+   pills look stretched. */
+@media (pointer: coarse) {
+  button, a, input, textarea, select {
+    min-height: 44px;
+  }
 }
 
 /* ── Selection ── */

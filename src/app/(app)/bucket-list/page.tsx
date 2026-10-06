@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProfileMap } from '@/lib/profiles'
 import { addBucketItem, completeBucketItem, deleteBucketItem } from './actions'
 import { Plus, Trash2, Star, CheckCircle2 } from 'lucide-react'
+import PageHeader from '@/components/page-header'
 
 const CATEGORIES = ['travel', 'food', 'experience', 'other'] as const
 type Category = typeof CATEGORIES[number]
@@ -32,7 +33,7 @@ export default async function BucketListPage() {
 
   return (
     <div className="px-4 pt-8 max-w-2xl mx-auto">
-      <h2 className="font-serif text-3xl text-amber-100 mb-8">Bucket List</h2>
+      <PageHeader eyebrow="Someday, together" title="Bucket List" className="mb-8" />
 
       <form action={addBucketItem} className="bg-stone-900 border border-stone-800 rounded-2xl p-4 mb-8 flex flex-col gap-3">
         <input

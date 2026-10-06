@@ -6,6 +6,7 @@ import { getLatestGames } from './board/actions'
 import { GAMES, type Kind } from './board/engine'
 import GameClient from './game-client'
 import { ChevronRight } from 'lucide-react'
+import PageHeader from '@/components/page-header'
 
 export default async function GamesPage() {
   const supabase = await createClient()
@@ -102,10 +103,7 @@ export default async function GamesPage() {
 
   return (
     <div className="px-4 pt-8 max-w-lg mx-auto pb-12">
-      <header className="mb-8">
-        <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em]">Game night</p>
-        <h1 className="font-serif text-4xl text-amber-50 mt-2">Games<span className="text-amber-500">.</span></h1>
-      </header>
+      <PageHeader eyebrow="Game night" title="Games" className="mb-8" />
 
       <GameSection title="Card games" games={cardGames} />
       <GameSection title="Board games" games={boardGames} />

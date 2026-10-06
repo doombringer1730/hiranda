@@ -7,17 +7,10 @@ import {
 import PresenceCards, { type PresonProfile } from './presence-cards'
 import { FlameWidget } from './flame-pet'
 import DailyQuestion from './daily-question'
+import { Greeting, TodayLine } from './greeting'
 import { InstallCard, NotificationCard } from '@/components/pwa'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
-
-function greeting(): string {
-  const h = new Date().getHours()
-  if (h < 5) return 'still up'
-  if (h < 12) return 'good morning'
-  if (h < 18) return 'good afternoon'
-  return 'good evening'
-}
 
 function daysTogether(since: string | null): number | null {
   if (!since) return null
@@ -156,10 +149,10 @@ export default async function HomeHub() {
       {/* Greeting */}
       <header className="mb-8 pt-2">
         <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em]">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          <TodayLine />
         </p>
         <h1 className="font-serif text-4xl md:text-5xl text-amber-50 mt-2 leading-[1.05]">
-          <span className="italic text-stone-400">{greeting()},</span> {firstName}<span className="text-amber-500">.</span>
+          <span className="italic text-stone-400"><Greeting />,</span> {firstName}<span className="text-amber-500">.</span>
         </h1>
       </header>
 

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Plus, BookOpen, Loader2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import PageHeader from '@/components/page-header'
 
 type Book = { id: string; title: string; author: string | null; cover_path: string | null; coverUrl?: string }
 
@@ -118,8 +119,8 @@ export default function LibraryPage() {
 
   return (
     <div className="px-4 pt-8 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="font-serif text-3xl text-amber-100">Library</h2>
+      <div className="flex items-end justify-between gap-3 mb-8">
+        <PageHeader eyebrow="Our shelf" title="Library" />
         <button
           onClick={() => setShowForm(v => !v)}
           className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
