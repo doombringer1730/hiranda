@@ -573,7 +573,7 @@ create policy "Users can update their own progress"
 
 create table prompts (
   id         uuid primary key default gen_random_uuid(),
-  type       text not null check (type in ('question','would_you_rather','this_or_that')),
+  type       text not null check (type in ('question','would_you_rather','this_or_that','most_likely')),
   text       text not null,
   option_a   text,
   option_b   text,
@@ -615,6 +615,15 @@ create policy "Couple members can read responses"
       and ((couple.user1_id = prompt_responses.user_id) or (couple.user2_id = prompt_responses.user_id))));
 create policy "Users can insert their own responses"
   on prompt_responses for insert with check (auth.uid() = user_id);
+
+
+-- ─────────────────────────────────────────
+-- GAMES — migration 015
+-- ─────────────────────────────────────────
+-- board_games: live two-player games (tic_tac_toe, connect_four,
+-- dots_and_boxes, uno); board state in jsonb, moves validated server-side.
+-- trivia_questions: multiple-choice "trivia about us", one guess each.
+-- Also seeds the 'most_likely' stock prompts. See migrations/015_more_games.sql.
 
 
 -- ─────────────────────────────────────────

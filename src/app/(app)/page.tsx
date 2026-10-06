@@ -149,9 +149,13 @@ export default async function HomeHub() {
   return (
     <div className="px-4 pt-4 pb-8 max-w-2xl mx-auto">
       {/* Greeting */}
-      <header className="mb-6">
-        <p className="text-stone-500 text-sm">{greeting()},</p>
-        <h1 className="font-serif text-3xl text-amber-100 mt-0.5">{firstName}</h1>
+      <header className="mb-8 pt-2">
+        <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em]">
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+        </p>
+        <h1 className="font-serif text-4xl md:text-5xl text-amber-50 mt-2 leading-[1.05]">
+          <span className="italic text-stone-400">{greeting()},</span> {firstName}<span className="text-amber-500">.</span>
+        </h1>
       </header>
 
       {/* Bento grid — size signals importance: presence + flame are the
@@ -166,7 +170,7 @@ export default async function HomeHub() {
         {/* Active coupons — someone's cashing one in */}
         {(activeCoupons ?? []).length > 0 && (
           <Link href="/study/shop" className="md:col-span-2 rounded-2xl bg-gradient-to-br from-amber-950/40 to-stone-900 border border-amber-900/40 p-4 hover:border-amber-700/60 transition-colors">
-            <p className="text-amber-300/80 text-[10px] uppercase tracking-widest mb-2">Coupons to honor 💌</p>
+            <p className="text-amber-300/80 text-[10px] uppercase tracking-[0.25em] mb-2">Coupons to honor 💌</p>
             <div className="flex flex-col gap-1.5">
               {(activeCoupons as { id: string; title: string; emoji: string | null; bought_by: string }[]).map(c => (
                 <p key={c.id} className="text-sm flex items-center gap-2">
@@ -182,7 +186,7 @@ export default async function HomeHub() {
         {/* Waiting for you */}
         {hasWaiting && (
         <section className="md:col-span-1">
-          <h2 className="text-stone-500 text-xs uppercase tracking-widest mb-3">Waiting for you</h2>
+          <h2 className="flex items-center gap-3 text-stone-500 text-[10px] uppercase tracking-[0.25em] mb-3">Waiting for you<span className="rule-fade flex-1" /></h2>
           <div className="flex flex-col gap-2.5">
             {yourTurnPrompt && (
               <Link href="/games" className="group flex items-center gap-3 bg-amber-900/20 border border-amber-800/40 rounded-2xl p-4 hover:border-amber-700/60 card-glow">
@@ -211,7 +215,7 @@ export default async function HomeHub() {
         {/* Coming up */}
         {(upcoming || watching) && (
         <section className="md:col-span-1">
-          <h2 className="text-stone-500 text-xs uppercase tracking-widest mb-3">Coming up</h2>
+          <h2 className="flex items-center gap-3 text-stone-500 text-[10px] uppercase tracking-[0.25em] mb-3">Coming up<span className="rule-fade flex-1" /></h2>
           <div className="grid grid-cols-2 gap-2.5">
             {upcoming && (
               <Link href="/dates" className="bg-stone-900/70 border border-stone-800 rounded-2xl p-4 hover:border-amber-800/50 card-glow flex flex-col gap-1">

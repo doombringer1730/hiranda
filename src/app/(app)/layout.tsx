@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { unlocked } = await getTheaterState()
 
   return (
-    <div className="min-h-screen bg-stone-950">
+    <div className="min-h-screen">
       <Nav theaterUnlocked={unlocked} />
       <CoupleTimer />
       <main className="md:ml-56 pt-6 md:pt-0 pb-24 md:pb-0 min-h-screen animate-page-in">

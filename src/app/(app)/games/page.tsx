@@ -1,8 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getActivePrompt } from './actions'
+import { getLatestGames } from './board/actions'
+import { GAMES, type Kind } from './board/engine'
 import GameClient from './game-client'
-import { Gamepad2 } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 
 export default async function GamesPage() {
   const supabase = await createClient()
@@ -23,11 +26,23 @@ export default async function GamesPage() {
     ? await supabase.from('profiles').select('display_name').eq('id', partnerId).maybeSingle()
     : { data: null }
 
-  const [questions, wyr, tot] = await Promise.all([
+  const [questions, wyr, tot, likely, latest, { count: triviaWaiting }] = await Promise.all([
     getActivePrompt('question'),
     getActivePrompt('would_you_rather'),
     getActivePrompt('this_or_that'),
+    getActivePrompt('most_likely'),
+    getLatestGames(),
+    partnerId
+      ? supabase.from('trivia_questions').select('id', { count: 'exact', head: true }).eq('author', partnerId).is('guess', null)
+      : Promise.resolve({ count: 0 }),
   ])
+
+  // Badge for a live game tile: whose move it is, or nothing.
+  const liveBadge = (kind: Kind) => {
+    const g = latest[kind]
+    if (!g || g.status !== 'active') return null
+    return g.turn === user.id ? 'Your move' : 'Their move'
+  }
 
   // ── Match stats: how often the two of you picked the same answer ──────────
   let stats: { together: number; matches: number; comparable: number; streak: number } | null = null
@@ -72,15 +87,30 @@ export default async function GamesPage() {
   const tabs = [
     { type: 'question' as const, label: 'Questions', initial: questions },
     { type: 'would_you_rather' as const, label: 'Would You Rather', shortLabel: 'WYR', initial: wyr },
-    { type: 'this_or_that' as const, label: 'This or That', shortLabel: 'This or That', initial: tot },
+    { type: 'this_or_that' as const, label: 'This or That', shortLabel: 'This/That', initial: tot },
+    { type: 'most_likely' as const, label: 'Most Likely To', shortLabel: 'Most Likely', initial: likely },
   ]
+
+  const cardGames = [
+    { href: '/games/daring', name: 'Daring Questions', blurb: 'Deep, flirty, silly — or take the dare.', emoji: '💋', badge: null },
+    { href: '/games/trivia', name: 'Trivia About Us', blurb: 'How well do you really know each other?', emoji: '🧠', badge: triviaWaiting ? `${triviaWaiting} to answer` : null },
+    { href: `/games/${GAMES.uno.slug}`, name: GAMES.uno.name, blurb: GAMES.uno.blurb, emoji: GAMES.uno.emoji, badge: liveBadge('uno') },
+  ]
+  const boardGames = (['tic_tac_toe', 'connect_four', 'dots_and_boxes'] as const).map(kind => ({
+    href: `/games/${GAMES[kind].slug}`, name: GAMES[kind].name, blurb: GAMES[kind].blurb, emoji: GAMES[kind].emoji, badge: liveBadge(kind),
+  }))
 
   return (
     <div className="px-4 pt-8 max-w-lg mx-auto pb-12">
-      <div className="flex items-center gap-3 mb-8">
-        <Gamepad2 size={28} className="text-amber-700" />
-        <h2 className="font-serif text-3xl text-amber-100">Games</h2>
-      </div>
+      <header className="mb-8">
+        <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em]">Game night</p>
+        <h1 className="font-serif text-4xl text-amber-50 mt-2">Games<span className="text-amber-500">.</span></h1>
+      </header>
+
+      <GameSection title="Card games" games={cardGames} />
+      <GameSection title="Board games" games={boardGames} />
+
+      <h2 className="flex items-center gap-3 text-stone-500 text-[10px] uppercase tracking-[0.25em] mb-3 mt-10">Daily prompts<span className="rule-fade flex-1" /></h2>
 
       {stats && (
         <div className="grid grid-cols-3 gap-3 mb-6">
@@ -104,7 +134,36 @@ export default async function GamesPage() {
       <GameClient
         tabs={tabs}
         partnerName={partnerProfile?.display_name ?? 'your partner'}
+        myId={user.id}
+        partnerId={partnerId}
       />
     </div>
+  )
+}
+
+type Tile = { href: string; name: string; blurb: string; emoji: string; badge: string | null }
+
+function GameSection({ title, games }: { title: string; games: Tile[] }) {
+  return (
+    <section className="mb-8">
+      <h2 className="flex items-center gap-3 text-stone-500 text-[10px] uppercase tracking-[0.25em] mb-3">{title}<span className="rule-fade flex-1" /></h2>
+      <div className="flex flex-col gap-2.5">
+        {games.map(g => (
+          <Link key={g.href} href={g.href} className="group flex items-center gap-4 bg-stone-900/70 border border-stone-800 rounded-2xl p-4 hover:border-amber-800/50 card-glow">
+            <span className="h-11 w-11 shrink-0 rounded-xl bg-stone-950 border border-stone-800 flex items-center justify-center text-lg text-amber-300">{g.emoji}</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-amber-50 text-sm font-medium flex items-center gap-2">
+                {g.name}
+                {g.badge && (
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${g.badge === 'Their move' ? 'bg-stone-800 text-stone-400' : 'bg-amber-900/50 text-amber-300'}`}>{g.badge}</span>
+                )}
+              </p>
+              <p className="text-stone-500 text-xs truncate mt-0.5">{g.blurb}</p>
+            </div>
+            <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
+          </Link>
+        ))}
+      </div>
+    </section>
   )
 }
