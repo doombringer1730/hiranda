@@ -7,6 +7,7 @@ import {
 import PresenceCards, { type PresonProfile } from './presence-cards'
 import { FlameWidget } from './flame-pet'
 import DailyQuestion from './daily-question'
+import { InstallCard } from '@/components/pwa'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
 
@@ -167,6 +168,9 @@ export default async function HomeHub() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
         {/* Presence — the "double stack" */}
         {couple && <div className="md:col-span-2"><PresenceCards coupleId={couple.id} me={me} partner={partner} /></div>}
+
+        {/* Install prompt — only shows on phones/browsers that aren't installed yet */}
+        <div className="md:col-span-2 empty:hidden"><InstallCard /></div>
 
         {/* Today's question — the daily ritual; answering it feeds the flame */}
         {partnerId && <div className="md:col-span-2"><DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} /></div>}

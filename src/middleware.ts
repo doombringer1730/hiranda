@@ -53,5 +53,8 @@ export const config = {
   // API routes handle their own auth internally — routing them through the
   // redirect middleware breaks unauthenticated callers (e.g. the extension's
   // NTP sync hits /api/time with no session cookie and gets HTML instead of JSON).
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // The PWA files (manifest, service worker, offline page) are excluded too:
+  // browsers fetch the manifest without cookies, so a login redirect breaks
+  // installing the app.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|manifest\\.webmanifest|sw\\.js|offline\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

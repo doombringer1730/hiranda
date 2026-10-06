@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Serif, Inter } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
+import { ServiceWorkerRegister } from "@/components/pwa";
 import "./globals.css";
 
 const serif = Instrument_Serif({
@@ -28,6 +29,8 @@ export const metadata: Metadata = {
   description: "Our little place on the internet.",
   // Hiranda is a private app — prevent Google from indexing any page.
   robots: { index: false, follow: false },
+  // Home-screen install on iPhone (the web manifest covers everyone else).
+  appleWebApp: { capable: true, title: "Hiranda", statusBarStyle: "black" },
 };
 
 export const viewport: Viewport = {
@@ -66,6 +69,7 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-stone-950 text-amber-50 antialiased">
         {children}
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
