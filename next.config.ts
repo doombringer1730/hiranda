@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
     ]
   },
   experimental: {
+    // Animated page transitions via React's <ViewTransition>.
+    viewTransition: true,
     serverActions: {
       bodySizeLimit: '50mb',
     },

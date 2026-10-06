@@ -2,10 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  PenLine, CalendarHeart, Play, MessageCircleQuestion, ChevronRight,
+  PenLine, Play, MessageCircleQuestion, ChevronRight, Gamepad2, Brain, Gift, ImageIcon, CalendarPlus,
 } from 'lucide-react'
 import PresenceCards, { type PresonProfile } from './presence-cards'
-import { FlameWidget } from './flame-pet'
+import { FlameTile } from './flame-pet'
+import { CountUp, ThinkingOfYou } from './home-tiles'
+import { GAMES, type Kind } from './games/board/engine'
 import DailyQuestion from './daily-question'
 import { Greeting, TodayLine } from './greeting'
 import { InstallCard, NotificationCard } from '@/components/pwa'
@@ -71,6 +73,10 @@ export default async function HomeHub() {
     { data: studyDays },
     { data: promptDays },
     { data: activeCoupons },
+    { data: myMoves },
+    { count: triviaWaiting },
+    { data: allMemories },
+    { data: partnerLove },
   ] = await Promise.all([
     supabase.from('profiles').select(PROFILE_FIELDS).in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
     partnerId
@@ -95,6 +101,16 @@ export default async function HomeHub() {
     supabase.from('prompt_responses').select('user_id, responded_at').gte('responded_at', since),
     // redeemed ("activated") coupons — someone's cashing them in
     supabase.from('coupons').select('id, title, emoji, bought_by, redeemed_at').eq('redeemed', true).order('redeemed_at', { ascending: false }).limit(6),
+    // live games where it's my move
+    supabase.from('board_games').select('id, kind').eq('status', 'active').eq('turn', user.id),
+    partnerId
+      ? supabase.from('trivia_questions').select('id', { count: 'exact', head: true }).eq('author', partnerId).is('guess', null)
+      : Promise.resolve({ count: 0 }),
+    // for "On this day"
+    supabase.from('memories').select('id, title, happened_at').order('happened_at', { ascending: false }).limit(500),
+    partnerId
+      ? supabase.from('love_taps').select('created_at').eq('from_user', partnerId).order('created_at', { ascending: false }).limit(1)
+      : Promise.resolve({ data: [] as never[] }),
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
@@ -142,12 +158,51 @@ export default async function HomeHub() {
   const streak = computeStreak(fedDays)
   const fedToday = fedDays.has(dayKey(new Date()))
 
-  const hasWaiting = yourTurnPrompt || journalFresh
+  // ── On this day: a memory from this date in an earlier year, otherwise one
+  // from the archive (stable for the day). ──
+  const today = new Date()
+  const md = today.toISOString().slice(5, 10)
+  const mems = (allMemories ?? []) as { id: string; title: string; happened_at: string }[]
+  const sameDay = mems.filter(m => m.happened_at?.slice(5, 10) === md && m.happened_at.slice(0, 4) < String(today.getFullYear()))
+  const archive = mems.filter(m => today.getTime() - new Date(m.happened_at).getTime() > 30 * 86_400_000)
+  const pick = sameDay[0] ?? (archive.length ? archive[Number(dayKey(today).replace(/-/g, '')) % archive.length] : null)
+  const pickLabel = !pick ? null
+    : sameDay[0] ? (() => { const y = today.getFullYear() - Number(pick.happened_at.slice(0, 4)); return `${y} year${y === 1 ? '' : 's'} ago today` })()
+    : `From ${new Date(pick.happened_at + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+  let pickPhoto: string | null = null
+  if (pick) {
+    const { data: ph } = await supabase.from('photos').select('storage_path').eq('memory_id', pick.id).limit(1).maybeSingle()
+    if (ph?.storage_path) pickPhoto = (await supabase.storage.from('photos').createSignedUrl(ph.storage_path, 3600)).data?.signedUrl ?? null
+  }
+
+  // ── Your move: everything currently waiting on you ──
+  type Waiting = { href: string; icon: React.ElementType; title: string; sub?: string }
+  const waiting: Waiting[] = []
+  for (const g of (myMoves ?? []) as { id: string; kind: Kind }[]) {
+    const meta = GAMES[g.kind]
+    if (meta) waiting.push({ href: `/games/${meta.slug}`, icon: Gamepad2, title: `Your move in ${meta.name}`, sub: `${partnerFirst} played` })
+  }
+  if (yourTurnPrompt) waiting.push({ href: '/games', icon: MessageCircleQuestion, title: `${partnerFirst} answered — your turn`, sub: `“${yourTurnPrompt.text}”` })
+  if (triviaWaiting) waiting.push({ href: '/games/trivia', icon: Brain, title: `${triviaWaiting} trivia question${triviaWaiting === 1 ? '' : 's'} about ${partnerFirst}` })
+  if (journalFresh && latestJournal) waiting.push({ href: `/journal/${latestJournal.id}`, icon: PenLine, title: `${partnerFirst} wrote in the journal`, sub: latestJournal.title || 'Untitled entry' })
+  for (const c of (activeCoupons ?? []) as { id: string; title: string; emoji: string | null; bought_by: string }[]) {
+    waiting.push({ href: '/study/shop', icon: Gift, title: `${c.emoji ?? '🎁'} ${c.title}`, sub: c.bought_by === user.id ? `${partnerFirst} owes you` : 'you owe this one!' })
+  }
+
+  const lastLove = ((partnerLove ?? []) as { created_at: string }[])[0]?.created_at ?? null
+  const eyebrow = 'text-stone-500 text-[10px] uppercase tracking-[0.25em]'
 
   return (
-    <div className="px-4 pt-4 pb-8 max-w-2xl mx-auto">
+    <div className="px-4 pb-8 max-w-2xl md:max-w-4xl mx-auto">
       {/* Greeting */}
-      <header className="mb-8 pt-2">
+      <header className="relative mb-6 pt-[calc(env(safe-area-inset-top)+20px)] md:pt-8">
+        {/* Settings lives behind your avatar, iOS-style */}
+        <Link href="/settings" aria-label="Settings" className="absolute right-0 top-[calc(env(safe-area-inset-top)+16px)] md:top-8 h-10 w-10 rounded-full overflow-hidden material flex items-center justify-center text-sm font-semibold text-amber-100">
+          {me.avatar_url
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={me.avatar_url} alt="" className="h-full w-full object-cover" />
+            : firstName.slice(0, 1).toUpperCase()}
+        </Link>
         <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em]">
           <TodayLine />
         </p>
@@ -156,90 +211,111 @@ export default async function HomeHub() {
         </h1>
       </header>
 
-      {/* Bento grid — size signals importance: presence + flame are the
-          full-width heroes; waiting & coming-up sit side by side beneath. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-        {/* Presence — the "double stack" */}
-        {couple && <div className="md:col-span-2"><PresenceCards coupleId={couple.id} me={me} partner={partner} /></div>}
-
-        {/* Install prompt — only shows on phones/browsers that aren't installed yet */}
-        <div className="md:col-span-2 empty:hidden"><InstallCard /></div>
-        <div className="md:col-span-2 empty:hidden"><NotificationCard /></div>
-
-        {/* Today's question — the daily ritual; answering it feeds the flame */}
-        {partnerId && <div className="md:col-span-2"><DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} /></div>}
-
-        {/* Flame pet + days — the shared "us" hero */}
-        {couple && <div className="md:col-span-2"><FlameWidget streak={streak} fedToday={fedToday} partnerMissing={!partnerId} days={days} /></div>}
-
-        {/* Active coupons — someone's cashing one in */}
-        {(activeCoupons ?? []).length > 0 && (
-          <Link href="/study/shop" className="md:col-span-2 rounded-2xl bg-gradient-to-br from-amber-950/40 to-stone-900 border border-amber-900/40 p-4 hover:border-amber-700/60 transition-colors">
-            <p className="text-amber-300/80 text-[10px] uppercase tracking-[0.25em] mb-2">Coupons to honor 💌</p>
-            <div className="flex flex-col gap-1.5">
-              {(activeCoupons as { id: string; title: string; emoji: string | null; bought_by: string }[]).map(c => (
-                <p key={c.id} className="text-sm flex items-center gap-2">
-                  <span className="text-lg">{c.emoji ?? '🎁'}</span>
-                  <span className="text-amber-100 truncate">{c.title}</span>
-                  <span className="text-stone-500 text-xs ml-auto shrink-0">{c.bought_by === user.id ? `${partnerFirst} owes you` : 'you owe!'}</span>
-                </p>
-              ))}
+      {/* Bento — size is importance (Apple widget rules: one job per tile,
+          big glanceable numbers). Phone: 2 columns. Desktop: 4, with the
+          question as the hero and the squares beside it. */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        {/* Your move — only when something is waiting on you */}
+        {waiting.length > 0 && (
+          <section className="col-span-2 md:col-span-4 tile tile-accent p-2 animate-rise">
+            <p className={`${eyebrow} px-3 pt-2 pb-1 text-amber-300/80`}>Your move · {waiting.length}</p>
+            <div className="flex flex-col">
+              {waiting.slice(0, 4).map((w, i) => {
+                const Icon = w.icon
+                return (
+                  <Link key={i} href={w.href} className="group flex items-center gap-3 rounded-[20px] px-3 py-2.5 hover:bg-stone-800/40 transition-colors">
+                    <span className="grid place-items-center h-9 w-9 shrink-0 rounded-xl bg-amber-700/25 text-amber-300"><Icon size={17} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-amber-50 text-sm truncate">{w.title}</span>
+                      {w.sub && <span className="block text-stone-500 text-xs truncate">{w.sub}</span>}
+                    </span>
+                    <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
+                  </Link>
+                )
+              })}
             </div>
-          </Link>
+          </section>
         )}
 
-        {/* Waiting for you */}
-        {hasWaiting && (
-        <section className="md:col-span-1">
-          <h2 className="flex items-center gap-3 text-stone-500 text-[10px] uppercase tracking-[0.25em] mb-3">Waiting for you<span className="rule-fade flex-1" /></h2>
-          <div className="flex flex-col gap-2.5">
-            {yourTurnPrompt && (
-              <Link href="/games" className="group flex items-center gap-3 bg-amber-900/20 border border-amber-800/40 rounded-2xl p-4 hover:border-amber-700/60 card-glow">
-                <MessageCircleQuestion size={18} className="text-amber-500 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-amber-100 text-sm">{partnerFirst} answered — your turn</p>
-                  <p className="text-stone-500 text-xs truncate mt-0.5">&ldquo;{yourTurnPrompt.text}&rdquo;</p>
-                </div>
-                <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
-              </Link>
-            )}
-            {journalFresh && latestJournal && (
-              <Link href={`/journal`} className="group flex items-center gap-3 bg-stone-900/70 border border-stone-800 rounded-2xl p-4 hover:border-amber-800/50 card-glow">
-                <PenLine size={18} className="text-amber-600 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-amber-100 text-sm truncate">{partnerFirst} wrote a journal entry</p>
-                  <p className="text-stone-500 text-xs truncate mt-0.5">{latestJournal.title || 'Untitled entry'}</p>
-                </div>
-                <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
-              </Link>
-            )}
-          </div>
-        </section>
-      )}
+        <div className="col-span-2 md:col-span-4 empty:hidden"><InstallCard /></div>
+        <div className="col-span-2 md:col-span-4 empty:hidden"><NotificationCard /></div>
 
-        {/* Coming up */}
-        {(upcoming || watching) && (
-        <section className="md:col-span-1">
-          <h2 className="flex items-center gap-3 text-stone-500 text-[10px] uppercase tracking-[0.25em] mb-3">Coming up<span className="rule-fade flex-1" /></h2>
-          <div className="grid grid-cols-2 gap-2.5">
-            {upcoming && (
-              <Link href="/dates" className="bg-stone-900/70 border border-stone-800 rounded-2xl p-4 hover:border-amber-800/50 card-glow flex flex-col gap-1">
-                <CalendarHeart size={16} className="text-amber-600" />
-                <p className="text-amber-100 text-sm mt-1 truncate">{upcoming.label}</p>
-                <p className="text-amber-200/80 text-xs">
-                  {upcoming.inDays === 0 ? 'today' : upcoming.inDays === 1 ? 'tomorrow' : `in ${upcoming.inDays} days`}
-                </p>
-              </Link>
-            )}
-            {watching && (
-              <Link href={`/watch/${watching.id}`} className="bg-stone-900/70 border border-stone-800 rounded-2xl p-4 hover:border-amber-800/50 card-glow flex flex-col gap-1">
-                <Play size={16} className="text-amber-600" fill="currentColor" />
-                <p className="text-amber-100 text-sm mt-1 truncate">{watching.title}</p>
-                <p className="text-stone-500 text-xs">continue watching</p>
-              </Link>
-            )}
+        {/* Hero: today's question */}
+        {partnerId && (
+          <div className="col-span-2 md:row-span-2 animate-rise" style={{ '--i': 1 } as React.CSSProperties}>
+            <DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} />
           </div>
-        </section>
+        )}
+
+        {/* Squares */}
+        {couple && (
+          <div className="animate-rise" style={{ '--i': 2 } as React.CSSProperties}>
+            <FlameTile streak={streak} fedToday={fedToday} partnerMissing={!partnerId} days={days} />
+          </div>
+        )}
+
+        <Link href="/dates" className="tile p-4 flex flex-col justify-between aspect-square animate-rise" style={{ '--i': 3 } as React.CSSProperties}>
+          <p className={eyebrow}>Countdown</p>
+          {upcoming ? (
+            <>
+              <div>
+                {upcoming.inDays === 0
+                  ? <p className="font-serif text-[44px] leading-none text-amber-50">Today</p>
+                  : <p className="font-serif text-[52px] leading-none text-amber-50"><CountUp value={upcoming.inDays} /></p>}
+                <p className="text-stone-300 text-sm mt-1">{upcoming.inDays === 0 ? '🎉' : upcoming.inDays === 1 ? 'day to go' : 'days to go'}</p>
+              </div>
+              <p className="text-stone-500 text-[11px] truncate">{upcoming.label}</p>
+            </>
+          ) : (
+            <>
+              <CalendarPlus size={28} className="text-stone-600" />
+              <p className="text-stone-400 text-sm">Add a date to count down to →</p>
+            </>
+          )}
+        </Link>
+
+        <Link
+          href={pick ? `/memories/${pick.id}` : '/memories/new'}
+          className="tile aspect-square flex flex-col justify-end animate-rise"
+          style={{ '--i': 4 } as React.CSSProperties}
+        >
+          {pickPhoto && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={pickPhoto} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          )}
+          <div className={`relative p-[11px] ${pickPhoto ? 'bg-gradient-to-t from-black/75 via-black/30 to-transparent pt-10' : 'p-4 h-full flex flex-col justify-between'}`}>
+            {!pickPhoto && <p className={eyebrow}>On this day</p>}
+            {!pickPhoto && !pick && <ImageIcon size={28} className="text-stone-600" />}
+            <div>
+              <p className={`text-[10px] uppercase tracking-[0.2em] ${pickPhoto ? 'text-white/70' : 'text-amber-300/80'}`}>{pickLabel ?? 'Your first memory'}</p>
+              <p className={`font-serif text-xl leading-tight mt-0.5 line-clamp-2 ${pickPhoto ? 'text-white' : 'text-amber-50'}`}>{pick?.title ?? 'Add one →'}</p>
+            </div>
+          </div>
+        </Link>
+
+        {partnerId && (
+          <div className="animate-rise" style={{ '--i': 5 } as React.CSSProperties}>
+            <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} />
+          </div>
+        )}
+
+        {/* Presence */}
+        {couple && (
+          <div className="col-span-2 md:col-span-4 animate-rise" style={{ '--i': 6 } as React.CSSProperties}>
+            <PresenceCards coupleId={couple.id} me={me} partner={partner} />
+          </div>
+        )}
+
+        {/* Continue watching (Theater link only — the watch page is untouched) */}
+        {watching && (
+          <Link href={`/watch/${watching.id}`} className="col-span-2 md:col-span-4 tile p-4 flex items-center gap-3">
+            <span className="grid place-items-center h-10 w-10 rounded-xl bg-stone-800 text-amber-300"><Play size={16} fill="currentColor" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-amber-50 text-sm truncate">{watching.title}</span>
+              <span className="block text-stone-500 text-xs">Continue watching</span>
+            </span>
+            <ChevronRight size={16} className="text-stone-600" />
+          </Link>
         )}
       </div>
     </div>

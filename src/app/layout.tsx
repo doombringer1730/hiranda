@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Instrument_Serif, Inter } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import { ServiceWorkerRegister } from "@/components/pwa";
+import PressFeedback from "@/components/press-feedback";
 import "./globals.css";
 
 const serif = Instrument_Serif({
@@ -65,11 +66,13 @@ export default async function RootLayout({
     <html
       lang="en"
       data-theme={theme}
+      data-scroll-behavior="smooth"
       className={`${serif.variable} ${inter.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-stone-950 text-amber-50 antialiased">
         {children}
         <ServiceWorkerRegister />
+        <PressFeedback />
       </body>
     </html>
   );

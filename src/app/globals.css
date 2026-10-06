@@ -1,130 +1,152 @@
 @import "tailwindcss";
 
-/* ── Theme overrides — override Tailwind's CSS vars per data-theme ── */
+/* ── Themes ──
+   Generated in OKLCH from one shared lightness ramp, so every theme is a
+   sibling: tinted near-black neutrals (never pure black), a calm accent, and
+   the same contrast everywhere — body text ~18:1, muted text >5:1, white on
+   buttons >4.5:1 (WCAG AA). Themes override Tailwind's stone (neutrals) and
+   amber (accent) scales. Each pairs a background with a contrasting accent
+   hue (navy + pink, espresso + blue…) — single-hue themes looked muddy.
+   Keys stay the same; display names live in Settings.
+   Preppy keeps its pinstripe and drops the film grain (see below). */
 
-/* Coffee (default): Tailwind's stock stone is a cool grey, which reads flat
-   next to the amber accents. Tint the neutrals toward roasted espresso. */
-[data-theme="coffee"] {
-  --color-stone-950: #0e0a07;
-  --color-stone-900: #18120d;
-  --color-stone-800: #261c14;
-  --color-stone-700: #3a2c20;
-  --color-stone-600: #5e4c3d;
-  --color-stone-500: #8c7965;
-  --color-stone-400: #ac9986;
-  --color-stone-300: #cdbfae;
+/* Mocha: espresso + powder blue — also the base palette, for pages rendered before a theme is known
+   (login, signup, 404). */
+:root, [data-theme="coffee"] {
+  --color-stone-950: #130d08;
+  --color-stone-900: #1e150f;
+  --color-stone-800: #2d221b;
+  --color-stone-700: #3f342d;
+  --color-stone-600: #655a53;
+  --color-stone-500: #928983;
+  --color-stone-400: #b3aba5;
+  --color-stone-300: #d4ceca;
+  --color-amber-950: #091e2a;
+  --color-amber-900: #143343;
+  --color-amber-800: #245169;
+  --color-amber-700: #397595;
+  --color-amber-600: #5090b4;
+  --color-amber-500: #6faccf;
+  --color-amber-400: #8abedc;
+  --color-amber-300: #a8cfe7;
+  --color-amber-200: #cae0ee;
+  --color-amber-100: #e2eff7;
+  --color-amber-50: #f1f7fb;
 }
 
-[data-theme="midnight"] {
-  --color-stone-950: #07071a;
-  --color-stone-900: #0f0f2e;
-  --color-stone-800: #1a1a40;
-  --color-stone-700: #2d2d5f;
-  --color-stone-600: #4040a0;
-  --color-stone-500: #6060b0;
-  --color-stone-400: #8888cc;
-  --color-stone-300: #aaaadd;
-  --color-amber-950: #1a1040;
-  --color-amber-900: #2d1f70;
-  --color-amber-800: #3f2fa0;
-  --color-amber-700: #6366f1;
-  --color-amber-600: #818cf8;
-  --color-amber-500: #a5b4fc;
-  --color-amber-400: #c7d2fe;
-  --color-amber-300: #ddd6fe;
-  --color-amber-200: #ede9fe;
-  --color-amber-100: #f5f3ff;
-  --color-amber-50:  #faf5ff;
-}
-
-[data-theme="rose"] {
-  --color-stone-950: #180a0a;
-  --color-stone-900: #2d1010;
-  --color-stone-800: #3d1818;
-  --color-stone-700: #5a2020;
-  --color-stone-600: #7a3535;
-  --color-stone-500: #a05060;
-  --color-stone-400: #c07888;
-  --color-stone-300: #d8a0a8;
-  --color-amber-950: #400a18;
-  --color-amber-900: #6b1025;
-  --color-amber-800: #9b1535;
-  --color-amber-700: #e11d48;
-  --color-amber-600: #f43f5e;
-  --color-amber-500: #fb7185;
-  --color-amber-400: #fda4af;
-  --color-amber-300: #fecdd3;
-  --color-amber-200: #ffe4e6;
-  --color-amber-100: #fff1f2;
-  --color-amber-50:  #fff5f6;
-}
-
-[data-theme="forest"] {
-  --color-stone-950: #030f07;
-  --color-stone-900: #071a0f;
-  --color-stone-800: #0d2b18;
-  --color-stone-700: #153d24;
-  --color-stone-600: #1e5530;
-  --color-stone-500: #2d7a46;
-  --color-stone-400: #4a9e60;
-  --color-stone-300: #74bb88;
-  --color-amber-950: #031a0a;
-  --color-amber-900: #064a1a;
-  --color-amber-800: #096b26;
-  --color-amber-700: #059669;
-  --color-amber-600: #10b981;
-  --color-amber-500: #34d399;
-  --color-amber-400: #6ee7b7;
-  --color-amber-300: #a7f3d0;
-  --color-amber-200: #d1fae5;
-  --color-amber-100: #ecfdf5;
-  --color-amber-50:  #f0fdf4;
-}
-
-[data-theme="ocean"] {
-  --color-stone-950: #030d18;
-  --color-stone-900: #061a2e;
-  --color-stone-800: #0c2a45;
-  --color-stone-700: #143d5e;
-  --color-stone-600: #1e5478;
-  --color-stone-500: #2d7499;
-  --color-stone-400: #4a9ab8;
-  --color-stone-300: #74bcd3;
-  --color-amber-950: #031420;
-  --color-amber-900: #063b50;
-  --color-amber-800: #0a5e7a;
-  --color-amber-700: #0891b2;
-  --color-amber-600: #06b6d4;
-  --color-amber-500: #22d3ee;
-  --color-amber-400: #67e8f9;
-  --color-amber-300: #a5f3fc;
-  --color-amber-200: #cffafe;
-  --color-amber-100: #ecfeff;
-  --color-amber-50:  #f0fdff;
-}
-
-/* Preppy: navy blazer, cream oxford, a pop of pink. Clean and minimal —
-   no film grain, faint pinstripe instead of lamplight (see below). */
+/* Preppy: navy blazer + pink */
 [data-theme="preppy"] {
-  --color-stone-950: #0a1222;
-  --color-stone-900: #0f1a2f;
-  --color-stone-800: #1b2843;
-  --color-stone-700: #2b3b5a;
-  --color-stone-600: #4a5a7b;
-  --color-stone-500: #8390aa;
-  --color-stone-400: #a7b1c6;
-  --color-stone-300: #cbd2df;
-  --color-amber-950: #2a1424;
-  --color-amber-900: #4a2238;
-  --color-amber-800: #8f3a5a;
-  --color-amber-700: #c9527a;
-  --color-amber-600: #dc6a8c;
-  --color-amber-500: #e7829f;
-  --color-amber-400: #ee9db5;
-  --color-amber-300: #f4b6c8;
-  --color-amber-200: #ede3cf;
-  --color-amber-100: #f6efe1;
-  --color-amber-50:  #fdfaf3;
+  --color-stone-950: #0a0e16;
+  --color-stone-900: #121721;
+  --color-stone-800: #1e2530;
+  --color-stone-700: #303743;
+  --color-stone-600: #565c68;
+  --color-stone-500: #858b95;
+  --color-stone-400: #a8adb5;
+  --color-stone-300: #cccfd6;
+  --color-amber-950: #2e101c;
+  --color-amber-900: #4a1e2f;
+  --color-amber-800: #73334b;
+  --color-amber-700: #a24c6d;
+  --color-amber-600: #c26587;
+  --color-amber-500: #de82a3;
+  --color-amber-400: #eb9ab5;
+  --color-amber-300: #f4b4c9;
+  --color-amber-200: #f6d1dc;
+  --color-amber-100: #fce6ed;
+  --color-amber-50: #fdf2f6;
+}
+
+/* Midnight: ink + honey moon */
+[data-theme="midnight"] {
+  --color-stone-950: #0c0e17;
+  --color-stone-900: #141623;
+  --color-stone-800: #212332;
+  --color-stone-700: #333546;
+  --color-stone-600: #595b6b;
+  --color-stone-500: #878a97;
+  --color-stone-400: #aaacb7;
+  --color-stone-300: #cdcfd8;
+  --color-amber-950: #2a1700;
+  --color-amber-900: #452700;
+  --color-amber-800: #6b4102;
+  --color-amber-700: #995e02;
+  --color-amber-600: #b87721;
+  --color-amber-500: #d4944a;
+  --color-amber-400: #e1a96c;
+  --color-amber-300: #ebc093;
+  --color-amber-200: #f0d8be;
+  --color-amber-100: #f9eadc;
+  --color-amber-50: #fcf4ed;
+}
+
+/* Cherry: charcoal + cherry red */
+[data-theme="rose"] {
+  --color-stone-950: #0d0f11;
+  --color-stone-900: #15171a;
+  --color-stone-800: #222528;
+  --color-stone-700: #34373b;
+  --color-stone-600: #595d60;
+  --color-stone-500: #888b8e;
+  --color-stone-400: #aaadaf;
+  --color-stone-300: #cecfd1;
+  --color-amber-950: #360a0c;
+  --color-amber-900: #541719;
+  --color-amber-800: #82282b;
+  --color-amber-700: #b63d42;
+  --color-amber-600: #d95659;
+  --color-amber-500: #f57676;
+  --color-amber-400: #ff9290;
+  --color-amber-300: #ffb2ae;
+  --color-amber-200: #fecfcc;
+  --color-amber-100: #ffe6e5;
+  --color-amber-50: #fef3f2;
+}
+
+/* Forest: deep forest + apricot */
+[data-theme="forest"] {
+  --color-stone-950: #08110c;
+  --color-stone-900: #0f1a13;
+  --color-stone-800: #1b2820;
+  --color-stone-700: #2c3b32;
+  --color-stone-600: #536058;
+  --color-stone-500: #838e87;
+  --color-stone-400: #a6afa9;
+  --color-stone-300: #cad1cd;
+  --color-amber-950: #2d1405;
+  --color-amber-900: #47250d;
+  --color-amber-800: #703c1a;
+  --color-amber-700: #9e592a;
+  --color-amber-600: #be7241;
+  --color-amber-500: #d98f61;
+  --color-amber-400: #e6a57d;
+  --color-amber-300: #efbd9f;
+  --color-amber-200: #f3d6c5;
+  --color-amber-100: #fae9df;
+  --color-amber-50: #fdf4ef;
+}
+
+/* Ocean: deep sea + coral */
+[data-theme="ocean"] {
+  --color-stone-950: #061015;
+  --color-stone-900: #0b1920;
+  --color-stone-800: #16272f;
+  --color-stone-700: #283a42;
+  --color-stone-600: #4f5f67;
+  --color-stone-500: #7f8d94;
+  --color-stone-400: #a3aeb4;
+  --color-stone-300: #c8d1d6;
+  --color-amber-950: #2f1208;
+  --color-amber-900: #4a2213;
+  --color-amber-800: #743823;
+  --color-amber-700: #a35337;
+  --color-amber-600: #c46c4d;
+  --color-amber-500: #df896b;
+  --color-amber-400: #eca086;
+  --color-amber-300: #f4b9a5;
+  --color-amber-200: #f6d4c8;
+  --color-amber-100: #fce8e1;
+  --color-amber-50: #fef3f0;
 }
 
 /* ── Jazz coffee shop theme tokens ── */
@@ -147,6 +169,17 @@
   --color-parchment-100: #f5efe6;
   --color-parchment-200: #ede4d4;
   --color-parchment-300: #d9ccb8;
+}
+
+/* ── Motion ── */
+/* Real spring curves (simulated, then sampled into linear()) — the bouncy
+   one overshoots ~16% like a SwiftUI .bouncy spring, the soft one ~1%. */
+:root {
+  --spring: linear(0, 0.059, 0.197, 0.377, 0.569, 0.748, 0.889, 1.009, 1.093, 1.142, 1.162, 1.16, 1.143, 1.116, 1.085, 1.054, 1.029, 1.007, 0.99, 0.98, 0.974, 0.973, 0.975, 0.979, 0.984, 0.989, 0.993, 0.997, 1, 1.003, 1.004, 1.004, 1.004, 1.004, 1.003, 1.002, 1.001, 1.001, 1, 1, 1);
+  --spring-duration: 850ms;
+  --spring-soft: linear(0, 0.03, 0.091, 0.181, 0.272, 0.366, 0.468, 0.553, 0.631, 0.708, 0.768, 0.819, 0.867, 0.901, 0.93, 0.954, 0.972, 0.985, 0.995, 1.002, 1.007, 1.01, 1.011, 1.012, 1.011, 1.011, 1.01, 1.009, 1.008, 1.007, 1.006, 1.005, 1.004, 1.003, 1.002, 1.002, 1.001, 1.001, 1.001, 1, 1);
+  --spring-soft-duration: 620ms;
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ── Base ── */
@@ -218,10 +251,10 @@ body::after {
 }
 
 /* ── Tap targets ── */
-/* Touch screens only — on a mouse/trackpad this just made small links and
-   pills look stretched. */
+/* Touch screens only, and never on controls that set their own height/size
+   (round checkboxes, dots, swatches) — those were being stretched to ovals. */
 @media (pointer: coarse) {
-  button, a, input, textarea, select {
+  :is(button, a, input, textarea, select):not([class*=" h-"], [class^="h-"], [class*=" size-"], [class^="size-"], [class*="aspect-"]) {
     min-height: 44px;
   }
 }
@@ -323,6 +356,25 @@ body::after {
       0 12px 32px -16px rgb(0 0 0 / 0.6);
   }
 
+  /* Bento tile: one surface for every Home tile — no borders, a hairline
+     highlight and a soft drop shadow. */
+  .tile {
+    position: relative;
+    overflow: hidden;
+    border-radius: 28px;
+    background: color-mix(in oklab, var(--color-stone-900) 80%, transparent);
+    box-shadow:
+      inset 0 0.5px 0 rgb(255 255 255 / 0.07),
+      0 0 0 0.5px rgb(255 255 255 / 0.04),
+      0 12px 32px -16px rgb(0 0 0 / 0.65);
+  }
+  /* The one tile that's waiting on you gets the accent. */
+  .tile-accent {
+    background:
+      radial-gradient(120% 90% at 0% 0%, color-mix(in oklab, var(--color-amber-700) 26%, transparent), transparent 60%),
+      color-mix(in oklab, var(--color-stone-900) 82%, transparent);
+  }
+
   /* Frosted panel for hero cards and chrome. */
   .glass {
     background:
@@ -384,4 +436,137 @@ html {
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-card-flip { animation: none; }
+}
+
+
+/* ═══════════════════════ Swifty layer ═══════════════════════ */
+
+/* Material: the frosted "thick material" used by bars and sheets. */
+.material {
+  background: color-mix(in oklab, var(--color-stone-900) 70%, transparent);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow:
+    inset 0 0.5px 0 rgb(255 255 255 / 0.08),
+    0 0 0 0.5px rgb(255 255 255 / 0.06),
+    0 16px 40px -12px rgb(0 0 0 / 0.55);
+}
+
+/* Bottom sheet: springs up, backdrop fades. */
+@keyframes sheet-up { from { translate: 0 100%; } to { translate: 0 0; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.animate-sheet { animation: sheet-up var(--spring-soft-duration) var(--spring-soft) both; }
+.animate-fade { animation: fade-in 240ms ease-out both; }
+
+/* A little pop when something becomes active (tab icons, checks). */
+@keyframes pop {
+  0% { scale: 1; }
+  35% { scale: 0.82; }
+  100% { scale: 1; }
+}
+.animate-pop { animation: pop var(--spring-duration) var(--spring) both; }
+
+/* Content that appears: rise + fade on a soft spring, staggered via --i. */
+@keyframes rise {
+  from { opacity: 0; translate: 0 10px; }
+  to   { opacity: 1; translate: 0 0; }
+}
+.animate-rise {
+  animation: rise var(--spring-soft-duration) var(--spring-soft) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* Loading skeletons. */
+@keyframes shimmer { to { background-position: -200% 0; } }
+.skeleton {
+  border-radius: 18px;
+  background: linear-gradient(90deg,
+    color-mix(in oklab, var(--color-stone-900) 90%, transparent) 25%,
+    color-mix(in oklab, var(--color-stone-800) 80%, transparent) 50%,
+    color-mix(in oklab, var(--color-stone-900) 90%, transparent) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Page transitions (React <ViewTransition>): content rises in, the old page
+   fades back. Bars carry their own view-transition-name so they stay put. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+::view-transition-old(.page) { animation: 160ms ease-in both vt-fade-out; }
+::view-transition-new(.page) { animation: 420ms var(--ease-out-quint) 60ms both vt-rise-in; }
+@keyframes vt-fade-out { to { opacity: 0; scale: 0.985; } }
+@keyframes vt-rise-in { from { opacity: 0; translate: 0 14px; } }
+::view-transition-group(tabbar), ::view-transition-group(sidebar), ::view-transition-group(compact-title) { animation: none; z-index: 100; }
+::view-transition-old(tabbar), ::view-transition-old(sidebar), ::view-transition-old(compact-title) { display: none; }
+::view-transition-new(tabbar), ::view-transition-new(sidebar), ::view-transition-new(compact-title) { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet, .animate-fade, .animate-pop, .animate-rise { animation: none; }
+  .skeleton { animation: none; }
+  ::view-transition-old(.page), ::view-transition-new(.page) { animation: none; }
+}
+
+/* Touch screens have no hover, so hover-revealed controls (delete buttons,
+   photo tools) were unreachable on phones. Show them there. */
+@media (hover: none) {
+  [class~="group-hover:opacity-100"] { opacity: 1; }
+}
+
+/* ═══════════════════════ Memory Book ═══════════════════════ */
+/* Paper pages with dark ink — looks like a real book on screen and prints
+   cleanly. Fixed colours on purpose: a printed page shouldn't follow the
+   app theme. */
+.book { display: flex; flex-direction: column; gap: 24px; }
+.book-page {
+  position: relative;
+  background: #f6f0e4;
+  color: #2a211a;
+  border-radius: 6px;
+  padding: 40px 32px;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.4) inset, 0 24px 48px -20px rgb(0 0 0 / 0.7), 0 2px 6px rgb(0 0 0 / 0.25);
+  background-image: radial-gradient(circle at 20% 10%, rgb(255 255 255 / 0.5), transparent 50%);
+}
+.book-cover {
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: linear-gradient(160deg, #3a2a1c, #1d150f);
+  color: #f6ecd9;
+}
+.book-eyebrow { font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; opacity: 0.6; }
+.book-mark { position: absolute; bottom: 28px; right: 32px; font-size: 22px; opacity: 0.7; }
+.polaroid {
+  position: relative;
+  break-inside: avoid;
+  margin: 0 0 22px;
+  padding: 8px 8px 12px;
+  background: #fffdf8;
+  box-shadow: 0 6px 16px -6px rgb(40 25 10 / 0.35), 0 1px 2px rgb(40 25 10 / 0.2);
+}
+.polaroid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #e8dfcf; }
+.polaroid figcaption { padding: 8px 2px 0; color: #2a211a; }
+.tape {
+  position: absolute; top: -9px; left: 50%; width: 64px; height: 18px; translate: -50% 0;
+  background: rgb(232 206 160 / 0.7); box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);
+}
+.notecard {
+  break-inside: avoid;
+  margin: 0 0 22px;
+  padding: 16px 16px 18px;
+  background: #fffdf8 repeating-linear-gradient(to bottom, transparent 0 23px, rgb(120 150 190 / 0.18) 23px 24px);
+  box-shadow: 0 6px 16px -8px rgb(40 25 10 / 0.35);
+  border-top: 3px solid #e7a59a;
+}
+
+@media print {
+  @page { size: letter; margin: 0.45in; }
+  html, body { background: #fff !important; }
+  body::before, body::after { display: none !important; }
+  /* Only the book prints — no bars, sidebar, toolbar or chrome. */
+  body * { visibility: hidden; }
+  .book, .book * { visibility: visible; }
+  .book { position: absolute; left: 0; top: 0; width: 100%; gap: 0; }
+  .book-page { box-shadow: none; border-radius: 0; padding: 0.2in 0; background: none; break-after: page; }
+  .book-cover { min-height: 9.5in; padding: 0.6in; background: #2b1f15 !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

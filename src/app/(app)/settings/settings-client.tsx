@@ -77,12 +77,12 @@ function UsernameSection({ username }: UsernameProps) {
 }
 
 const THEMES = [
-  { key: 'coffee',   name: 'Coffee',   bg: '#0e0804', accent: '#b45309', text: '#fef3c7' },
-  { key: 'preppy',   name: 'Preppy',   bg: '#0a1222', accent: '#dc6a8c', text: '#fdfaf3' },
-  { key: 'midnight', name: 'Midnight', bg: '#07071a', accent: '#6366f1', text: '#f5f3ff' },
-  { key: 'rose',     name: 'Rose',     bg: '#180a0a', accent: '#e11d48', text: '#fff1f2' },
-  { key: 'forest',   name: 'Forest',   bg: '#030f07', accent: '#059669', text: '#ecfdf5' },
-  { key: 'ocean',    name: 'Ocean',    bg: '#030d18', accent: '#0891b2', text: '#ecfeff' },
+  { key: 'coffee', name: 'Mocha', bg: '#130d08', accent: '#5090b4', text: '#f1f7fb' },
+  { key: 'preppy', name: 'Preppy', bg: '#0a0e16', accent: '#c26587', text: '#fdf2f6' },
+  { key: 'midnight', name: 'Midnight', bg: '#0c0e17', accent: '#b87721', text: '#fcf4ed' },
+  { key: 'rose', name: 'Cherry', bg: '#0d0f11', accent: '#d95659', text: '#fef3f2' },
+  { key: 'forest', name: 'Forest', bg: '#08110c', accent: '#be7241', text: '#fdf4ef' },
+  { key: 'ocean', name: 'Ocean', bg: '#061015', accent: '#c46c4d', text: '#fef3f0' },
 ]
 
 function ThemeSection({ currentTheme }: ThemeProps) {

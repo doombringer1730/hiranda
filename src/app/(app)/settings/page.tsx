@@ -97,7 +97,7 @@ export default async function SettingsPage() {
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
           <h3 className="text-amber-200 font-medium mb-1">Relationship timer</h3>
           <p className="text-stone-500 text-sm mb-4">
-            Shows a live counter in the top corner of the app.
+            Shows a live “together” counter in the sidebar on desktop. On phones, your days together live on Home.
           </p>
           <SettingsClient
             type="timer"
