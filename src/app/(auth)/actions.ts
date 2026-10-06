@@ -12,7 +12,12 @@ export async function login(_: unknown, formData: FormData) {
   })
   if (error) return { error: error.message }
   const next = formData.get('next') as string | null
-  redirect(next?.startsWith('/') ? next : '/')
+  const dest = next?.startsWith('/') && !next.startsWith('//') ? next : '/'
+  // A server-action redirect renders its target without re-running the
+  // middleware, so send 2FA users to the code step explicitly.
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') redirect(`/verify-2fa?next=${encodeURIComponent(dest)}`)
+  redirect(dest)
 }
 
 export async function signup(_: unknown, formData: FormData) {
@@ -25,7 +30,12 @@ export async function signup(_: unknown, formData: FormData) {
   const safeNext = next?.startsWith('/') ? next : null
 
   const { data, error } = await supabase.auth.signUp({ email, password })
-  if (error) return { error: error.message }
+  if (error) {
+    if (/already registered|already exists/i.test(error.message)) {
+      return { error: 'That email already has an account — sign in instead, or reset your password if you’ve forgotten it.' }
+    }
+    return { error: error.message }
+  }
 
   if (data.user) {
     await supabase.from('profiles').insert({

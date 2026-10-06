@@ -180,23 +180,86 @@ export function NotificationSettings() {
     'denied': 'Notifications are blocked. Allow them for Hiranda in your phone or browser settings.',
   }
   return (
-    <div className="flex items-center justify-between gap-4">
-      <p className="text-stone-400 text-sm">
-        {note[state] ?? (state === 'on' ? 'On for this device.' : 'Off for this device.')}
-      </p>
-      {(state === 'on' || state === 'off') && (
-        <button
-          onClick={state === 'on' ? disable : enable}
-          disabled={busy}
-          role="switch"
-          aria-checked={state === 'on'}
-          aria-label="Notifications"
-          className={`relative shrink-0 h-7 w-12 rounded-full transition-colors disabled:opacity-50 ${state === 'on' ? 'bg-amber-600' : 'bg-stone-700'}`}
-          style={{ minHeight: 0 }}
-        >
-          <span className={`absolute top-1 h-5 w-5 rounded-full bg-amber-50 shadow transition-all ${state === 'on' ? 'left-6' : 'left-1'}`} />
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-stone-400 text-sm">
+          {note[state] ?? (state === 'on' ? 'On for this device.' : 'Off for this device.')}
+        </p>
+        {(state === 'on' || state === 'off') && (
+          <Switch on={state === 'on'} busy={busy} label="Notifications" onToggle={state === 'on' ? disable : enable} />
+        )}
+      </div>
+      {state === 'on' && <NotificationExtras />}
+    </div>
+  )
+}
+
+function Switch({ on, busy, label, onToggle }: { on: boolean; busy?: boolean; label: string; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      disabled={busy}
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      className={`relative shrink-0 h-7 w-12 rounded-full transition-colors disabled:opacity-50 ${on ? 'bg-amber-600' : 'bg-stone-700'}`}
+      style={{ minHeight: 0 }}
+    >
+      <span className={`absolute top-1 h-5 w-5 rounded-full bg-amber-50 shadow transition-all ${on ? 'left-6' : 'left-1'}`} />
+    </button>
+  )
+}
+
+// Lock-screen privacy for this device, and a test send.
+function NotificationExtras() {
+  const [endpoint, setEndpoint] = useState<string | null>(null)
+  const [hidden, setHidden] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    ;(async () => {
+      const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription()
+      if (!sub || !live) return
+      const { getNotificationPrivacy } = await import('@/app/push-actions')
+      const value = await getNotificationPrivacy(sub.endpoint)
+      if (live) { setEndpoint(sub.endpoint); setHidden(value) }
+    })().catch(() => {})
+    return () => { live = false }
+  }, [])
+
+  async function togglePrivacy() {
+    if (!endpoint) return
+    const next = !hidden
+    setHidden(next)
+    const { setNotificationPrivacy } = await import('@/app/push-actions')
+    await setNotificationPrivacy(endpoint, next)
+  }
+
+  async function test() {
+    setBusy(true); setMsg(null)
+    const { sendTestNotification } = await import('@/app/push-actions')
+    const res = await sendTestNotification()
+    setBusy(false)
+    setMsg(res.error ?? `Sent to ${res.sent} device${res.sent === 1 ? '' : 's'} — check your notifications.`)
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-stone-800 pt-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-amber-50 text-sm">Hide details on lock screen</p>
+          <p className="text-stone-500 text-xs mt-0.5">Shows “Something new from your partner” instead of names and titles.</p>
+        </div>
+        <Switch on={hidden} label="Hide details on lock screen" onToggle={togglePrivacy} />
+      </div>
+      <div className="flex items-center gap-3">
+        <button onClick={test} disabled={busy} className="rounded-xl bg-stone-800 hover:bg-stone-700 disabled:opacity-50 px-4 py-2 text-sm text-stone-200 transition-colors">
+          {busy ? 'Sending…' : 'Send me a test'}
         </button>
-      )}
+        {msg && <p className="text-stone-400 text-xs">{msg}</p>}
+      </div>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useState, Suspense } from 'react'
+import { useActionState, useState, useEffect, Suspense } from 'react'
+import { useRememberedAccount, forgetAccount } from '@/components/remember-account'
 import { login } from '../actions'
 import GoogleButton from '@/components/google-button'
 import Link from 'next/link'
@@ -219,11 +220,19 @@ function SignInForm({ next, onBack }: { next: string; onBack: () => void }) {
   const [state, formAction, pending] = useActionState(login, null)
   // e.g. an expired reset link or a cancelled Google sign-in
   const urlError = useSearchParams().get('error')
+  // Who last signed in on this device — greet them, fill in their email.
+  const deleted = !!urlError?.includes('deleted')
+  const known = useRememberedAccount()
+  const last = deleted ? null : known
+  useEffect(() => { if (deleted) forgetAccount() }, [deleted])
 
   return (
     <div className="w-full max-w-sm relative z-10 animate-page-in">
-      <h1 className="font-serif text-4xl text-amber-100 text-center mb-2">Hiranda</h1>
-      <p className="text-stone-400 text-center text-sm mb-10">welcome back</p>
+      <h1 className="font-serif text-4xl text-amber-100 text-center mb-2">{last ? <>Welcome back, {last.name}</> : 'Hiranda'}</h1>
+      <p className="text-stone-400 text-center text-sm mb-10">
+        {last ? <>Not you? <button type="button" onClick={forgetAccount} className="underline underline-offset-2 hover:text-stone-200" style={{ minHeight: 0 }}>Use a different account</button></> : 'welcome back'}
+      </p>
+      {last?.provider === 'google' && <p className="text-stone-500 text-xs text-center -mt-6 mb-4">You signed in with Google last time.</p>}
 
       <div className="flex flex-col gap-4 mb-4">
         <GoogleButton next={next || '/'} />
@@ -235,12 +244,14 @@ function SignInForm({ next, onBack }: { next: string; onBack: () => void }) {
         {(state?.error || urlError) && (
           <p className="text-red-400 text-sm text-center bg-red-950/30 rounded-lg px-4 py-3">
             {state?.error ?? urlError}
+            {deleted && <> <a href="/support" className="underline underline-offset-2">Need support?</a></>}
           </p>
         )}
 
         <div className="flex flex-col gap-1.5">
           <label className="text-stone-400 text-xs uppercase tracking-widest" htmlFor="email">Email</label>
           <input
+            key={last?.email ?? 'none'} defaultValue={last?.provider !== 'google' ? last?.email : undefined}
             id="email" name="email" type="email" required autoComplete="email"
             className="bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
             placeholder="you@example.com"
@@ -283,7 +294,7 @@ function SignInForm({ next, onBack }: { next: string; onBack: () => void }) {
       </button>
 
       <p className="text-stone-600 text-xs text-center mt-6">
-        <Link href="/privacy" className="hover:text-stone-400">Privacy</Link> · <Link href="/terms" className="hover:text-stone-400">Terms</Link>
+        <Link href="/support" className="hover:text-stone-400">Help</Link> · <Link href="/privacy" className="hover:text-stone-400">Privacy</Link> · <Link href="/terms" className="hover:text-stone-400">Terms</Link>
       </p>
     </div>
   )
@@ -292,7 +303,10 @@ function SignInForm({ next, onBack }: { next: string; onBack: () => void }) {
 function LoginPageInner() {
   const searchParams = useSearchParams()
   const next = searchParams.get('next') ?? ''
-  const [view, setView] = useState<'welcome' | 'signin'>('welcome')
+  const [chosenView, setView] = useState<'welcome' | 'signin' | null>(null)
+  // Returning to a device someone already used: skip the tour, go to sign-in.
+  const returning = !!useRememberedAccount()
+  const view = chosenView ?? (returning ? 'signin' : 'welcome')
   const signupHref = next ? `/signup?next=${encodeURIComponent(next)}` : '/signup'
 
   return (

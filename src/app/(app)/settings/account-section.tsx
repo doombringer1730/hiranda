@@ -28,6 +28,7 @@ export default function AccountSection({ partnerName }: { partnerName: string | 
             <li>Everything you created — memories, journal entries, photos, lists, answers — is permanently deleted.</li>
             <li>Your shared space closes{partnerName ? `; ${partnerName} keeps everything they made and can start a new one` : ''}.</li>
             <li>This can’t be undone. Download your data first if you want a copy.</li>
+            <li>Going through something hard? <a href="/support" className="underline underline-offset-2 text-stone-300">Help &amp; support</a> has people you can talk to.</li>
           </ul>
           <label className="text-stone-400 text-xs" htmlFor="confirm">Type <b className="text-red-300">DELETE</b> to confirm</label>
           <input id="confirm" name="confirm" autoComplete="off" className="bg-stone-950 border border-stone-800 rounded-xl px-3 py-2.5 text-amber-50 focus:outline-none focus:border-red-700" />

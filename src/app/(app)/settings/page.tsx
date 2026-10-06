@@ -188,7 +188,7 @@ export default async function SettingsPage() {
           <p className="text-stone-500 text-sm mb-4">It’s yours. Take a full copy any time, or leave for good.</p>
           <AccountSection partnerName={partnerProfile?.display_name?.split(' ')[0] ?? null} />
           <p className="text-stone-600 text-xs mt-4">
-            <a href="/privacy" className="hover:text-stone-400">Privacy policy</a> · <a href="/terms" className="hover:text-stone-400">Terms</a>
+            <a href="/support" className="hover:text-stone-400">Help &amp; support</a> · <a href="/privacy" className="hover:text-stone-400">Privacy policy</a> · <a href="/terms" className="hover:text-stone-400">Terms</a>
           </p>
         </section>
 

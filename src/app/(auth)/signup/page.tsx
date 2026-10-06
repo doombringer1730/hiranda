@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import GoogleButton from '@/components/google-button'
+import { useRememberedAccount } from '@/components/remember-account'
 
 function SignupForm() {
   const [state, formAction, pending] = useActionState(signup, null)
@@ -23,6 +24,7 @@ function SignupForm() {
   // through /join afterwards so the token isn't lost on the detour.
   const afterLogin = next || (tokenFromUrl ? `/join/${encodeURIComponent(tokenFromUrl)}` : '')
   const loginHref = afterLogin ? `/login?next=${encodeURIComponent(afterLogin)}` : '/login'
+  const known = useRememberedAccount()
 
   if (mode === 'choose') {
     return (
@@ -80,6 +82,13 @@ function SignupForm() {
           {mode === 'join' ? "joining your partner's space" : 'starting a new couple space'}
         </p>
 
+        {known && (
+          <div className="mb-6 rounded-2xl border border-amber-900/40 bg-amber-950/30 p-4 text-sm text-stone-300">
+            <p className="text-amber-100 font-medium">Already have an account?</p>
+            <p className="mt-1 text-stone-400">This device was last used by <b className="text-stone-200">{known.name}</b>{known.email ? <> ({known.email})</> : null}. Sign in instead of making a second account.</p>
+            <Link href={loginHref} className="mt-3 inline-block text-amber-400 hover:text-amber-300 font-medium">Sign in as {known.name} →</Link>
+          </div>
+        )}
         <div className="flex flex-col gap-4 mb-4">
           <GoogleButton next={afterLogin || '/'} />
         </div>
