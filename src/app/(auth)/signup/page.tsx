@@ -5,6 +5,7 @@ import { signup } from '../actions'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import GoogleButton from '@/components/google-button'
 
 function SignupForm() {
   const [state, formAction, pending] = useActionState(signup, null)
@@ -78,6 +79,10 @@ function SignupForm() {
         <p className="text-stone-400 text-center text-sm mb-10">
           {mode === 'join' ? "joining your partner's space" : 'starting a new couple space'}
         </p>
+
+        <div className="flex flex-col gap-4 mb-4">
+          <GoogleButton next={afterLogin || '/'} />
+        </div>
 
         <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="invite_token" value={inviteToken} />

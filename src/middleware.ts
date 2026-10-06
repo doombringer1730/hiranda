@@ -23,6 +23,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup')
+    || request.nextUrl.pathname.startsWith('/forgot-password')
   // /demo is the public walkthrough space (static example data, no user content).
   // /join/<token> must stay reachable signed-out — bouncing it through /login
   // drops the invite token, which is the whole point of the link.

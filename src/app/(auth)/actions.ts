@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 
 export async function login(_: unknown, formData: FormData) {
   const supabase = await createClient()
@@ -55,4 +56,31 @@ export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/login')
+}
+
+// Emails a reset link. Always reports success, so the form can't be used to
+// find out which emails have accounts.
+export async function requestPasswordReset(_: unknown, formData: FormData): Promise<{ sent?: boolean; error?: string }> {
+  const email = String(formData.get('email') ?? '').trim()
+  if (!email) return { error: 'Enter your email.' }
+  const h = await headers()
+  const origin = h.get('origin') ?? `https://${h.get('host')}`
+  const supabase = await createClient()
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/api/auth/callback?next=/reset-password`,
+  })
+  return { sent: true }
+}
+
+export async function updatePassword(_: unknown, formData: FormData): Promise<{ error?: string }> {
+  const password = String(formData.get('password') ?? '')
+  const confirm = String(formData.get('confirm') ?? '')
+  if (password.length < 8) return { error: 'Use at least 8 characters.' }
+  if (password !== confirm) return { error: 'Those passwords don’t match.' }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'This reset link has expired. Request a new one.' }
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) return { error: error.message }
+  redirect('/')
 }
