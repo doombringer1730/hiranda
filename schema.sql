@@ -620,10 +620,67 @@ create policy "Users can insert their own responses"
 -- ─────────────────────────────────────────
 -- GAMES — migration 015
 -- ─────────────────────────────────────────
--- board_games: live two-player games (tic_tac_toe, connect_four,
--- dots_and_boxes, uno); board state in jsonb, moves validated server-side.
--- trivia_questions: multiple-choice "trivia about us", one guess each.
--- Also seeds the 'most_likely' stock prompts. See migrations/015_more_games.sql.
+-- Live two-player games (tic_tac_toe, connect_four, dots_and_boxes, uno).
+-- Board state lives in jsonb; moves are validated server-side by
+-- src/app/(app)/games/board/actions.ts. move_count is an optimistic lock.
+-- The table is also added to the supabase_realtime publication, and the
+-- 'most_likely' stock prompts are seeded — see migrations/015_more_games.sql.
+
+create table board_games (
+  id          uuid primary key default gen_random_uuid(),
+  couple_id   uuid not null references couple on delete cascade,
+  kind        text not null check (kind in ('tic_tac_toe','connect_four','dots_and_boxes','uno')),
+  board       jsonb not null,
+  player1     uuid not null references auth.users on delete cascade,
+  player2     uuid not null references auth.users on delete cascade,
+  turn        uuid references auth.users on delete cascade,
+  status      text not null default 'active' check (status in ('active','won','draw')),
+  winner      uuid references auth.users on delete cascade,
+  move_count  integer not null default 0,
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
+);
+create index board_games_couple_kind_idx on board_games (couple_id, kind, created_at desc);
+alter table board_games enable row level security;
+
+create policy "Couple members can read board games" on board_games for select using (
+  exists (select 1 from couple c where c.id = board_games.couple_id
+    and (c.user1_id = auth.uid() or c.user2_id = auth.uid())));
+create policy "Couple members can start board games" on board_games for insert with check (
+  exists (select 1 from couple c where c.id = board_games.couple_id
+    and (c.user1_id = auth.uid() or c.user2_id = auth.uid())
+    and board_games.player1 in (c.user1_id, c.user2_id)
+    and board_games.player2 in (c.user1_id, c.user2_id)));
+create policy "Couple members can update board games" on board_games for update using (
+  exists (select 1 from couple c where c.id = board_games.couple_id
+    and (c.user1_id = auth.uid() or c.user2_id = auth.uid())));
+
+
+-- Trivia about us: multiple-choice questions about yourself; partner guesses once.
+
+create table trivia_questions (
+  id          uuid primary key default gen_random_uuid(),
+  author      uuid not null references auth.users on delete cascade,
+  question    text not null,
+  options     text[] not null check (array_length(options, 1) between 2 and 4),
+  correct     integer not null check (correct >= 0 and correct < 4),
+  guess       integer,
+  guessed_at  timestamptz,
+  created_at  timestamptz default now()
+);
+create index trivia_questions_author_idx on trivia_questions (author);
+alter table trivia_questions enable row level security;
+
+create policy "Couple members can read trivia" on trivia_questions for select using (
+  exists (select 1 from couple c where (c.user1_id = auth.uid() or c.user2_id = auth.uid())
+    and (c.user1_id = trivia_questions.author or c.user2_id = trivia_questions.author)));
+create policy "Users write their own trivia" on trivia_questions for insert with check (auth.uid() = author);
+-- Guessing is an update by the partner; the server action only lets the
+-- non-author set `guess`, and only once.
+create policy "Couple members can update trivia" on trivia_questions for update using (
+  exists (select 1 from couple c where (c.user1_id = auth.uid() or c.user2_id = auth.uid())
+    and (c.user1_id = trivia_questions.author or c.user2_id = trivia_questions.author)));
+create policy "Authors can delete their trivia" on trivia_questions for delete using (auth.uid() = author);
 
 
 -- ─────────────────────────────────────────

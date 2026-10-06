@@ -6,6 +6,8 @@ import {
 } from 'lucide-react'
 import PresenceCards, { type PresonProfile } from './presence-cards'
 import { FlameWidget } from './flame-pet'
+import DailyQuestion from './daily-question'
+import { InstallCard } from '@/components/pwa'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
 
@@ -74,6 +76,7 @@ export default async function HomeHub() {
     { data: journalDays },
     { data: memoryDays },
     { data: studyDays },
+    { data: promptDays },
     { data: activeCoupons },
   ] = await Promise.all([
     supabase.from('profiles').select(PROFILE_FIELDS).in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
@@ -96,6 +99,7 @@ export default async function HomeHub() {
     supabase.from('journal_entries').select('created_by, created_at').gte('created_at', since),
     supabase.from('memories').select('created_by, created_at').gte('created_at', since),
     supabase.from('study_attempts').select('user_id, created_at').gte('created_at', since),
+    supabase.from('prompt_responses').select('user_id, responded_at').gte('responded_at', since),
     // redeemed ("activated") coupons — someone's cashing them in
     supabase.from('coupons').select('id, title, emoji, bought_by, redeemed_at').eq('redeemed', true).order('redeemed_at', { ascending: false }).limit(6),
   ])
@@ -127,19 +131,20 @@ export default async function HomeHub() {
   const days = daysTogether(couple?.together_since ?? null)
 
   // Shared flame streak: a day is "fed" when BOTH partners did the same kind of
-  // thing that day — both journalled, or both added a memory. (Study joins later.)
-  const byDay = new Map<string, { mem: Set<string>; jrn: Set<string>; std: Set<string> }>()
-  const mark = (day: string, kind: 'mem' | 'jrn' | 'std', uid: string) => {
-    const e = byDay.get(day) ?? { mem: new Set<string>(), jrn: new Set<string>(), std: new Set<string>() }
+  // thing that day — both journalled, added a memory, studied, or answered a prompt.
+  const byDay = new Map<string, { mem: Set<string>; jrn: Set<string>; std: Set<string>; prm: Set<string> }>()
+  const mark = (day: string, kind: 'mem' | 'jrn' | 'std' | 'prm', uid: string) => {
+    const e = byDay.get(day) ?? { mem: new Set<string>(), jrn: new Set<string>(), std: new Set<string>(), prm: new Set<string>() }
     e[kind].add(uid); byDay.set(day, e)
   }
   for (const r of (journalDays ?? []) as { created_by: string; created_at: string }[]) mark(r.created_at.slice(0, 10), 'jrn', r.created_by)
   for (const r of (memoryDays ?? []) as { created_by: string; created_at: string }[]) mark(r.created_at.slice(0, 10), 'mem', r.created_by)
   for (const r of (studyDays ?? []) as { user_id: string; created_at: string }[]) mark(r.created_at.slice(0, 10), 'std', r.user_id)
+  for (const r of (promptDays ?? []) as { user_id: string; responded_at: string }[]) mark(r.responded_at.slice(0, 10), 'prm', r.user_id)
   const fedDays = new Set<string>()
   if (partnerId) {
     const both = (s: Set<string>) => s.has(user.id) && s.has(partnerId)
-    for (const [day, e] of byDay) if (both(e.mem) || both(e.jrn) || both(e.std)) fedDays.add(day)
+    for (const [day, e] of byDay) if (both(e.mem) || both(e.jrn) || both(e.std) || both(e.prm)) fedDays.add(day)
   }
   const streak = computeStreak(fedDays)
   const fedToday = fedDays.has(dayKey(new Date()))
@@ -163,6 +168,12 @@ export default async function HomeHub() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
         {/* Presence — the "double stack" */}
         {couple && <div className="md:col-span-2"><PresenceCards coupleId={couple.id} me={me} partner={partner} /></div>}
+
+        {/* Install prompt — only shows on phones/browsers that aren't installed yet */}
+        <div className="md:col-span-2 empty:hidden"><InstallCard /></div>
+
+        {/* Today's question — the daily ritual; answering it feeds the flame */}
+        {partnerId && <div className="md:col-span-2"><DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} /></div>}
 
         {/* Flame pet + days — the shared "us" hero */}
         {couple && <div className="md:col-span-2"><FlameWidget streak={streak} fedToday={fedToday} partnerMissing={!partnerId} days={days} /></div>}
