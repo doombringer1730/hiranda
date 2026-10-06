@@ -95,7 +95,7 @@ export function FlameWidget({ streak, fedToday, partnerMissing, days }: {
             ? 'Invite your partner to start a streak.'
             : fedToday
               ? <><Flame size={12} className="text-amber-500" /> Fed today — see you tomorrow.</>
-              : 'Feed it: both journal, add a memory, or study today.'}
+              : 'Feed it: both answer today’s question, journal, add a memory, or study.'}
         </p>
       </div>
     </section>
