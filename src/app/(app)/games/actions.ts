@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { notifyPartner, myFirstName } from '@/lib/push'
 
 type PromptType = 'question' | 'would_you_rather' | 'this_or_that' | 'most_likely'
 
@@ -110,11 +111,25 @@ export async function submitResponse(promptId: string, response: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: before } = await supabase
+    .from('prompt_responses').select('user_id').eq('prompt_id', promptId)
+  const firstAnswer = !(before ?? []).some(r => r.user_id === user.id)
+  const partnerAnswered = (before ?? []).some(r => r.user_id !== user.id)
+
   // Uniqueness is on (prompt_id, user_id), not the default primary key, so an
   // answer change would otherwise hit a unique-constraint violation.
   await supabase
     .from('prompt_responses')
     .upsert({ prompt_id: promptId, user_id: user.id, response }, { onConflict: 'prompt_id,user_id' })
+
+  if (firstAnswer) {
+    notifyPartner(async () => {
+      const me = await myFirstName()
+      return partnerAnswered
+        ? { title: 'Answers revealed 👀', body: `${me} answered too — see what you both said.`, url: '/', tag: `prompt-${promptId}` }
+        : { title: `${me} answered a question`, body: 'Your turn — answers unlock when you both reply.', url: '/', tag: `prompt-${promptId}` }
+    })
+  }
 }
 
 // Re-read a single prompt's state (my answer + partner's). Used by the client

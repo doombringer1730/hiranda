@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { notifyPartner, myFirstName } from '@/lib/push'
 
 export async function createEntry(data: {
   title: string
@@ -39,6 +40,11 @@ export async function createEntry(data: {
     )
   }
 
+  notifyPartner(async () => ({
+    title: `${await myFirstName()} wrote in the journal`,
+    body: data.title || 'A new entry is waiting for you.',
+    url: `/journal/${entry.id}`,
+  }))
   revalidatePath('/journal')
   return { entryId: entry.id }
 }

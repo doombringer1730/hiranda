@@ -93,3 +93,154 @@ export function InstallCard() {
     </div>
   )
 }
+
+// ── Push notifications ──
+
+type PushState = 'loading' | 'unsupported' | 'needs-install' | 'off' | 'on' | 'denied'
+
+function urlBase64ToUint8Array(base64: string) {
+  const padded = (base64 + '='.repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(padded)
+  return Uint8Array.from(raw, c => c.charCodeAt(0))
+}
+
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || (navigator as Navigator & { standalone?: boolean }).standalone === true
+}
+
+function isIOS() {
+  const ua = navigator.userAgent
+  return /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1)
+}
+
+export function usePushNotifications() {
+  const [state, setState] = useState<PushState>('loading')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    ;(async () => {
+      const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+        && !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      // iPhone only allows web push for apps added to the home screen.
+      const next: PushState = !supported
+        ? (isIOS() && !isStandalone() ? 'needs-install' : 'unsupported')
+        : Notification.permission === 'denied' ? 'denied'
+        : (await (await navigator.serviceWorker.ready).pushManager.getSubscription()) ? 'on' : 'off'
+      if (live) setState(next)
+    })().catch(() => { if (live) setState('unsupported') })
+    return () => { live = false }
+  }, [])
+
+  async function enable() {
+    setBusy(true)
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') { setState(permission === 'denied' ? 'denied' : 'off'); return }
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription() ?? await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+      })
+      const { savePushSubscription } = await import('@/app/push-actions')
+      const res = await savePushSubscription(sub.toJSON() as Parameters<typeof savePushSubscription>[0])
+      setState(res.error ? 'off' : 'on')
+    } catch {
+      setState('off')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function disable() {
+    setBusy(true)
+    try {
+      const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription()
+      if (sub) {
+        const { removePushSubscription } = await import('@/app/push-actions')
+        await removePushSubscription(sub.endpoint)
+        await sub.unsubscribe()
+      }
+      setState('off')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return { state, busy, enable, disable }
+}
+
+// Settings row.
+export function NotificationSettings() {
+  const { state, busy, enable, disable } = usePushNotifications()
+  const note: Partial<Record<PushState, string>> = {
+    'unsupported': 'This browser doesn’t support notifications.',
+    'needs-install': 'On iPhone, add Hiranda to your Home Screen first (Share → Add to Home Screen), then turn this on from the app.',
+    'denied': 'Notifications are blocked. Allow them for Hiranda in your phone or browser settings.',
+  }
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <p className="text-stone-400 text-sm">
+        {note[state] ?? (state === 'on' ? 'On for this device.' : 'Off for this device.')}
+      </p>
+      {(state === 'on' || state === 'off') && (
+        <button
+          onClick={state === 'on' ? disable : enable}
+          disabled={busy}
+          role="switch"
+          aria-checked={state === 'on'}
+          aria-label="Notifications"
+          className={`relative shrink-0 h-7 w-12 rounded-full transition-colors disabled:opacity-50 ${state === 'on' ? 'bg-amber-600' : 'bg-stone-700'}`}
+          style={{ minHeight: 0 }}
+        >
+          <span className={`absolute top-1 h-5 w-5 rounded-full bg-amber-50 shadow transition-all ${state === 'on' ? 'left-6' : 'left-1'}`} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+const NOTIFY_DISMISS_KEY = 'hiranda:notify-dismissed'
+
+// Home card nudging you to turn notifications on — shown in the installed app
+// (or on desktop), not in a phone browser where the install card comes first.
+export function NotificationCard() {
+  const { state, busy, enable } = usePushNotifications()
+  const [eligible, setEligible] = useState(false)
+
+  useEffect(() => {
+    let dismissed = false
+    try { dismissed = localStorage.getItem(NOTIFY_DISMISS_KEY) === '1' } catch {}
+    const mobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1
+    const t = setTimeout(() => setEligible(!dismissed && (isStandalone() || !mobile)), 0)
+    return () => clearTimeout(t)
+  }, [])
+
+  if (!eligible || state !== 'off') return null
+
+  function dismiss() {
+    try { localStorage.setItem(NOTIFY_DISMISS_KEY, '1') } catch {}
+    setEligible(false)
+  }
+
+  return (
+    <div className="relative flex items-center gap-4 rounded-2xl border border-stone-800 bg-stone-900/70 p-4 pr-10 animate-page-in">
+      <span className="h-12 w-12 shrink-0 rounded-xl bg-amber-900/40 flex items-center justify-center text-xl">🔔</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-amber-50 text-sm font-medium">Know when it’s your turn</p>
+        <p className="text-stone-500 text-xs mt-0.5">Get a ping when your partner answers, plays a move, or writes something.</p>
+      </div>
+      <button
+        onClick={enable}
+        disabled={busy}
+        className="shrink-0 rounded-xl bg-amber-700 hover:bg-amber-600 disabled:opacity-50 px-3.5 text-sm font-medium text-amber-50 transition-colors"
+      >
+        Turn on
+      </button>
+      <button onClick={dismiss} aria-label="Dismiss" style={{ minHeight: 0 }} className="absolute top-2 right-2 p-1.5 text-stone-600 hover:text-stone-300 transition-colors">
+        <X size={15} />
+      </button>
+    </div>
+  )
+}

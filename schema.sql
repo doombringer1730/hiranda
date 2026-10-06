@@ -684,6 +684,15 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 
 
 -- ─────────────────────────────────────────
+-- PUSH NOTIFICATIONS — migration 016
+-- ─────────────────────────────────────────
+-- push_subscriptions: one row per opted-in device, owned by its user.
+-- The server reads a partner's devices only through the security-definer
+-- functions partner_push_subscriptions() / prune_partner_push_subscription().
+-- See migrations/016_push_notifications.sql for the full definitions.
+
+
+-- ─────────────────────────────────────────
 -- STUDY (decks, cards, competitive attempts, spaced-repetition) — migration 005
 -- ─────────────────────────────────────────
 -- study_decks, study_cards, study_attempts, study_progress.
