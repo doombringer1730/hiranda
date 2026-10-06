@@ -2,6 +2,7 @@ import { getOrCreateCouple, disconnectSpotify } from './actions'
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import SettingsClient from './settings-client'
+import { NotificationSettings } from '@/components/pwa'
 import TheaterGate from './theater-gate'
 import { logout } from '@/app/(auth)/actions'
 import { LogOut, Film } from 'lucide-react'
@@ -31,6 +32,13 @@ export default async function SettingsPage() {
       <h2 className="font-serif text-3xl text-amber-100 mb-8">Settings</h2>
 
       <div className="flex flex-col gap-4">
+
+        {/* Notifications */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">Notifications</h3>
+          <p className="text-stone-500 text-sm mb-4">A ping when your partner answers, plays a move, or adds something. Set per device.</p>
+          <NotificationSettings />
+        </section>
 
         {/* Theme */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">

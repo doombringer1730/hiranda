@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { notifyPartner, myFirstName } from '@/lib/push'
 
 export async function createMemory(data: {
   title: string
@@ -45,6 +46,11 @@ export async function createMemory(data: {
     )
   }
 
+  notifyPartner(async () => ({
+    title: `${await myFirstName()} added a memory 📸`,
+    body: data.title,
+    url: `/memories/${memory.id}`,
+  }))
   revalidatePath('/')
   return { memoryId: memory.id }
 }

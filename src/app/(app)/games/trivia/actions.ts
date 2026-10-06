@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { notifyPartner, myFirstName } from '@/lib/push'
 
 export async function createTrivia(question: string, options: string[], correct: number) {
   const supabase = await createClient()
@@ -24,6 +25,12 @@ export async function createTrivia(question: string, options: string[], correct:
     correct: order.indexOf(correct),
   })
   if (error) return { error: 'Could not save that question' }
+  notifyPartner(async () => ({
+    title: `${await myFirstName()} wrote a trivia question`,
+    body: 'How well do you know them? You get one guess.',
+    url: '/games/trivia',
+    tag: 'trivia-new',
+  }))
   revalidatePath('/games/trivia')
   return {}
 }
@@ -44,6 +51,13 @@ export async function guessTrivia(id: string, guess: number) {
   await supabase.from('trivia_questions')
     .update({ guess, guessed_at: new Date().toISOString() })
     .eq('id', id).is('guess', null)
+  const right = guess === q.correct
+  notifyPartner(async () => ({
+    title: `${await myFirstName()} guessed your trivia question`,
+    body: right ? 'They got it right 🎉' : `They said “${q.options[guess]}” — wrong!`,
+    url: '/games/trivia',
+    tag: `trivia-${id}`,
+  }))
   revalidatePath('/games/trivia')
   return { correct: guess === q.correct }
 }

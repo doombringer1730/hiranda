@@ -3,7 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { applyMove, emptyBoard, KINDS, type Board, type Kind } from './engine'
+import { applyMove, emptyBoard, GAMES, KINDS, type Board, type Kind } from './engine'
+import { notifyPartner, myFirstName } from '@/lib/push'
 
 export type BoardGame = {
   id: string
@@ -105,6 +106,14 @@ export async function startGame(kind: Kind): Promise<BoardGame> {
   }).select(FIELDS).single()
   if (error || !data) throw new Error('Could not start the game')
 
+  const meta = GAMES[kind]
+  notifyPartner(async () => ({
+    title: `${await myFirstName()} started ${meta.name}`,
+    body: first === userId ? 'They’re going first — watch for their move.' : 'You go first. Your move!',
+    url: `/games/${meta.slug}`,
+    tag: `game-${data.id}`,
+  }))
+
   revalidatePath('/games')
   return data as BoardGame
 }
@@ -142,6 +151,20 @@ export async function makeMove(gameId: string, move: number): Promise<{ game: Bo
     .select(FIELDS).maybeSingle()
   if (!updated) return { game: await getGame(gameId), error: 'The board changed — try again' }
 
+  // Tell the partner when the ball is in their court (or the game ended).
+  if (done || patch.turn === other) {
+    const meta = GAMES[game.kind]
+    notifyPartner(async () => {
+      const me = await myFirstName()
+      return {
+        title: done ? (result.winner === 0 ? `${meta.name}: it’s a draw` : `${me} won ${meta.name}`) : `Your move in ${meta.name}`,
+        body: done ? (result.winner === 0 ? 'Rematch?' : 'Rematch? 😤') : `${me} just played.`,
+        url: `/games/${meta.slug}`,
+        tag: `game-${gameId}`,
+      }
+    })
+  }
+
   if (done) revalidatePath('/games')
   return { game: updated as BoardGame }
 }
@@ -159,6 +182,15 @@ export async function resignGame(gameId: string): Promise<BoardGame | null> {
     move_count: game.move_count + 1,
     updated_at: new Date().toISOString(),
   }).eq('id', gameId).eq('status', 'active').select(FIELDS).maybeSingle()
+  if (data) {
+    const meta = GAMES[game.kind]
+    notifyPartner(async () => ({
+      title: `${await myFirstName()} resigned`,
+      body: `You win ${meta.name} 🎉`,
+      url: `/games/${meta.slug}`,
+      tag: `game-${gameId}`,
+    }))
+  }
   revalidatePath('/games')
   return (data as BoardGame | null) ?? await getGame(gameId)
 }
