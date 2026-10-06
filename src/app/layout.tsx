@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Playfair_Display, Inter } from "next/font/google";
+import { Instrument_Serif, Inter } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
-const playfair = Playfair_Display({
+const serif = Instrument_Serif({
   variable: "--font-serif",
+  weight: "400",
+  style: ["normal", "italic"],
   subsets: ["latin"],
   display: "swap",
 });
@@ -60,7 +62,7 @@ export default async function RootLayout({
     <html
       lang="en"
       data-theme={theme}
-      className={`${playfair.variable} ${inter.variable} h-full`}
+      className={`${serif.variable} ${inter.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-stone-950 text-amber-50 antialiased">
         {children}

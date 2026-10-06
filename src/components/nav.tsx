@@ -89,14 +89,15 @@ function NavLink({ href, label, icon: Icon, active, onClick }: {
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-all duration-200 border-l-2 ${
+      className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
         active
-          ? 'border-amber-600 bg-amber-900/30 text-amber-300'
-          : 'border-transparent text-stone-400 hover:text-amber-100 hover:bg-stone-800/70 active:bg-stone-800'
+          ? 'bg-stone-800/70 text-amber-50 shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]'
+          : 'text-stone-400 hover:text-amber-100 hover:bg-stone-800/40 active:bg-stone-800/60'
       }`}
     >
-      <Icon size={17} />
-      <span>{label}</span>
+      <Icon size={16} strokeWidth={active ? 2 : 1.75} className={active ? 'text-amber-400' : 'text-stone-500 group-hover:text-stone-300 transition-colors'} />
+      <span className="tracking-[0.01em]">{label}</span>
+      {active && <span aria-hidden className="ml-auto h-1.5 w-1.5 rounded-full bg-amber-500" />}
     </Link>
   )
 }
@@ -108,13 +109,14 @@ function TabButton({ label, icon: Icon, active, onClick, href }: {
   onClick?: () => void
   href?: string
 }) {
-  const cls = `flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-0 transition-colors ${
-    active ? 'text-amber-400' : 'text-stone-500 active:text-stone-300'
+  const cls = `relative flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-0 transition-colors ${
+    active ? 'text-amber-300' : 'text-stone-500 active:text-stone-300'
   }`
   const inner = (
     <>
-      <Icon size={20} />
-      <span className="text-[10px] leading-none">{label}</span>
+      {active && <span aria-hidden className="absolute top-0 h-0.5 w-6 rounded-full bg-amber-500" />}
+      <Icon size={20} strokeWidth={active ? 2 : 1.75} />
+      <span className="text-[10px] leading-none tracking-wide">{label}</span>
     </>
   )
   return href
@@ -149,19 +151,20 @@ export default function Nav({ theaterUnlocked = false }: { theaterUnlocked?: boo
   return (
     <>
       {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex flex-col w-56 h-screen bg-stone-900/80 border-r border-stone-800/60 px-3 py-8 fixed left-0 top-0 z-40 backdrop-blur-sm overflow-hidden">
-        <div className="px-3 mb-10">
+      <aside className="hidden md:flex flex-col w-56 h-screen glass border-r border-stone-800/50 px-3 py-8 fixed left-0 top-0 z-40 overflow-hidden">
+        <div className="px-3 mb-9">
           {/* Logo mark — presentational, not a document heading. Using <p> avoids
               creating a duplicate <h1> alongside each page's own heading, which
               Google Lighthouse flags as a heading structure error. */}
-          <p className="font-serif text-2xl text-amber-100">Hiranda</p>
-          <div className="mt-1.5 h-px bg-gradient-to-r from-amber-800/60 to-transparent" />
+          <p className="font-serif text-[1.9rem] leading-none text-amber-50">Hiranda<span className="text-amber-500">.</span></p>
+          <p className="mt-2 text-[9px] uppercase tracking-[0.3em] text-stone-500">our little place</p>
+          <div className="mt-4 rule-fade" />
         </div>
         <nav className="flex flex-col gap-4 flex-1 overflow-y-auto">
           {displaySections.map((section, i) => (
             <div key={section.label ?? i} className="flex flex-col gap-0.5">
               {section.label && (
-                <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-widest text-stone-600">{section.label}</p>
+                <p className="px-3 pb-1.5 text-[9px] font-medium uppercase tracking-[0.25em] text-stone-600">{section.label}</p>
               )}
               {section.items.map(({ href, label, icon: Icon }) => {
                 const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
@@ -187,10 +190,10 @@ export default function Nav({ theaterUnlocked = false }: { theaterUnlocked?: boo
           <div className="absolute inset-0 bg-black/60" />
           <div
             onClick={e => e.stopPropagation()}
-            className="absolute left-0 right-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] bg-stone-900 border-t border-stone-800 rounded-t-3xl px-3 pt-3 pb-4 shadow-2xl animate-page-in"
+            className="absolute left-0 right-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] bg-stone-900 border-t border-stone-800/70 rounded-t-3xl px-3 pt-3 pb-4 shadow-2xl animate-page-in"
           >
             <div className="flex items-center justify-between px-3 pb-2">
-              <p className="text-stone-400 text-xs uppercase tracking-widest">{openGroup.label}</p>
+              <p className="text-stone-500 text-[10px] uppercase tracking-[0.25em]">{openGroup.label}</p>
               <button onClick={() => setSheet(null)} aria-label="Close" className="text-stone-500 hover:text-amber-300 p-1 -mr-1">
                 <X size={18} />
               </button>
@@ -214,7 +217,7 @@ export default function Nav({ theaterUnlocked = false }: { theaterUnlocked?: boo
       )}
 
       {/* ── Mobile: bottom tab bar ── */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 h-16 pb-[env(safe-area-inset-bottom)] bg-stone-900/95 backdrop-blur border-t border-stone-800/80 flex items-stretch">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 h-16 pb-[env(safe-area-inset-bottom)] glass border-t border-stone-800/60 flex items-stretch">
         <TabButton label="Home" icon={Home} href="/" active={pathname === '/'} />
         <TabButton label="Together" icon={Heart} active={sheet === 'together' || pathInGroup(pathname, groups.together.items)} onClick={() => setSheet(s => s === 'together' ? null : 'together')} />
         <TabButton label="Watch" icon={Clapperboard} active={sheet === 'watch' || pathInGroup(pathname, displayGroups.watch.items)} onClick={() => setSheet(s => s === 'watch' ? null : 'watch')} />

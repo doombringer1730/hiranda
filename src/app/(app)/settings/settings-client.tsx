@@ -78,6 +78,7 @@ function UsernameSection({ username }: UsernameProps) {
 
 const THEMES = [
   { key: 'coffee',   name: 'Coffee',   bg: '#0e0804', accent: '#b45309', text: '#fef3c7' },
+  { key: 'preppy',   name: 'Preppy',   bg: '#0a1222', accent: '#dc6a8c', text: '#fdfaf3' },
   { key: 'midnight', name: 'Midnight', bg: '#07071a', accent: '#6366f1', text: '#f5f3ff' },
   { key: 'rose',     name: 'Rose',     bg: '#180a0a', accent: '#e11d48', text: '#fff1f2' },
   { key: 'forest',   name: 'Forest',   bg: '#030f07', accent: '#059669', text: '#ecfdf5' },
