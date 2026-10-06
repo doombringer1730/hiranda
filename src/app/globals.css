@@ -545,6 +545,26 @@ html {
   animation-delay: calc(var(--i, 0) * 45ms);
 }
 
+/* The jar gives a little shake before a draw. */
+@keyframes jar-shake {
+  0%, 100% { rotate: 0deg; }
+  20% { rotate: -6deg; } 40% { rotate: 5deg; } 60% { rotate: -3deg; } 80% { rotate: 2deg; }
+}
+.animate-jar-shake { animation: jar-shake 0.7s ease-in-out both; transform-origin: 50% 90%; }
+
+/* An envelope opening: the flap folds back, then the letter rises out. */
+@keyframes flap-open { to { rotate: x 180deg; } }
+@keyframes letter-rise { from { translate: 0 30%; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+.animate-flap { animation: flap-open 0.5s var(--ease-out-quint) both; transform-origin: top; }
+.animate-letter { animation: letter-rise 0.7s var(--spring-soft) 0.35s both; }
+
+/* Chat bubbles arrive on a soft spring. */
+@keyframes bubble-in {
+  from { opacity: 0; translate: 0 8px; scale: 0.96; }
+  to   { opacity: 1; translate: 0 0; scale: 1; }
+}
+.animate-bubble { animation: bubble-in var(--spring-soft-duration) var(--spring-soft) both; }
+
 /* Loading skeletons. */
 @keyframes shimmer { to { background-position: -200% 0; } }
 .skeleton {
@@ -569,7 +589,7 @@ html {
 ::view-transition-new(tabbar), ::view-transition-new(sidebar), ::view-transition-new(compact-title) { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-sheet, .animate-fade, .animate-pop, .animate-rise { animation: none; }
+  .animate-sheet, .animate-fade, .animate-pop, .animate-rise, .animate-bubble, .animate-jar-shake, .animate-flap, .animate-letter { animation: none; }
   .skeleton { animation: none; }
   ::view-transition-old(.page), ::view-transition-new(.page) { animation: none; }
 }
@@ -728,3 +748,6 @@ html {
   .book-cover { min-height: 9.5in; padding: 0.6in; background: #2b1f15 !important; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

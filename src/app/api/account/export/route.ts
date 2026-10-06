@@ -17,11 +17,26 @@ export async function GET() {
   const tables = [
     'memories', 'photos', 'journal_entries', 'journal_photos', 'important_dates', 'todos', 'bucket_list',
     'watchlist', 'books', 'music_moments', 'prompt_responses', 'study_decks', 'study_cards', 'study_attempts',
-    'assignments', 'coupons', 'trivia_questions', 'board_games', 'love_taps', 'talk_sessions',
+    'assignments', 'coupons', 'trivia_questions', 'board_games', 'love_taps', 'talk_sessions', 'messages',
   ]
   const results = await Promise.all(tables.map(t => supabase.from(t).select('*')))
   const data: Record<string, unknown> = {}
   tables.forEach((t, i) => { data[t] = results[i].data ?? [] })
+
+  // Letters and jar slips are sealed: include what you're allowed to read
+  // (your own, opened letters and drawn or opened slips) without opening
+  // anything new.
+  const { data: envelopes } = await supabase.from('letters').select('id, author, recipient, open_when, title, unlock_at, opened_at, created_at')
+  data.letters = await Promise.all((envelopes ?? []).map(async l => {
+    if (l.author !== user.id && !l.opened_at) return { ...l, body: null }
+    const { data: b } = await supabase.rpc('read_letter', { p_id: l.id })
+    return { ...l, body: (b as { body: string }[] | null)?.[0]?.body ?? null }
+  }))
+  const [{ data: ours }, { data: thanks }] = await Promise.all([
+    supabase.rpc('jar_slips_for', { p_jar: 'ours' }),
+    supabase.rpc('jar_slips_for', { p_jar: 'thanks' }),
+  ])
+  data.jar_slips = { ours: ours ?? [], thanks: thanks ?? [] }
 
   const [{ data: profiles }, { data: couple }] = await Promise.all([
     supabase.from('profiles').select('id, display_name, username, bio, status_text, accent_color, avatar_url, banner_url, created_at'),

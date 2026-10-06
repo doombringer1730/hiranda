@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  PenLine, Play, MessageCircleQuestion, ChevronRight, Gamepad2, Brain, Gift, CalendarPlus,
+  PenLine, Play, MessageCircle, MessageCircleQuestion, ChevronRight, Gamepad2, Brain, Gift, CalendarPlus,
 } from 'lucide-react'
 import PresenceCards, { type PresonProfile } from './presence-cards'
 import { FlameTile } from './flame-pet'
@@ -91,6 +91,7 @@ export default async function HomeHub() {
     { data: allMemories },
     { data: partnerLove },
     { data: talkDays },
+    { count: unreadChat },
   ] = await Promise.all([
     supabase.from('profiles').select(PROFILE_FIELDS).in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
     partnerId
@@ -126,6 +127,9 @@ export default async function HomeHub() {
       ? supabase.from('love_taps').select('created_at').eq('from_user', partnerId).order('created_at', { ascending: false }).limit(1)
       : Promise.resolve({ data: [] as never[] }),
     supabase.from('talk_sessions').select('minutes, started_at, ended_at, completed').gte('started_at', since),
+    partnerId
+      ? supabase.from('messages').select('id', { count: 'exact', head: true }).eq('sender', partnerId).is('read_at', null)
+      : Promise.resolve({ count: 0 }),
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
@@ -198,6 +202,7 @@ export default async function HomeHub() {
   // ── Your move: everything currently waiting on you ──
   type Waiting = { href: string; icon: React.ElementType; title: string; sub?: string }
   const waiting: Waiting[] = []
+  if (unreadChat) waiting.push({ href: '/chat', icon: MessageCircle, title: `${unreadChat} new message${unreadChat === 1 ? '' : 's'} from ${partnerFirst}` })
   for (const g of (myMoves ?? []) as { id: string; kind: Kind }[]) {
     const meta = GAMES[g.kind]
     if (meta) waiting.push({ href: `/games/${meta.slug}`, icon: Gamepad2, title: `Your move in ${meta.name}`, sub: `${partnerFirst} played` })

@@ -2,13 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Settings, LogOut } from 'lucide-react'
 import { SidebarTimer } from './couple-timer'
 import SpotifyStatus from './spotify-status'
 import { logout } from '@/app/(auth)/actions'
 import { hubsFor, hubFor, itemFor, type Hub } from '@/lib/hubs'
 import { haptic } from '@/lib/feel'
+import { useLive } from '@/lib/use-live'
+import { unreadCount } from '@/app/(app)/chat/actions'
 
 const lastKey = (hub: string) => `hiranda:hub:${hub}`
 
@@ -21,8 +23,31 @@ function rememberedHref(hub: Hub) {
   return hub.items[0].href
 }
 
+// Unread chat messages, live. Row-level security limits the realtime feed to
+// your own couple, so no filter is needed.
+function useUnread(pathname: string) {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    let live = true
+    unreadCount().then(c => { if (live) setN(c) })
+    return () => { live = false }
+  }, [pathname])
+  useLive({ table: 'messages', fallbackMs: 60_000 }, () => { void unreadCount().then(setN) })
+  return pathname === '/chat' ? 0 : n
+}
+
+function Badge({ n, className = '' }: { n: number; className?: string }) {
+  if (!n) return null
+  return (
+    <span aria-label={`${n} unread`} className={`grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-white text-[10px] font-bold leading-none animate-pop ${className}`}>
+      {n > 9 ? '9+' : n}
+    </span>
+  )
+}
+
 export default function Nav({ theaterUnlocked = false }: { theaterUnlocked?: boolean }) {
   const pathname = usePathname()
+  const unread = useUnread(pathname)
   const router = useRouter()
   const hubs = hubsFor(theaterUnlocked)
   const active = hubFor(pathname, hubs)
@@ -79,6 +104,7 @@ export default function Nav({ theaterUnlocked = false }: { theaterUnlocked?: boo
                       <Icon size={13} strokeWidth={2.2} />
                     </span>
                     {item.title ?? item.label}
+                    {item.href === '/chat' && <Badge n={unread} className="ml-auto" />}
                   </Link>
                 )
               })}
@@ -141,6 +167,7 @@ export default function Nav({ theaterUnlocked = false }: { theaterUnlocked?: boo
                 }`}
               >
                 <Icon key={on ? 'on' : 'off'} size={21} strokeWidth={on ? 2.2 : 1.8} className={on ? 'animate-pop' : ''} fill={on && hub.key === 'us' ? 'currentColor' : 'none'} />
+                {hub.key === 'chat' && <Badge n={unread} className="absolute top-1.5 left-[calc(50%+6px)]" />}
                 <span className="text-[10px] font-medium leading-none">{hub.label}</span>
               </Link>
             )
