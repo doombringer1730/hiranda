@@ -9,6 +9,8 @@ import { LogOut, Film } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getTheaterState } from '@/lib/theater'
 import PageHeader from '@/components/page-header'
+import AccountSection from './account-section'
+import MfaSettings from '@/components/mfa-settings'
 
 export default async function SettingsPage() {
   const theater = await getTheaterState()
@@ -22,6 +24,11 @@ export default async function SettingsPage() {
 
   const couple = await getOrCreateCouple()
   const theme = (couple as { theme?: string })?.theme ?? 'coffee'
+  const c = couple as { user1_id?: string; user2_id?: string | null } | null
+  const partnerId = c ? (c.user1_id === user!.id ? c.user2_id : c.user1_id) : null
+  const { data: partnerProfile } = partnerId
+    ? await supabase.from('profiles').select('display_name').eq('id', partnerId).maybeSingle()
+    : { data: null }
 
   const headersList = await headers()
   const host = headersList.get('host') ?? 'localhost:3000'
@@ -63,7 +70,7 @@ export default async function SettingsPage() {
         {/* Username */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
           <h3 className="text-amber-200 font-medium mb-1">Username</h3>
-          <p className="text-stone-500 text-sm mb-4">Your public profile URL — set once, can't be changed.</p>
+          <p className="text-stone-500 text-sm mb-4">Your public profile URL — set once, can’t be changed.</p>
           <SettingsClient type="username" username={profile?.username ?? null} />
         </section>
 
@@ -166,6 +173,23 @@ export default async function SettingsPage() {
               Connect Spotify
             </a>
           )}
+        </section>
+
+        {/* Two-factor */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">Two-factor login</h3>
+          <p className="text-stone-500 text-sm mb-4">Ask for a code from an authenticator app when you sign in, so a password alone can’t open your space.</p>
+          <MfaSettings />
+        </section>
+
+        {/* Your data */}
+        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
+          <h3 className="text-amber-200 font-medium mb-1">Your data</h3>
+          <p className="text-stone-500 text-sm mb-4">It’s yours. Take a full copy any time, or leave for good.</p>
+          <AccountSection partnerName={partnerProfile?.display_name?.split(' ')[0] ?? null} />
+          <p className="text-stone-600 text-xs mt-4">
+            <a href="/support" className="hover:text-stone-400">Help &amp; support</a> · <a href="/privacy" className="hover:text-stone-400">Privacy policy</a> · <a href="/terms" className="hover:text-stone-400">Terms</a>
+          </p>
         </section>
 
         {/* Sign out */}

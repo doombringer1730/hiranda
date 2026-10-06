@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
@@ -37,9 +38,9 @@ export default async function JoinPage({
           That invite link is invalid, already used, or you&apos;re already in a space of
           your own. Ask your partner for a fresh link.
         </p>
-        <a href="/" className="text-amber-500 hover:text-amber-400 text-sm transition-colors">
+        <Link href="/" className="text-amber-500 hover:text-amber-400 text-sm transition-colors">
           ← Back to Hiranda
-        </a>
+        </Link>
       </div>
     </main>
   )

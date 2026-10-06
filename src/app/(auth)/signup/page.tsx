@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import GoogleButton from '@/components/google-button'
+import { useRememberedAccount } from '@/components/remember-account'
 
 function SignupForm() {
   const [state, formAction, pending] = useActionState(signup, null)
@@ -23,6 +24,7 @@ function SignupForm() {
   // through /join afterwards so the token isn't lost on the detour.
   const afterLogin = next || (tokenFromUrl ? `/join/${encodeURIComponent(tokenFromUrl)}` : '')
   const loginHref = afterLogin ? `/login?next=${encodeURIComponent(afterLogin)}` : '/login'
+  const known = useRememberedAccount()
 
   if (mode === 'choose') {
     return (
@@ -37,7 +39,7 @@ function SignupForm() {
               onClick={() => setMode('join')}
               className="w-full bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium rounded-xl px-4 py-4 transition-colors text-left"
             >
-              <p className="font-medium">Join your partner's space</p>
+              <p className="font-medium">Join your partner’s space</p>
               <p className="text-amber-200/70 text-sm mt-0.5">You have an invite link from your partner</p>
             </button>
 
@@ -46,7 +48,7 @@ function SignupForm() {
               className="w-full bg-stone-900 hover:bg-stone-800 border border-stone-800 text-amber-50 font-medium rounded-xl px-4 py-4 transition-colors text-left"
             >
               <p className="font-medium">Start a new couple space</p>
-              <p className="text-stone-500 text-sm mt-0.5">Your partner hasn't signed up yet</p>
+              <p className="text-stone-500 text-sm mt-0.5">Your partner hasn’t signed up yet</p>
             </button>
           </div>
 
@@ -80,6 +82,13 @@ function SignupForm() {
           {mode === 'join' ? "joining your partner's space" : 'starting a new couple space'}
         </p>
 
+        {known && (
+          <div className="mb-6 rounded-2xl border border-amber-900/40 bg-amber-950/30 p-4 text-sm text-stone-300">
+            <p className="text-amber-100 font-medium">Already have an account?</p>
+            <p className="mt-1 text-stone-400">This device was last used by <b className="text-stone-200">{known.name}</b>{known.email ? <> ({known.email})</> : null}. Sign in instead of making a second account.</p>
+            <Link href={loginHref} className="mt-3 inline-block text-amber-400 hover:text-amber-300 font-medium">Sign in as {known.name} →</Link>
+          </div>
+        )}
         <div className="flex flex-col gap-4 mb-4">
           <GoogleButton next={afterLogin || '/'} />
         </div>
@@ -134,6 +143,9 @@ function SignupForm() {
             className="mt-2 bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors">
             {pending ? 'Creating account…' : 'Create account'}
           </button>
+          <p className="text-stone-500 text-xs text-center leading-relaxed">
+            By creating an account you agree to the <Link href="/terms" className="underline underline-offset-2 hover:text-stone-300">Terms</Link> and <Link href="/privacy" className="underline underline-offset-2 hover:text-stone-300">Privacy policy</Link>.
+          </p>
         </form>
 
         <button

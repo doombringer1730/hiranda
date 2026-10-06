@@ -30,7 +30,10 @@ export async function middleware(request: NextRequest) {
   const isPublicPage =
     isAuthPage ||
     request.nextUrl.pathname.startsWith('/demo') ||
-    request.nextUrl.pathname.startsWith('/join/')
+    request.nextUrl.pathname.startsWith('/join/') ||
+    request.nextUrl.pathname.startsWith('/privacy') ||
+    request.nextUrl.pathname.startsWith('/terms') ||
+    request.nextUrl.pathname.startsWith('/support')
 
   if (!user && !isPublicPage) {
     const url = request.nextUrl.clone()
@@ -38,6 +41,19 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/login'
     url.searchParams.set('next', next)
     return NextResponse.redirect(url)
+  }
+
+  // Two-factor: someone who turned on an authenticator app must enter a code
+  // before using the app. (The database enforces this too — migration 021.)
+  if (user && !request.nextUrl.pathname.startsWith('/verify-2fa') && !isPublicPage) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/verify-2fa'
+      url.search = ''
+      url.searchParams.set('next', request.nextUrl.pathname + request.nextUrl.search)
+      return NextResponse.redirect(url)
+    }
   }
 
   if (user && isAuthPage) {

@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import CopyInviteButton from './copy-button'
+import PartnerWatcher from './partner-watcher'
+import AccountSection from '@/app/(app)/settings/account-section'
 import { logout } from '@/app/(auth)/actions'
 
 export default async function InvitePartnerPage() {
@@ -65,7 +67,7 @@ export default async function InvitePartnerPage() {
       <div className="w-full max-w-sm text-center">
         <h1 className="font-serif text-4xl text-amber-100 mb-3">One more step</h1>
         <p className="text-stone-400 text-sm mb-8">
-          Share this link with your partner so they can join your space. They'll need it to sign up.
+          Share this link with your partner so they can join your space. They’ll need it to sign up.
         </p>
 
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-4">
@@ -74,15 +76,27 @@ export default async function InvitePartnerPage() {
           <CopyInviteButton link={inviteLink} />
         </div>
 
-        <p className="text-stone-600 text-xs mb-8">
-          This link only works once. Once your partner joins you'll both land in the app automatically.
+        <p className="text-stone-600 text-xs mb-3">
+          This link only works once. Once your partner joins you’ll both land in the app automatically.
         </p>
+        <PartnerWatcher />
 
         <form action={logout}>
           <button type="submit" className="text-stone-600 hover:text-stone-400 text-sm transition-colors">
             ← Back to sign in
           </button>
         </form>
+
+        {/* Settings is out of reach until you're paired, so the account
+            controls (export / delete) live here too — e.g. after a partner
+            deletes their account. */}
+        <details className="mt-10 text-left">
+          <summary className="cursor-pointer text-center text-stone-600 hover:text-stone-400 text-xs list-none">Account options</summary>
+          <div className="mt-4 rounded-2xl bg-stone-900 border border-stone-800 p-5">
+            <AccountSection partnerName={null} />
+            <p className="text-stone-500 text-xs mt-4">Partner left, or going through something hard? <a href="/support" className="underline underline-offset-2 text-stone-300">Help &amp; support</a></p>
+          </div>
+        </details>
       </div>
     </main>
   )

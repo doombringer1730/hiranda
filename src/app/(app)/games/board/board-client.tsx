@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition } from 'react'
+import { useLive } from '@/lib/use-live'
 import Link from 'next/link'
 import { ChevronLeft, Loader2, Flag, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -61,12 +62,10 @@ export default function BoardClient({ kind, initial, myId, myName, partnerName, 
     return () => { supabase.removeChannel(channel) }
   }, [gameId])
 
-  // Fallback poll while waiting on the partner (their move, or their rematch).
-  useEffect(() => {
-    if (myTurn) return
-    const interval = setInterval(async () => receive(await getLatestGame(kind)), 4000)
-    return () => clearInterval(interval)
-  }, [myTurn, kind])
+  // A rematch is a new row, so the per-game channel above can't see it:
+  // listen for new games of this kind (RLS keeps it to our couple), with a
+  // slow fallback poll in case realtime drops.
+  useLive({ table: 'board_games', filter: `kind=eq.${kind}`, enabled: !myTurn }, async () => receive(await getLatestGame(kind)))
 
   function play(move: number) {
     if (!game || !myTurn || isPending) return

@@ -30,6 +30,30 @@ export async function myFirstName() {
   return data?.display_name?.split(' ')[0] || 'Your partner'
 }
 
+type Sub = { endpoint: string; p256dh: string; auth: string; private?: boolean }
+
+// What a device with "Hide details on lock screen" shows instead: no names,
+// no titles — just a nudge. Tapping still opens the right page.
+const PRIVATE_TEXT = { title: 'Hiranda', body: 'Something new from your partner 💗' }
+
+// Sends one message to a set of devices; returns endpoints that are gone.
+export async function sendTo(subs: Sub[], msg: PushMessage) {
+  if (!configure()) return { sent: 0, gone: [] as string[], error: 'Notifications aren’t configured on this server.' }
+  const gone: string[] = []
+  let sent = 0
+  await Promise.all(subs.map(async s => {
+    const payload = JSON.stringify(s.private ? { ...msg, ...PRIVATE_TEXT } : msg)
+    try {
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 60 * 60 * 12 })
+      sent++
+    } catch (e) {
+      const status = (e as { statusCode?: number }).statusCode
+      if (status === 404 || status === 410) gone.push(s.endpoint)
+    }
+  }))
+  return { sent, gone }
+}
+
 // Fire-and-forget: sends to every device the caller's partner opted in on,
 // after the response has gone out. Never throws, never slows the action.
 export function notifyPartner(message: PushMessage | (() => Promise<PushMessage | null>)) {
@@ -41,16 +65,9 @@ export function notifyPartner(message: PushMessage | (() => Promise<PushMessage 
       const supabase = await createClient()
       const { data: subs } = await supabase.rpc('partner_push_subscriptions')
       if (!subs?.length) return
-      const payload = JSON.stringify(msg)
-      await Promise.all((subs as { endpoint: string; p256dh: string; auth: string }[]).map(async s => {
-        try {
-          await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 60 * 60 * 12 })
-        } catch (e) {
-          const status = (e as { statusCode?: number }).statusCode
-          // The device unsubscribed or the subscription expired — forget it.
-          if (status === 404 || status === 410) await supabase.rpc('prune_partner_push_subscription', { p_endpoint: s.endpoint })
-        }
-      }))
+      const { gone } = await sendTo(subs as Sub[], msg)
+      // Devices that unsubscribed or expired — forget them.
+      for (const endpoint of gone) await supabase.rpc('prune_partner_push_subscription', { p_endpoint: endpoint })
     } catch {
       // Notifications are best-effort.
     }
