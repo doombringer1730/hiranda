@@ -1,5 +1,5 @@
 import {
-  House, Heart, ListChecks, LibraryBig, Gamepad2,
+  House, Heart, ListChecks, Gamepad2, MessageCircle, Mail,
   BookOpen, PenLine, BookHeart, CheckSquare, Star, CalendarHeart, Clapperboard, Library, Music, Film, GraduationCap,
 } from 'lucide-react'
 
@@ -13,30 +13,31 @@ export const THEATER: HubItem = { href: '/watch', label: 'Theater', icon: Film }
 
 export const HUBS: Hub[] = [
   { key: 'home', label: 'Home', icon: House, items: [{ href: '/', label: 'Home', icon: House }] },
+  { key: 'chat', label: 'Chat', icon: MessageCircle, items: [{ href: '/chat', label: 'Chat', icon: MessageCircle }] },
   { key: 'us', label: 'Us', icon: Heart, items: [
     { href: '/memories', label: 'Memories', icon: BookOpen },
     { href: '/journal', label: 'Journal', icon: PenLine },
+    { href: '/letters', label: 'Letters', icon: Mail },
     { href: '/memories/book', label: 'Book', title: 'Memory Book', icon: BookHeart },
   ] },
   { key: 'plan', label: 'Plan', icon: ListChecks, items: [
     { href: '/todos', label: 'Todos', icon: CheckSquare },
     { href: '/bucket-list', label: 'Someday', title: 'Bucket List', icon: Star },
     { href: '/dates', label: 'Dates', icon: CalendarHeart },
+    { href: '/study', label: 'Study', icon: GraduationCap },
   ] },
-  { key: 'shelf', label: 'Shelf', icon: LibraryBig, items: [
+  // Play is everything you enjoy together: games, and the shared shelf.
+  { key: 'play', label: 'Play', icon: Gamepad2, items: [
+    { href: '/games', label: 'Games', icon: Gamepad2 },
     { href: '/watchlist', label: 'Watch', title: 'Watchlist', icon: Clapperboard },
     { href: '/library', label: 'Read', title: 'Library', icon: Library },
     { href: '/music', label: 'Listen', title: 'Music', icon: Music },
-  ] },
-  { key: 'play', label: 'Play', icon: Gamepad2, items: [
-    { href: '/games', label: 'Games', icon: Gamepad2 },
-    { href: '/study', label: 'Study', icon: GraduationCap },
   ] },
 ]
 
 export function hubsFor(theaterUnlocked: boolean): Hub[] {
   if (!theaterUnlocked) return HUBS
-  return HUBS.map(h => h.key === 'shelf' ? { ...h, items: [...h.items, THEATER] } : h)
+  return HUBS.map(h => h.key === 'play' ? { ...h, items: [...h.items, THEATER] } : h)
 }
 
 const inItem = (pathname: string, href: string) =>
