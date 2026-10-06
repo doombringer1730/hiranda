@@ -71,7 +71,7 @@ function UsernameSection({ username }: UsernameProps) {
         </button>
       </div>
       {error && <p className="text-red-400 text-sm">{error}</p>}
-      <p className="text-stone-600 text-xs px-1">Becomes your profile URL — can't be changed after saving.</p>
+      <p className="text-stone-600 text-xs px-1">Becomes your profile URL — can’t be changed after saving.</p>
     </div>
   )
 }

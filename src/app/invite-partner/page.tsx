@@ -65,7 +65,7 @@ export default async function InvitePartnerPage() {
       <div className="w-full max-w-sm text-center">
         <h1 className="font-serif text-4xl text-amber-100 mb-3">One more step</h1>
         <p className="text-stone-400 text-sm mb-8">
-          Share this link with your partner so they can join your space. They'll need it to sign up.
+          Share this link with your partner so they can join your space. They’ll need it to sign up.
         </p>
 
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-4">
@@ -75,7 +75,7 @@ export default async function InvitePartnerPage() {
         </div>
 
         <p className="text-stone-600 text-xs mb-8">
-          This link only works once. Once your partner joins you'll both land in the app automatically.
+          This link only works once. Once your partner joins you’ll both land in the app automatically.
         </p>
 
         <form action={logout}>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
+import { useLive } from '@/lib/use-live'
 import { Loader2, Lock, Sparkles } from 'lucide-react'
 import { getDailyPrompt, type DailyPrompt } from './daily-actions'
 import { submitResponse, getPromptState } from './games/actions'
@@ -30,18 +31,16 @@ export default function DailyQuestion({ myId, partnerId, partnerName }: {
   const waiting = !!(daily?.myResponse && !daily.partnerResponse)
   const promptId = daily?.prompt.id
 
-  // While waiting on the partner, poll so the reveal appears on its own.
-  useEffect(() => {
-    if (!waiting || !promptId) return
-    const interval = setInterval(async () => {
-      const fresh = await getPromptState(promptId)
-      if (fresh?.partnerResponse) {
-        if (fresh.myResponse === fresh.partnerResponse && fresh.prompt.type !== 'question') celebrate()
-        setDaily(fresh)
-      }
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [waiting, promptId])
+  // While waiting on the partner, listen for their answer so the reveal
+  // appears the moment it lands (realtime, with a slow fallback poll).
+  useLive({ table: 'prompt_responses', filter: promptId ? `prompt_id=eq.${promptId}` : undefined, enabled: waiting && !!promptId }, async () => {
+    if (!promptId) return
+    const fresh = await getPromptState(promptId)
+    if (fresh?.partnerResponse) {
+      if (fresh.myResponse === fresh.partnerResponse && fresh.prompt.type !== 'question') celebrate()
+      setDaily(fresh)
+    }
+  })
 
   if (daily === null) return null
 

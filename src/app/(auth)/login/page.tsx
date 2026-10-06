@@ -281,6 +281,10 @@ function SignInForm({ next, onBack }: { next: string; onBack: () => void }) {
       >
         ← Back to the tour
       </button>
+
+      <p className="text-stone-600 text-xs text-center mt-6">
+        <Link href="/privacy" className="hover:text-stone-400">Privacy</Link> · <Link href="/terms" className="hover:text-stone-400">Terms</Link>
+      </p>
     </div>
   )
 }

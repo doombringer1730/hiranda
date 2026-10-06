@@ -37,7 +37,7 @@ function SignupForm() {
               onClick={() => setMode('join')}
               className="w-full bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium rounded-xl px-4 py-4 transition-colors text-left"
             >
-              <p className="font-medium">Join your partner's space</p>
+              <p className="font-medium">Join your partner’s space</p>
               <p className="text-amber-200/70 text-sm mt-0.5">You have an invite link from your partner</p>
             </button>
 
@@ -46,7 +46,7 @@ function SignupForm() {
               className="w-full bg-stone-900 hover:bg-stone-800 border border-stone-800 text-amber-50 font-medium rounded-xl px-4 py-4 transition-colors text-left"
             >
               <p className="font-medium">Start a new couple space</p>
-              <p className="text-stone-500 text-sm mt-0.5">Your partner hasn't signed up yet</p>
+              <p className="text-stone-500 text-sm mt-0.5">Your partner hasn’t signed up yet</p>
             </button>
           </div>
 
@@ -134,6 +134,9 @@ function SignupForm() {
             className="mt-2 bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors">
             {pending ? 'Creating account…' : 'Create account'}
           </button>
+          <p className="text-stone-500 text-xs text-center leading-relaxed">
+            By creating an account you agree to the <Link href="/terms" className="underline underline-offset-2 hover:text-stone-300">Terms</Link> and <Link href="/privacy" className="underline underline-offset-2 hover:text-stone-300">Privacy policy</Link>.
+          </p>
         </form>
 
         <button
