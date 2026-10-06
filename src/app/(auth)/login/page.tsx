@@ -2,6 +2,7 @@
 
 import { useActionState, useState, Suspense } from 'react'
 import { login } from '../actions'
+import GoogleButton from '@/components/google-button'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -216,18 +217,24 @@ function Bento() {
 
 function SignInForm({ next, onBack }: { next: string; onBack: () => void }) {
   const [state, formAction, pending] = useActionState(login, null)
+  // e.g. an expired reset link or a cancelled Google sign-in
+  const urlError = useSearchParams().get('error')
 
   return (
     <div className="w-full max-w-sm relative z-10 animate-page-in">
       <h1 className="font-serif text-4xl text-amber-100 text-center mb-2">Hiranda</h1>
       <p className="text-stone-400 text-center text-sm mb-10">welcome back</p>
 
+      <div className="flex flex-col gap-4 mb-4">
+        <GoogleButton next={next || '/'} />
+      </div>
+
       <form action={formAction} className="flex flex-col gap-4">
         {next && <input type="hidden" name="next" value={next} />}
 
-        {state?.error && (
+        {(state?.error || urlError) && (
           <p className="text-red-400 text-sm text-center bg-red-950/30 rounded-lg px-4 py-3">
-            {state.error}
+            {state?.error ?? urlError}
           </p>
         )}
 
@@ -241,7 +248,10 @@ function SignInForm({ next, onBack }: { next: string; onBack: () => void }) {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-stone-400 text-xs uppercase tracking-widest" htmlFor="password">Password</label>
+          <div className="flex items-center justify-between">
+            <label className="text-stone-400 text-xs uppercase tracking-widest" htmlFor="password">Password</label>
+            <Link href="/forgot-password" className="text-stone-500 hover:text-amber-400 text-xs transition-colors">Forgot password?</Link>
+          </div>
           <input
             id="password" name="password" type="password" required autoComplete="current-password"
             className="bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
