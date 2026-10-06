@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Check, X, Loader2, Trash2, Plus, Sparkles } from 'lucide-react'
 import { createTrivia, guessTrivia, deleteTrivia } from './actions'
-import { haptic, celebrate } from '@/lib/feel'
+import { haptic, celebrate, toast } from '@/lib/feel'
 
 export type Trivia = {
   id: string
@@ -64,7 +64,7 @@ export default function TriviaClient({ myId, partnerName, questions }: {
       haptic()
       const res = await guessTrivia(q.id, i)
       if ('correct' in res && res.correct !== undefined) {
-        if (res.correct) celebrate()
+        if (res.correct) { celebrate(); toast('You’re goddamn right. ✅') } // Breaking Bad
         setResults(r => ({ ...r, [q.id]: { guess: i, correct: res.correct! } }))
       }
     })

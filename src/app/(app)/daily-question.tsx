@@ -46,7 +46,7 @@ export default function DailyQuestion({ myId, partnerId, partnerName }: {
   if (daily === null) return null
 
   if (daily === undefined) {
-    return <div className="h-40 rounded-2xl bg-stone-900/70 border border-stone-800 animate-pulse" />
+    return <div className="skeleton h-full min-h-48 rounded-[28px]" />
   }
 
   const { prompt, myResponse, partnerResponse } = daily
@@ -77,7 +77,7 @@ export default function DailyQuestion({ myId, partnerId, partnerName }: {
     : null
 
   return (
-    <section className="rounded-2xl border border-amber-900/40 bg-gradient-to-br from-amber-950/40 via-stone-900/80 to-stone-900/80 p-5 flex flex-col gap-4">
+    <section className="tile tile-accent h-full p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-amber-300/80 text-[10px] uppercase tracking-[0.25em] flex items-center gap-2">
           <Sparkles size={12} /> Today&rsquo;s question
@@ -155,6 +155,9 @@ export default function DailyQuestion({ myId, partnerId, partnerName }: {
           )}
           <p className="text-center text-stone-600 text-xs">A new question tomorrow.</p>
         </div>
+      )}
+      {!both && (
+        <p className="mt-auto pt-1 text-stone-500 text-[11px]">Answers stay hidden until you both reply · feeds your streak 🔥</p>
       )}
     </section>
   )

@@ -1,6 +1,6 @@
 import {
   House, Heart, ListChecks, LibraryBig, Gamepad2,
-  BookOpen, PenLine, CheckSquare, Star, CalendarHeart, Clapperboard, Library, Music, Film, GraduationCap,
+  BookOpen, PenLine, BookHeart, CheckSquare, Star, CalendarHeart, Clapperboard, Library, Music, Film, GraduationCap,
 } from 'lucide-react'
 
 // The app's five tabs. Each hub groups related pages; the pages keep their
@@ -16,6 +16,7 @@ export const HUBS: Hub[] = [
   { key: 'us', label: 'Us', icon: Heart, items: [
     { href: '/memories', label: 'Memories', icon: BookOpen },
     { href: '/journal', label: 'Journal', icon: PenLine },
+    { href: '/memories/book', label: 'Book', title: 'Memory Book', icon: BookHeart },
   ] },
   { key: 'plan', label: 'Plan', icon: ListChecks, items: [
     { href: '/todos', label: 'Todos', icon: CheckSquare },
@@ -45,6 +46,7 @@ export function hubFor(pathname: string, hubs: Hub[] = HUBS): Hub | null {
   return hubs.find(h => h.items.some(i => inItem(pathname, i.href))) ?? null
 }
 
+// Most specific match wins (/memories/book is Book, not Memories).
 export function itemFor(pathname: string, hub: Hub): HubItem | null {
-  return hub.items.find(i => inItem(pathname, i.href)) ?? null
+  return [...hub.items].sort((a, b) => b.href.length - a.href.length).find(i => inItem(pathname, i.href)) ?? null
 }

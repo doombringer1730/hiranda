@@ -66,3 +66,25 @@ export function celebrate(origin?: { x: number; y: number } | Element | null, { 
   }
   setTimeout(() => layer.remove(), 1800)
 }
+
+// A small pill toast that springs in at the top and fades away.
+export function toast(text: string) {
+  if (typeof document === 'undefined') return
+  const el = document.createElement('div')
+  el.setAttribute('role', 'status')
+  el.textContent = text
+  el.className = 'material'
+  el.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 16px);z-index:9999;translate:-50% 0;padding:10px 18px;border-radius:999px;font-weight:600;font-size:14px;color:var(--color-amber-50);pointer-events:none;white-space:nowrap'
+  document.body.appendChild(el)
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.animate(reduced
+    ? [{ opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.85 }, { opacity: 0 }]
+    : [{ opacity: 0, transform: 'translateY(-24px) scale(0.9)' }, { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.12 }, { opacity: 1, transform: 'translateY(0)', offset: 0.85 }, { opacity: 0, transform: 'translateY(-10px)' }],
+    { duration: 2600, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }).onfinish = () => el.remove()
+}
+
+// HIMYM: Barney's catchphrase, for wins.
+export function legendary() {
+  celebrate()
+  toast('Legen… wait for it… dary! 🏆')
+}

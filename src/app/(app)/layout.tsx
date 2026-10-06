@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Nav from '@/components/nav'
-import CoupleTimer from '@/components/couple-timer'
 import HubSwitcher from '@/components/hub-switcher'
 import PageTransition from '@/components/page-transition'
 import { getTheaterState } from '@/lib/theater'
@@ -39,7 +38,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen">
       <Nav theaterUnlocked={unlocked} />
-      <CoupleTimer />
       <main className="md:ml-[16.5rem] pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-10 min-h-screen">
         <HubSwitcher theaterUnlocked={unlocked} />
         <PageTransition>{children}</PageTransition>

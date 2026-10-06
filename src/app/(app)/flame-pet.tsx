@@ -1,4 +1,5 @@
 import { Flame, Heart } from 'lucide-react'
+import { CountUp } from './home-tiles'
 
 const MILESTONES = [3, 7, 30, 100, 365]
 
@@ -98,6 +99,34 @@ export function FlameWidget({ streak, fedToday, partnerMissing, days }: {
               : 'Feed it: both answer today’s question, journal, add a memory, or study.'}
         </p>
       </div>
+    </section>
+  )
+}
+
+// Square bento tile: the streak as a big number, days together underneath.
+export function FlameTile({ streak, fedToday, partnerMissing, days }: {
+  streak: number
+  fedToday: boolean
+  partnerMissing: boolean
+  days?: number | null
+}) {
+  return (
+    <section className="tile p-4 flex flex-col justify-between aspect-square">
+      <div className="flex items-start justify-between">
+        <p className="text-stone-500 text-[10px] uppercase tracking-[0.25em]">Streak</p>
+        <div className="-mt-1 -mr-1"><FlamePet streak={streak} size={40} /></div>
+      </div>
+      <div>
+        <p className="font-serif text-[52px] leading-none text-amber-50"><CountUp value={streak} /></p>
+        <p className="text-stone-300 text-sm mt-1">
+          {partnerMissing ? 'invite your partner' : streak > 0 ? `day streak${fedToday ? ' 🔥' : ''}` : 'we were on a break'}
+        </p>
+      </div>
+      <p className="text-stone-500 text-[11px] flex items-center gap-1 truncate">
+        {days != null
+          ? <><Heart size={11} className="text-amber-600 shrink-0" fill="currentColor" /> {days.toLocaleString()} days together</>
+          : fedToday ? <><Flame size={11} /> fed today</> : 'answer today to feed it'}
+      </p>
     </section>
   )
 }

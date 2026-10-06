@@ -29,6 +29,8 @@ export const CARDS: Record<Category, string[]> = {
     'What scares you most about being vulnerable?',
     'What’s a question you’ve always wanted to ask me?',
     'What part of yourself are you still learning to love?',
+    'What’s our MacLaren’s — the place that feels like ours?',
+    'What’s your “I am the one who knocks” moment — when you really stood up for yourself?',
   ],
   flirty: [
     'What was your first impression of me — honestly?',
@@ -47,6 +49,7 @@ export const CARDS: Record<Category, string[]> = {
     'What’s a date idea you’ve been too shy to suggest?',
     'What do you think about when you miss me?',
     'What’s something about me you could stare at all day?',
+    'What’s your yellow umbrella moment — when you just knew?',
   ],
   silly: [
     'If we were a crime duo, what would our heist be?',
@@ -65,6 +68,9 @@ export const CARDS: Record<Category, string[]> = {
     'What conspiracy theory would you start about me?',
     'Describe me using only three emojis.',
     'If you had to eat one meal forever, what is it?',
+    'Who in our life is the Barney? The Lily? The Marshall?',
+    'Which of us is more of a Monica, and which is more of a Chandler?',
+    'If we had to run a car wash together, who’d be in charge — and who’d ruin it?',
   ],
   dare: [
     'Send me the last photo in your camera roll — no skipping.',
@@ -83,5 +89,7 @@ export const CARDS: Record<Category, string[]> = {
     'Slow dance with me to the next song that plays.',
     'Tell me three things you love about me in a dramatic movie-trailer voice.',
     'Try to make me laugh in 30 seconds — no touching.',
+    'Slap bet: loser of our next game owes the winner a coupon of their choice.',
+    'PIVOT! Rearrange one thing in the room together — whoever laughs first loses.',
   ],
 }

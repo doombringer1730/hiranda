@@ -10,7 +10,7 @@ import {
   type Kind, type CellsBoard, type DotsBoard, type UnoBoard, type UnoColor,
 } from './engine'
 import { makeMove, startGame, resignGame, getLatestGame, type BoardGame } from './actions'
-import { haptic, celebrate } from '@/lib/feel'
+import { haptic, legendary } from '@/lib/feel'
 
 type Props = {
   kind: Kind
@@ -42,7 +42,7 @@ export default function BoardClient({ kind, initial, myId, myName, partnerName, 
     if (prev && prev.id === next.id && next.move_count < prev.move_count) return
     if (prev && prev.id === next.id && prev.status === 'active' && next.status === 'won' && next.winner) {
       setRecord(r => ({ ...r, [next.winner!]: (r[next.winner!] ?? 0) + 1 }))
-      if (next.winner === myId) celebrate() // partner resigned
+      if (next.winner === myId) legendary() // partner resigned
     }
     gameRef.current = next
     setGame(next)
@@ -79,7 +79,7 @@ export default function BoardClient({ kind, initial, myId, myName, partnerName, 
         if (res.error) setError(res.error)
         if (res.game?.status === 'won' && res.game.winner) {
           setRecord(r => ({ ...r, [res.game!.winner!]: (r[res.game!.winner!] ?? 0) + 1 }))
-          if (res.game.winner === myId) celebrate()
+          if (res.game.winner === myId) legendary()
         }
         if (res.game) setGame(res.game)
       })
@@ -106,7 +106,7 @@ export default function BoardClient({ kind, initial, myId, myName, partnerName, 
       if (res.error) { setError(res.error); setGame(res.game ?? before); return }
       if (res.game?.status === 'won' && res.game.winner) {
         setRecord(r => ({ ...r, [res.game!.winner!]: (r[res.game!.winner!] ?? 0) + 1 }))
-        if (res.game.winner === myId) celebrate()
+        if (res.game.winner === myId) legendary()
       }
       setGame(res.game)
     })

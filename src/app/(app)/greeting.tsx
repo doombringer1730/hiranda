@@ -27,5 +27,7 @@ export function TodayLine() {
 export function Greeting() {
   const minute = useNow()
   if (minute === null) return <>hello</>
+  // Friends: Joey drops by now and then (stable for a given minute).
+  if (minute % 13 === 0) return <>how you doin’</>
   return <>{greeting(new Date(minute * 60_000).getHours())}</>
 }
