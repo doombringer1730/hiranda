@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Serif, Inter } from "next/font/google";
+import { Caveat, Instrument_Serif, Inter } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import { ServiceWorkerRegister } from "@/components/pwa";
 import PressFeedback from "@/components/press-feedback";
@@ -9,6 +9,14 @@ const serif = Instrument_Serif({
   variable: "--font-serif",
   weight: "400",
   style: ["normal", "italic"],
+  subsets: ["latin"],
+  display: "swap",
+});
+
+// Handwriting for the personal bits — notes, captions, answers — so the
+// app feels written by the two of you, not typeset by a machine.
+const hand = Caveat({
+  variable: "--font-hand",
   subsets: ["latin"],
   display: "swap",
 });
@@ -67,7 +75,7 @@ export default async function RootLayout({
       lang="en"
       data-theme={theme}
       data-scroll-behavior="smooth"
-      className={`${serif.variable} ${inter.variable} h-full`}
+      className={`${serif.variable} ${inter.variable} ${hand.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-stone-950 text-amber-50 antialiased">
         {children}

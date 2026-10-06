@@ -197,7 +197,10 @@ export async function disconnectSpotify() {
   revalidatePath('/settings')
 }
 
+const THEME_KEYS = new Set(['coffee', 'preppy', 'midnight', 'rose', 'forest', 'ocean', 'glacier', 'cloud'])
+
 export async function saveTheme(theme: string) {
+  if (!THEME_KEYS.has(theme)) return
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

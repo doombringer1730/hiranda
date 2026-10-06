@@ -47,50 +47,54 @@ export default async function JournalEntryPage({ params }: { params: Promise<{ i
         </form>
       </div>
 
-      <p className="text-stone-500 text-sm mb-3">
-        {new Date(entry.created_at).toLocaleDateString('en-US', {
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        })}
-      </p>
+      {/* The entry reads like a letter: paper and ink in every theme. */}
+      <article className="paper rounded-[6px] px-6 pt-9 pb-8 sm:px-9">
+        <span className="tape -top-3 right-10 rotate-[4deg]" />
+        <p className="text-[var(--paper-muted)] text-sm mb-3">
+          {new Date(entry.created_at).toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+          })}
+        </p>
 
-      {entry.mood && (
-        <span className="inline-block text-xs bg-amber-900/40 text-amber-400 px-2.5 py-0.5 rounded-full mb-4">
-          {MOOD_LABELS[entry.mood] ?? entry.mood}
-        </span>
-      )}
+        {entry.mood && (
+          <span className="inline-block text-xs bg-amber-700/15 text-amber-800 px-2.5 py-0.5 rounded-full mb-4">
+            {MOOD_LABELS[entry.mood] ?? entry.mood}
+          </span>
+        )}
 
-      {entry.title && (
-        <h1 className="font-serif text-4xl text-amber-100 mb-6">{entry.title}</h1>
-      )}
+        {entry.title && (
+          <h1 className="font-serif text-4xl text-[var(--paper-ink)] mb-6">{entry.title}</h1>
+        )}
 
-      {entry.tags?.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-6">
-          {entry.tags.map((tag: string) => (
-            <span key={tag} className="text-xs bg-stone-800 text-stone-400 px-2 py-0.5 rounded-full">
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
+        {entry.tags?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-6">
+            {entry.tags.map((tag: string) => (
+              <span key={tag} className="text-xs bg-[rgb(43_38_32/0.07)] text-[var(--paper-muted)] px-2 py-0.5 rounded-full">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
 
-      <p className="text-stone-300 leading-relaxed whitespace-pre-wrap">{entry.body}</p>
+        <p className="font-serif text-[19px] text-[var(--paper-ink)] leading-relaxed whitespace-pre-wrap">{entry.body}</p>
+      </article>
 
       {photosWithUrls.length > 0 && (
         <div className="mt-10">
-          <h2 className="font-serif text-xl text-amber-200 mb-4">Photos</h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {photosWithUrls.map((photo) =>
+          <h2 className="font-serif text-xl text-amber-200 mb-5">Photos</h2>
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+            {photosWithUrls.map((photo, i) =>
               photo.url ? (
-                <div key={photo.id} className="relative group">
+                <div key={photo.id} className="polaroid group pb-3" style={{ rotate: `${[-2.5, 1.8, -1, 2.4][i % 4]}deg` }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={photo.url}
                     alt=""
-                    className="w-full aspect-square object-cover rounded-xl"
+                    className="w-full aspect-square object-cover rounded-[2px]"
                   />
                   <form
                     action={deleteJournalPhoto.bind(null, photo.id, photo.storage_path, id)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <button
                       type="submit"

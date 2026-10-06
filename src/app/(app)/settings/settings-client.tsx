@@ -83,6 +83,8 @@ const THEMES = [
   { key: 'rose', name: 'Cherry', bg: '#0d0f11', accent: '#d95659', text: '#fef3f2' },
   { key: 'forest', name: 'Forest', bg: '#08110c', accent: '#be7241', text: '#fdf4ef' },
   { key: 'ocean', name: 'Ocean', bg: '#061015', accent: '#c46c4d', text: '#fef3f0' },
+  { key: 'glacier', name: 'Glacier', bg: '#071015', accent: '#968752', text: '#f7f6f0' },
+  { key: 'cloud', name: 'Cloud', bg: '#f2f0ed', accent: '#5297cf', text: '#161b1f' },
 ]
 
 function ThemeSection({ currentTheme }: ThemeProps) {

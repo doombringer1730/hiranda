@@ -60,11 +60,11 @@ export default async function MemoryPage({ params }: { params: Promise<{ id: str
 
       {photosWithUrls.length > 0 && (
         <div>
-          <h2 className="font-serif text-xl text-amber-200 mb-4">Photos</h2>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {photosWithUrls.map((photo) =>
+          <h2 className="font-serif text-xl text-amber-200 mb-5">Photos</h2>
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+            {photosWithUrls.map((photo, i) =>
               photo.url ? (
-                <div key={photo.id} className="relative group">
+                <div key={photo.id} className={`polaroid group ${photo.caption ? '' : 'pb-3'}`} style={{ rotate: `${[-2.5, 1.8, -1, 2.4][i % 4]}deg` }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={photo.url}
@@ -72,11 +72,12 @@ export default async function MemoryPage({ params }: { params: Promise<{ id: str
                     width={400}
                     height={400}
                     loading="lazy"
-                    className="w-full aspect-square object-cover rounded-xl"
+                    className="w-full aspect-square object-cover rounded-[2px]"
                   />
+                  {photo.caption && <p className="font-hand text-[20px] leading-tight text-[#2b2620] px-1 pt-1.5 pb-2 line-clamp-2">{photo.caption}</p>}
                   <form
                     action={deletePhoto.bind(null, photo.id, photo.storage_path, id)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <button
                       type="submit"
