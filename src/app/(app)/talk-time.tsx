@@ -200,7 +200,7 @@ export default function TalkTime({ myId, partnerName }: { myId: string; partnerN
   const eyebrow = 'text-[10px] uppercase tracking-[0.25em]'
 
   return (
-    <section className="tile h-full p-5 flex flex-col gap-4 md:flex-row md:items-center md:gap-8">
+    <section className="tile h-full p-5 flex flex-col gap-4">
       <div className="flex-1 min-w-0 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <p className={`${eyebrow} text-amber-300/80 flex items-center gap-2`}><MessagesSquare size={12} /> Talk time</p>
@@ -231,7 +231,7 @@ export default function TalkTime({ myId, partnerName }: { myId: string; partnerN
         )}
       </div>
 
-      <div className="flex flex-col gap-3 md:w-72 shrink-0">
+      <div className="flex flex-col gap-3">
         {active ? (
           <button onClick={join} className="w-full bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium rounded-xl px-5 py-3 transition-colors">
             {active.started_by === myId ? 'Open timer' : 'Join'}

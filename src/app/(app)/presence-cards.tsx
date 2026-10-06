@@ -99,7 +99,7 @@ function Card({ person, online, isYou, onEdit }: { person: PresonProfile; online
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" /> quizzing 📚
           </p>
         ) : person.status_text && (
-          <p className="text-stone-400 text-sm mt-1.5 italic truncate">&ldquo;{person.status_text}&rdquo;</p>
+          <p className="font-hand text-amber-200 text-xl leading-tight mt-1.5 truncate">{person.status_text}</p>
         )}
         <SpotifyLine who={isYou ? 'self' : 'partner'} />
       </div>

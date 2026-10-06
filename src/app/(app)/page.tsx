@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  PenLine, Play, MessageCircleQuestion, ChevronRight, Gamepad2, Brain, Gift, ImageIcon, CalendarPlus,
+  PenLine, Play, MessageCircleQuestion, ChevronRight, Gamepad2, Brain, Gift, CalendarPlus,
 } from 'lucide-react'
 import PresenceCards, { type PresonProfile } from './presence-cards'
 import { FlameTile } from './flame-pet'
@@ -12,6 +12,7 @@ import DailyQuestion from './daily-question'
 import TalkTime from './talk-time'
 import { Greeting, TodayLine } from './greeting'
 import { InstallCard, NotificationCard } from '@/components/pwa'
+import { Polaroid, Scribble } from '@/components/handmade'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
 
@@ -43,6 +44,17 @@ function computeStreak(days: Set<string>): number {
   let n = 0
   while (days.has(dayKey(d))) { n++; d.setUTCDate(d.getUTCDate() - 1) }
   return n
+}
+
+function HomeAvatar({ p }: { p: PresonProfile }) {
+  return (
+    <span className="relative grid place-items-center h-9 w-9 rounded-full overflow-hidden ring-2 ring-stone-950 text-sm font-semibold text-amber-50" style={{ background: p.accent_color ?? 'var(--color-amber-800)' }}>
+      {p.avatar_url
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={p.avatar_url} alt="" className="h-full w-full object-cover" />
+        : p.display_name.slice(0, 1).toUpperCase()}
+    </span>
+  )
 }
 
 export default async function HomeHub() {
@@ -198,12 +210,11 @@ export default async function HomeHub() {
   }
 
   const lastLove = ((partnerLove ?? []) as { created_at: string }[])[0]?.created_at ?? null
-  const eyebrow = 'text-stone-500 text-[10px] uppercase tracking-[0.25em]'
-
+  const eyebrow = 'text-stone-400 text-[11px] uppercase tracking-[0.22em]'
   return (
-    <div className="px-4 pb-8 max-w-2xl md:max-w-4xl mx-auto">
+    <div className="px-4 pb-10 max-w-2xl md:max-w-5xl mx-auto">
       {/* Greeting */}
-      <header className="relative mb-6 pt-[calc(env(safe-area-inset-top)+20px)] md:pt-8">
+      <header className="relative mb-7 pt-[calc(env(safe-area-inset-top)+20px)] md:pt-8">
         {/* Settings lives behind your avatar, iOS-style */}
         <Link href="/settings" aria-label="Settings" className="absolute right-0 top-[calc(env(safe-area-inset-top)+16px)] md:top-8 h-10 w-10 rounded-full overflow-hidden material flex items-center justify-center text-sm font-semibold text-amber-100">
           {me.avatar_url
@@ -211,129 +222,128 @@ export default async function HomeHub() {
             ? <img src={me.avatar_url} alt="" className="h-full w-full object-cover" />
             : firstName.slice(0, 1).toUpperCase()}
         </Link>
-        <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em]">
+        <p className="text-stone-400 text-[11px] uppercase tracking-[0.3em]">
           <TodayLine />
         </p>
-        <h1 className="font-serif text-4xl md:text-5xl text-amber-50 mt-2 leading-[1.05]">
-          <span className="italic text-stone-400"><Greeting />,</span> {firstName}<span className="text-amber-500">.</span>
+        <h1 className="font-serif text-[44px] md:text-6xl text-amber-50 mt-2 leading-[1.02]">
+          <span className="italic text-stone-400"><Greeting />,</span><br className="md:hidden" /> {firstName}<span className="text-amber-500">.</span>
         </h1>
+        {partner && (
+          <div className="mt-4 flex items-center gap-3">
+            <span className="flex -space-x-2.5">
+              <HomeAvatar p={me} /><HomeAvatar p={partner} />
+            </span>
+            <p className="relative font-hand text-[22px] leading-none text-amber-200">
+              {days != null ? <>{days.toLocaleString()} days of you two</> : <>you &amp; {partnerFirst}</>}
+              <Scribble kind="underline" className="absolute left-0 -bottom-2 h-2.5 w-full text-amber-500/70" />
+            </p>
+          </div>
+        )}
       </header>
 
-      {/* Bento — size is importance (Apple widget rules: one job per tile,
-          big glanceable numbers). Phone: 2 columns. Desktop: 4, with the
-          question as the hero and the squares beside it. */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        {/* Your move — only when something is waiting on you */}
-        {waiting.length > 0 && (
-          <section className="col-span-2 md:col-span-4 tile tile-accent p-2 animate-rise">
-            <p className={`${eyebrow} px-3 pt-2 pb-1 text-amber-300/80`}>Your move · {waiting.length}</p>
-            <div className="flex flex-col">
-              {waiting.slice(0, 4).map((w, i) => {
-                const Icon = w.icon
-                return (
-                  <Link key={i} href={w.href} className="group flex items-center gap-3 rounded-[20px] px-3 py-2.5 hover:bg-stone-800/40 transition-colors">
-                    <span className="grid place-items-center h-9 w-9 shrink-0 rounded-xl bg-amber-700/25 text-amber-300"><Icon size={17} /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-amber-50 text-sm truncate">{w.title}</span>
-                      {w.sub && <span className="block text-stone-500 text-xs truncate">{w.sub}</span>}
-                    </span>
-                    <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
-                  </Link>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
-        <div className="col-span-2 md:col-span-4 empty:hidden"><InstallCard /></div>
-        <div className="col-span-2 md:col-span-4 empty:hidden"><NotificationCard /></div>
-
-        {/* Hero: today's question */}
-        {partnerId && (
-          <div className="col-span-2 md:row-span-2 animate-rise" style={{ '--i': 1 } as React.CSSProperties}>
-            <DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} />
-          </div>
-        )}
-
-        {/* Talk time — right under the question on phones; a full-width row
-            below the squares on desktop (md:order puts it after them). */}
-        {partnerId && (
-          <div className="col-span-2 md:col-span-4 md:order-1 animate-rise" style={{ '--i': 2 } as React.CSSProperties}>
-            <TalkTime myId={user.id} partnerName={partnerFirst} />
-          </div>
-        )}
-
-        {/* Squares */}
-        {couple && (
-          <div className="animate-rise" style={{ '--i': 2 } as React.CSSProperties}>
-            <FlameTile streak={streak} fedToday={fedToday} partnerMissing={!partnerId} days={days} />
-          </div>
-        )}
-
-        <Link href="/dates" className="tile p-4 flex flex-col justify-between aspect-square animate-rise" style={{ '--i': 3 } as React.CSSProperties}>
-          <p className={eyebrow}>Countdown</p>
-          {upcoming ? (
-            <>
-              <div>
-                {upcoming.inDays === 0
-                  ? <p className="font-serif text-[44px] leading-none text-amber-50">Today</p>
-                  : <p className="font-serif text-[52px] leading-none text-amber-50"><CountUp value={upcoming.inDays} /></p>}
-                <p className="text-stone-300 text-sm mt-1">{upcoming.inDays === 0 ? '🎉' : upcoming.inDays === 1 ? 'day to go' : 'days to go'}</p>
-              </div>
-              <p className="text-stone-500 text-[11px] truncate">{upcoming.label}</p>
-            </>
-          ) : (
-            <>
-              <CalendarPlus size={28} className="text-stone-600" />
-              <p className="text-stone-400 text-sm">Add a date to count down to →</p>
-            </>
-          )}
-        </Link>
-
-        <Link
-          href={pick ? `/memories/${pick.id}` : '/memories/new'}
-          className="tile aspect-square flex flex-col justify-end animate-rise"
-          style={{ '--i': 4 } as React.CSSProperties}
-        >
-          {pickPhoto && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={pickPhoto} alt="" className="absolute inset-0 h-full w-full object-cover" />
-          )}
-          <div className={`relative p-[11px] ${pickPhoto ? 'bg-gradient-to-t from-black/75 via-black/30 to-transparent pt-10' : 'p-4 h-full flex flex-col justify-between'}`}>
-            {!pickPhoto && <p className={eyebrow}>On this day</p>}
-            {!pickPhoto && !pick && <ImageIcon size={28} className="text-stone-600" />}
-            <div>
-              <p className={`text-[10px] uppercase tracking-[0.2em] ${pickPhoto ? 'text-white/70' : 'text-amber-300/80'}`}>{pickLabel ?? 'Your first memory'}</p>
-              <p className={`font-serif text-xl leading-tight mt-0.5 line-clamp-2 ${pickPhoto ? 'text-white' : 'text-amber-50'}`}>{pick?.title ?? 'Add one →'}</p>
-            </div>
-          </div>
-        </Link>
-
-        {partnerId && (
-          <div className="animate-rise" style={{ '--i': 5 } as React.CSSProperties}>
-            <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} />
-          </div>
-        )}
-
-        {/* Presence */}
-        {couple && (
-          <div className="col-span-2 md:col-span-4 md:order-2 animate-rise" style={{ '--i': 6 } as React.CSSProperties}>
-            <PresenceCards coupleId={couple.id} me={me} partner={partner} />
-          </div>
-        )}
-
-        {/* Continue watching (Theater link only — the watch page is untouched) */}
-        {watching && (
-          <Link href={`/watch/${watching.id}`} className="col-span-2 md:col-span-4 md:order-2 tile p-4 flex items-center gap-3">
-            <span className="grid place-items-center h-10 w-10 rounded-xl bg-stone-800 text-amber-300"><Play size={16} fill="currentColor" /></span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-amber-50 text-sm truncate">{watching.title}</span>
-              <span className="block text-stone-500 text-xs">Continue watching</span>
-            </span>
-            <ChevronRight size={16} className="text-stone-600" />
-          </Link>
-        )}
+      <div className="flex flex-col gap-3 mb-3 empty:hidden">
+        <InstallCard />
+        <NotificationCard />
       </div>
+
+      {/* Your move — only when something is waiting on you */}
+      {waiting.length > 0 && (
+        <section className="mb-6 animate-rise">
+          <p className={`${eyebrow} px-1 mb-2`}>Your move · {waiting.length}</p>
+          <div className="tile p-1.5 flex flex-col">
+            {waiting.slice(0, 4).map((w, i) => {
+              const Icon = w.icon
+              return (
+                <Link key={i} href={w.href} className="group flex items-center gap-3 rounded-[22px] px-3 py-2.5 hover:bg-stone-800/50 transition-colors">
+                  <span className="grid place-items-center h-9 w-9 shrink-0 rounded-full bg-amber-700/20 text-amber-300"><Icon size={16} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-amber-50 text-[15px] truncate">{w.title}</span>
+                    {w.sub && <span className="block text-stone-400 text-xs truncate">{w.sub}</span>}
+                  </span>
+                  <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Two columns on desktop, one flowing column on phones. The things you
+          do together today come first; keepsakes and counters follow. */}
+      <div className="grid gap-x-6 gap-y-6 md:grid-cols-[1.15fr_1fr] md:items-start">
+        <div className="flex flex-col gap-6">
+          {partnerId && (
+            <div className="pt-2 animate-rise" style={{ '--i': 1 } as React.CSSProperties}>
+              <DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} />
+            </div>
+          )}
+          {partnerId && (
+            <div className="animate-rise" style={{ '--i': 2 } as React.CSSProperties}>
+              <TalkTime myId={user.id} partnerName={partnerFirst} />
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4">
+          {/* A keepsake, then the two little counters beside it */}
+          <div className="grid grid-cols-[1.15fr_1fr] gap-4 items-stretch animate-rise" style={{ '--i': 3 } as React.CSSProperties}>
+            <Link href={pick ? `/memories/${pick.id}` : '/memories/new'} className="block pt-3 pl-1">
+              <Polaroid
+                src={pickPhoto}
+                caption={pick?.title ?? 'Add your first memory'}
+                sub={pickLabel ?? 'On this day'}
+                tilt={-3}
+              />
+            </Link>
+            <div className="flex flex-col gap-4">
+              <Link href="/dates" className="tile flex-1 p-4 flex flex-col justify-between min-h-[120px]">
+                <p className={eyebrow}>Countdown</p>
+                {upcoming ? (
+                  <div>
+                    {upcoming.inDays === 0
+                      ? <p className="font-serif text-[38px] leading-none text-amber-50">Today 🎉</p>
+                      : <p className="font-serif text-[44px] leading-none text-amber-50"><CountUp value={upcoming.inDays} /><span className="text-stone-400 text-base font-sans ml-1.5">{upcoming.inDays === 1 ? 'day' : 'days'}</span></p>}
+                    <p className="text-stone-400 text-xs mt-1 truncate">{upcoming.label}</p>
+                  </div>
+                ) : (
+                  <p className="text-stone-400 text-sm flex items-center gap-2"><CalendarPlus size={18} className="text-stone-500" /> Add a date</p>
+                )}
+              </Link>
+              {partnerId && (
+                <div className="flex-1">
+                  <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {couple && (
+            <div className="animate-rise" style={{ '--i': 4 } as React.CSSProperties}>
+              <FlameTile streak={streak} fedToday={fedToday} partnerMissing={!partnerId} />
+            </div>
+          )}
+
+          {/* Continue watching (Theater link only — the watch page is untouched) */}
+          {watching && (
+            <Link href={`/watch/${watching.id}`} className="tile p-4 flex items-center gap-3">
+              <span className="grid place-items-center h-10 w-10 rounded-full bg-stone-800 text-amber-300"><Play size={16} fill="currentColor" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-amber-50 text-sm truncate">{watching.title}</span>
+                <span className="block text-stone-400 text-xs">Continue watching</span>
+              </span>
+              <ChevronRight size={16} className="text-stone-600" />
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* Presence */}
+      {couple && (
+        <div className="mt-8 animate-rise" style={{ '--i': 5 } as React.CSSProperties}>
+          <p className={`${eyebrow} px-1 mb-2`}>Right now</p>
+          <PresenceCards coupleId={couple.id} me={me} partner={partner} />
+        </div>
+      )}
     </div>
   )
 }

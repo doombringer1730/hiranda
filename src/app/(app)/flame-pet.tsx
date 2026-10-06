@@ -104,29 +104,27 @@ export function FlameWidget({ streak, fedToday, partnerMissing, days }: {
 }
 
 // Square bento tile: the streak as a big number, days together underneath.
-export function FlameTile({ streak, fedToday, partnerMissing, days }: {
+export function FlameTile({ streak, fedToday, partnerMissing }: {
   streak: number
   fedToday: boolean
   partnerMissing: boolean
-  days?: number | null
 }) {
+  const next = MILESTONES.find(m => m > streak)
   return (
-    <section className="tile p-4 flex flex-col justify-between aspect-square">
-      <div className="flex items-start justify-between">
-        <p className="text-stone-500 text-[10px] uppercase tracking-[0.25em]">Streak</p>
-        <div className="-mt-1 -mr-1"><FlamePet streak={streak} size={40} /></div>
-      </div>
-      <div>
-        <p className="font-serif text-[52px] leading-none text-amber-50"><CountUp value={streak} /></p>
-        <p className="text-stone-300 text-sm mt-1">
-          {partnerMissing ? 'invite your partner' : streak > 0 ? `day streak${fedToday ? ' 🔥' : ''}` : 'we were on a break'}
+    <section className="tile px-4 py-3.5 flex items-center gap-4">
+      <div className="shrink-0 -my-1"><FlamePet streak={streak} size={38} /></div>
+      <div className="min-w-0 flex-1">
+        <p className="font-serif text-2xl leading-none text-amber-50">
+          <CountUp value={streak} /> <span className="text-stone-300 text-lg">{streak === 1 ? 'day' : 'days'} lit{fedToday ? ' 🔥' : ''}</span>
+        </p>
+        <p className="text-stone-400 text-xs mt-1 truncate">
+          {partnerMissing ? 'Invite your partner to light it'
+            : fedToday ? (next ? `Fed today · ${next - streak} to the ${next}-day mark` : 'Fed today')
+            : streak > 0 ? 'Anything you two do today adds to it'
+            : 'We were on a break 🦞 — anything together relights it'}
         </p>
       </div>
-      <p className="text-stone-500 text-[11px] flex items-center gap-1 truncate">
-        {days != null
-          ? <><Heart size={11} className="text-amber-600 shrink-0" fill="currentColor" /> {days.toLocaleString()} days together</>
-          : fedToday ? <><Flame size={11} /> fed today</> : 'answer today to feed it'}
-      </p>
+      {!fedToday && !partnerMissing && <Flame size={16} className="shrink-0 text-amber-400/70" />}
     </section>
   )
 }

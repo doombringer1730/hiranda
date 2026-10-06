@@ -70,16 +70,15 @@ export function ThinkingOfYou({ partnerName, lastFromPartner }: { partnerName: s
   }
 
   return (
-    <div className="tile p-4 flex flex-col justify-between aspect-square">
-      <p className="text-stone-500 text-[10px] uppercase tracking-[0.25em]">Thinking of you</p>
+    <div className="tile h-full p-4 flex flex-col items-center justify-center gap-2 text-center">
       <button
         onClick={send}
         aria-label={`Send ${partnerName} a heart`}
-        className="self-center grid place-items-center h-16 w-16 rounded-full bg-pink-500/15 text-pink-400 hover:bg-pink-500/25 transition-colors"
+        className="grid place-items-center h-14 w-14 rounded-full bg-pink-500/15 text-pink-400 hover:bg-pink-500/25 transition-colors"
       >
-        <Heart key={sentAt ?? 0} size={30} fill="currentColor" className={sentAt ? 'animate-pop' : ''} />
+        <Heart key={sentAt ?? 0} size={26} fill="currentColor" className={sentAt ? 'animate-pop' : ''} />
       </button>
-      <p className="text-stone-400 text-xs leading-snug text-center">
+      <p className="text-stone-400 text-xs leading-snug">
         {sentAt
           ? lobster ? <>Sent — you’re their lobster 🦞</> : <>Sent to {partnerName} 💗</>
           : lastFromPartner
