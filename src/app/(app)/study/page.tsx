@@ -1,12 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, GraduationCap, Trophy, Brain, RotateCcw, Sparkles, ChevronRight, Heart, Coins, Layers } from 'lucide-react'
+import { Plus, Trophy, Brain, RotateCcw, Sparkles, ChevronRight, Heart, Coins, Layers } from 'lucide-react'
 import { type Assignment } from './assignments-panel'
 import CalendarWidget from './calendar-widget'
 import GoalsWidget, { type GoalPerson } from './goal-widget'
 import ActivityLog, { type LogEvent } from './activity-log'
 import { studyStats, HEALTH_MAX, type Attempt } from './stats'
+import PageHeader from '@/components/page-header'
 
 const MODE_LABEL: Record<string, string> = { quiz: 'Quiz', write: 'Write', learn: 'Learn', match: 'Match', review: 'Review', assignment: 'Turned in' }
 
@@ -88,10 +89,7 @@ export default async function StudyPage() {
 
   return (
     <div className="px-4 pt-4 pb-8 max-w-2xl md:max-w-4xl mx-auto flex flex-col gap-4">
-      <header className="flex items-center gap-2">
-        <GraduationCap size={22} className="text-indigo-400" />
-        <h1 className="font-serif text-3xl text-amber-100">Study</h1>
-      </header>
+      <PageHeader eyebrow="Learn together, win coins" title="Study" className="mb-2" />
 
       {/* Widget dashboard */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

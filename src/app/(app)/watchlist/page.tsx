@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProfileMap } from '@/lib/profiles'
 import { addToWatchlist, markWatched, removeFromWatchlist } from './actions'
 import { Plus, Clapperboard, Trash2, CheckCircle2, Tv, Film } from 'lucide-react'
+import PageHeader from '@/components/page-header'
 
 type Item = {
   id: string
@@ -28,7 +29,7 @@ export default async function WatchlistPage() {
 
   return (
     <div className="px-4 pt-8 max-w-2xl mx-auto pb-12">
-      <h2 className="font-serif text-3xl text-amber-100 mb-8">Watchlist</h2>
+      <PageHeader eyebrow="Up next on the couch" title="Watchlist" className="mb-8" />
 
       {/* Add form */}
       <form action={addToWatchlist} className="bg-stone-900/80 border border-stone-800/80 rounded-2xl p-5 mb-8 flex flex-col gap-3">

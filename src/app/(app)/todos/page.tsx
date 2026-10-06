@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProfileMap } from '@/lib/profiles'
 import { addTodo, toggleTodo, deleteTodo } from './actions'
 import { Plus, Trash2, ClipboardList } from 'lucide-react'
+import PageHeader from '@/components/page-header'
 
 export default async function TodosPage() {
   const supabase = await createClient()
@@ -15,7 +16,7 @@ export default async function TodosPage() {
 
   return (
     <div className="px-4 pt-8 max-w-2xl mx-auto">
-      <h2 className="font-serif text-3xl text-amber-100 mb-8">Todos</h2>
+      <PageHeader eyebrow="The fridge list" title="Todos" className="mb-8" />
 
       <form action={addTodo} className="flex gap-3 mb-8">
         <input
