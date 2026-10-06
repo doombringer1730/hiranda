@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
-type PromptType = 'question' | 'would_you_rather' | 'this_or_that'
+type PromptType = 'question' | 'would_you_rather' | 'this_or_that' | 'most_likely'
 
 export async function getCoupleMemberIds() {
   const supabase = await createClient()

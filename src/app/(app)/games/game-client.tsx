@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from 'react'
 import { submitResponse, getNextPrompt, getPromptState } from './actions'
 import { Loader2 } from 'lucide-react'
 
-type PromptType = 'question' | 'would_you_rather' | 'this_or_that'
+type PromptType = 'question' | 'would_you_rather' | 'this_or_that' | 'most_likely'
 
 type Prompt = {
   id: string
@@ -25,9 +25,11 @@ type Tab = { type: PromptType; label: string; shortLabel?: string; initial: Prom
 type Props = {
   tabs: Tab[]
   partnerName: string
+  myId: string
+  partnerId: string | null
 }
 
-export default function GameClient({ tabs, partnerName }: Props) {
+export default function GameClient({ tabs, partnerName, myId, partnerId }: Props) {
   const [activeTab, setActiveTab] = useState<PromptType>(tabs[0].type)
   const [states, setStates] = useState<Record<PromptType, PromptState | null>>(
     Object.fromEntries(tabs.map(t => [t.type, t.initial])) as Record<PromptType, PromptState | null>
@@ -59,6 +61,28 @@ export default function GameClient({ tabs, partnerName }: Props) {
   function handleOptionSelect(option: 'a' | 'b') {
     if (!current || current.myResponse) return
     const value = option === 'a' ? current.prompt.option_a! : current.prompt.option_b!
+    pick(value)
+  }
+
+  // "Who's more likely to…" stores the chosen person's user id.
+  function handlePersonSelect(id: string) {
+    if (!current || current.myResponse) return
+    pick(id)
+  }
+
+  // Display text for a response — person ids become names for most_likely.
+  function shown(response: string | null) {
+    if (current?.prompt.type !== 'most_likely') return response
+    return response === myId ? 'Me' : response === partnerId ? partnerName : response
+  }
+  // Same, from the partner's point of view.
+  function shownForPartner(response: string | null) {
+    if (current?.prompt.type !== 'most_likely') return response
+    return response === partnerId ? 'Themselves' : response === myId ? 'You' : response
+  }
+
+  function pick(value: string) {
+    if (!current) return
     handleAnswer(value)
     startTransition(async () => {
       await submitResponse(current.prompt.id, value)
@@ -167,12 +191,28 @@ export default function GameClient({ tabs, partnerName }: Props) {
             </div>
           )}
 
+          {/* Who's more likely — pick a person */}
+          {current.prompt.type === 'most_likely' && !current.myResponse && (
+            <div className="grid grid-cols-2 gap-2">
+              {[{ id: myId, label: 'Me' }, ...(partnerId ? [{ id: partnerId, label: partnerName }] : [])].map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => handlePersonSelect(p.id)}
+                  disabled={isPending}
+                  className="w-full bg-stone-950 border border-stone-800 hover:border-amber-700 text-amber-100 rounded-xl px-4 py-5 text-center transition-colors disabled:opacity-50 font-medium"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Waiting state */}
           {iWaiting && (
             <div className="flex flex-col gap-3">
               <div className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3">
                 <p className="text-stone-500 text-xs uppercase tracking-widest mb-1">Your answer</p>
-                <p className="text-amber-100">{current.myResponse}</p>
+                <p className="text-amber-100">{shown(current.myResponse)}</p>
               </div>
               <p className="text-stone-500 text-sm text-center py-2">
                 Waiting for {partnerName} to answer…
@@ -186,11 +226,11 @@ export default function GameClient({ tabs, partnerName }: Props) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-amber-900/20 border border-amber-800/40 rounded-xl p-3">
                   <p className="text-amber-500 text-xs uppercase tracking-widest mb-1.5">You</p>
-                  <p className="text-amber-100 text-sm">{current.myResponse}</p>
+                  <p className="text-amber-100 text-sm">{shown(current.myResponse)}</p>
                 </div>
                 <div className="bg-stone-800/60 border border-stone-700/60 rounded-xl p-3">
                   <p className="text-stone-400 text-xs uppercase tracking-widest mb-1.5">{partnerName}</p>
-                  <p className="text-amber-100 text-sm">{current.partnerResponse}</p>
+                  <p className="text-amber-100 text-sm">{shownForPartner(current.partnerResponse)}</p>
                 </div>
               </div>
               {current.myResponse === current.partnerResponse && (

@@ -368,3 +368,16 @@ button, a, input, textarea, select {
 html {
   scrollbar-color: var(--color-stone-700) transparent;
 }
+
+/* ── Card flip (Daring Questions) ── */
+@keyframes card-flip {
+  from { transform: rotateY(-90deg) scale(0.96); opacity: 0.4; }
+  to   { transform: rotateY(0) scale(1); opacity: 1; }
+}
+.animate-card-flip {
+  animation: card-flip 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-card-flip { animation: none; }
+}
