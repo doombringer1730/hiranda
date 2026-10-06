@@ -9,6 +9,7 @@ import { FlameTile } from './flame-pet'
 import { CountUp, ThinkingOfYou } from './home-tiles'
 import { GAMES, type Kind } from './games/board/engine'
 import DailyQuestion from './daily-question'
+import TalkTime from './talk-time'
 import { Greeting, TodayLine } from './greeting'
 import { InstallCard, NotificationCard } from '@/components/pwa'
 
@@ -77,6 +78,7 @@ export default async function HomeHub() {
     { count: triviaWaiting },
     { data: allMemories },
     { data: partnerLove },
+    { data: talkDays },
   ] = await Promise.all([
     supabase.from('profiles').select(PROFILE_FIELDS).in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
     partnerId
@@ -111,6 +113,7 @@ export default async function HomeHub() {
     partnerId
       ? supabase.from('love_taps').select('created_at').eq('from_user', partnerId).order('created_at', { ascending: false }).limit(1)
       : Promise.resolve({ data: [] as never[] }),
+    supabase.from('talk_sessions').select('minutes, started_at, ended_at, completed').gte('started_at', since),
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
@@ -154,6 +157,11 @@ export default async function HomeHub() {
   if (partnerId) {
     const both = (s: Set<string>) => s.has(user.id) && s.has(partnerId)
     for (const [day, e] of byDay) if (both(e.mem) || both(e.jrn) || both(e.std) || both(e.prm)) fedDays.add(day)
+    // Talk time is something you do together, so a finished one feeds it too.
+    for (const t of (talkDays ?? []) as { minutes: number; started_at: string; ended_at: string | null; completed: boolean }[]) {
+      const over = !t.ended_at && new Date(t.started_at).getTime() + t.minutes * 60_000 <= Date.now()
+      if (t.completed || over) fedDays.add(t.started_at.slice(0, 10))
+    }
   }
   const streak = computeStreak(fedDays)
   const fedToday = fedDays.has(dayKey(new Date()))
@@ -247,6 +255,14 @@ export default async function HomeHub() {
           </div>
         )}
 
+        {/* Talk time — right under the question on phones; a full-width row
+            below the squares on desktop (md:order puts it after them). */}
+        {partnerId && (
+          <div className="col-span-2 md:col-span-4 md:order-1 animate-rise" style={{ '--i': 2 } as React.CSSProperties}>
+            <TalkTime myId={user.id} partnerName={partnerFirst} />
+          </div>
+        )}
+
         {/* Squares */}
         {couple && (
           <div className="animate-rise" style={{ '--i': 2 } as React.CSSProperties}>
@@ -301,14 +317,14 @@ export default async function HomeHub() {
 
         {/* Presence */}
         {couple && (
-          <div className="col-span-2 md:col-span-4 animate-rise" style={{ '--i': 6 } as React.CSSProperties}>
+          <div className="col-span-2 md:col-span-4 md:order-2 animate-rise" style={{ '--i': 6 } as React.CSSProperties}>
             <PresenceCards coupleId={couple.id} me={me} partner={partner} />
           </div>
         )}
 
         {/* Continue watching (Theater link only — the watch page is untouched) */}
         {watching && (
-          <Link href={`/watch/${watching.id}`} className="col-span-2 md:col-span-4 tile p-4 flex items-center gap-3">
+          <Link href={`/watch/${watching.id}`} className="col-span-2 md:col-span-4 md:order-2 tile p-4 flex items-center gap-3">
             <span className="grid place-items-center h-10 w-10 rounded-xl bg-stone-800 text-amber-300"><Play size={16} fill="currentColor" /></span>
             <span className="min-w-0 flex-1">
               <span className="block text-amber-50 text-sm truncate">{watching.title}</span>

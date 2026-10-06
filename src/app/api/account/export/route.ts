@@ -17,7 +17,7 @@ export async function GET() {
   const tables = [
     'memories', 'photos', 'journal_entries', 'journal_photos', 'important_dates', 'todos', 'bucket_list',
     'watchlist', 'books', 'music_moments', 'prompt_responses', 'study_decks', 'study_cards', 'study_attempts',
-    'assignments', 'coupons', 'trivia_questions', 'board_games', 'love_taps',
+    'assignments', 'coupons', 'trivia_questions', 'board_games', 'love_taps', 'talk_sessions',
   ]
   const results = await Promise.all(tables.map(t => supabase.from(t).select('*')))
   const data: Record<string, unknown> = {}
