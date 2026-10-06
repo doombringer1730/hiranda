@@ -1,228 +1,151 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useState, useEffect } from 'react'
-import {
-  Home, BookOpen, CheckSquare, Star, Film, Library, Settings, PenLine,
-  CalendarHeart, Clapperboard, LogOut, Gamepad2, Music, Heart, MoreHorizontal, X, GraduationCap,
-} from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+import { Settings, LogOut } from 'lucide-react'
 import { SidebarTimer } from './couple-timer'
 import SpotifyStatus from './spotify-status'
 import { logout } from '@/app/(auth)/actions'
+import { hubsFor, hubFor, itemFor, type Hub } from '@/lib/hubs'
+import { haptic } from '@/lib/feel'
 
-// ── Desktop sidebar: Home pinned, then labelled groups ──
-const sections: { label: string | null; items: { href: string; label: string; icon: React.ElementType }[] }[] = [
-  { label: null, items: [
-    { href: '/', label: 'Home', icon: Home },
-  ] },
-  { label: 'Together', items: [
-    { href: '/memories',    label: 'Memories',    icon: BookOpen      },
-    { href: '/journal',     label: 'Journal',     icon: PenLine       },
-    { href: '/dates',       label: 'Dates',       icon: CalendarHeart },
-  ] },
-  { label: 'Plan', items: [
-    { href: '/todos',       label: 'Todos',       icon: CheckSquare   },
-    { href: '/bucket-list', label: 'Bucket List', icon: Star          },
-  ] },
-  { label: 'Watch & read', items: [
-    { href: '/watchlist',   label: 'Watchlist',   icon: Clapperboard  },
-    { href: '/library',     label: 'Library',     icon: Library       },
-    { href: '/music',       label: 'Music',       icon: Music         },
-  ] },
-  { label: 'Play', items: [
-    { href: '/games',       label: 'Games',       icon: Gamepad2      },
-    { href: '/study',       label: 'Study',       icon: GraduationCap },
-  ] },
-]
+const lastKey = (hub: string) => `hiranda:hub:${hub}`
 
-// ── Mobile: grouped bottom tab bar ──
-// 11 destinations don't fit a tab bar, so we group the long tail into sheets.
-// Home and Play are direct; Together / Watch / More open a bottom sheet.
-type SheetItem = { href: string; label: string; icon: React.ElementType }
-const groups: Record<string, { label: string; icon: React.ElementType; items: SheetItem[] }> = {
-  together: {
-    label: 'Together', icon: Heart,
-    items: [
-      { href: '/memories',    label: 'Memories',    icon: BookOpen      },
-      { href: '/journal',     label: 'Journal',     icon: PenLine       },
-      { href: '/dates',       label: 'Dates',       icon: CalendarHeart },
-      { href: '/bucket-list', label: 'Bucket List', icon: Star          },
-      { href: '/todos',       label: 'Todos',       icon: CheckSquare   },
-    ],
-  },
-  watch: {
-    label: 'Watch', icon: Clapperboard,
-    items: [
-      { href: '/watchlist', label: 'Watchlist', icon: Clapperboard },
-      { href: '/library',   label: 'Library',   icon: Library      },
-      { href: '/music',     label: 'Music',     icon: Music        },
-    ],
-  },
-  play: {
-    label: 'Play', icon: Gamepad2,
-    items: [
-      { href: '/games', label: 'Games', icon: Gamepad2 },
-      { href: '/study', label: 'Study', icon: GraduationCap },
-    ],
-  },
-  more: {
-    label: 'More', icon: MoreHorizontal,
-    items: [
-      { href: '/settings', label: 'Settings', icon: Settings },
-    ],
-  },
-}
-
-function pathInGroup(pathname: string, items: SheetItem[]) {
-  return items.some(i => pathname === i.href || pathname.startsWith(i.href + '/'))
-}
-
-function NavLink({ href, label, icon: Icon, active, onClick }: {
-  href: string
-  label: string
-  icon: React.ElementType
-  active: boolean
-  onClick?: () => void
-}) {
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
-        active
-          ? 'bg-stone-800/70 text-amber-50 shadow-[inset_0_1px_0_rgb(255_255_255/0.04)]'
-          : 'text-stone-400 hover:text-amber-100 hover:bg-stone-800/40 active:bg-stone-800/60'
-      }`}
-    >
-      <Icon size={16} strokeWidth={active ? 2 : 1.75} className={active ? 'text-amber-400' : 'text-stone-500 group-hover:text-stone-300 transition-colors'} />
-      <span className="tracking-[0.01em]">{label}</span>
-      {active && <span aria-hidden className="ml-auto h-1.5 w-1.5 rounded-full bg-amber-500" />}
-    </Link>
-  )
-}
-
-function TabButton({ label, icon: Icon, active, onClick, href }: {
-  label: string
-  icon: React.ElementType
-  active: boolean
-  onClick?: () => void
-  href?: string
-}) {
-  const cls = `relative flex flex-col items-center justify-center gap-1 flex-1 h-full min-h-0 transition-colors ${
-    active ? 'text-amber-300' : 'text-stone-500 active:text-stone-300'
-  }`
-  const inner = (
-    <>
-      {active && <span aria-hidden className="absolute top-0 h-0.5 w-6 rounded-full bg-amber-500" />}
-      <Icon size={20} strokeWidth={active ? 2 : 1.75} />
-      <span className="text-[10px] leading-none tracking-wide">{label}</span>
-    </>
-  )
-  return href
-    ? <Link href={href} className={cls}>{inner}</Link>
-    : <button onClick={onClick} className={cls} aria-label={label}>{inner}</button>
+// Like an iOS tab bar, each tab remembers where you were inside it.
+function rememberedHref(hub: Hub) {
+  try {
+    const last = sessionStorage.getItem(lastKey(hub.key))
+    if (last && hub.items.some(i => last === i.href || last.startsWith(i.href + '/'))) return last
+  } catch {}
+  return hub.items[0].href
 }
 
 export default function Nav({ theaterUnlocked = false }: { theaterUnlocked?: boolean }) {
   const pathname = usePathname()
-  const [sheet, setSheet] = useState<string | null>(null)
+  const router = useRouter()
+  const hubs = hubsFor(theaterUnlocked)
+  const active = hubFor(pathname, hubs)
+  const activeIndex = active ? hubs.indexOf(active) : -1
 
-  // Close the sheet on navigation.
-  useEffect(() => { setSheet(null) }, [pathname])
-
-  // Lock body scroll while a sheet is open.
   useEffect(() => {
-    document.body.style.overflow = sheet ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
-  }, [sheet])
+    if (!active) return
+    try { sessionStorage.setItem(lastKey(active.key), pathname) } catch {}
+  }, [active, pathname])
 
-  // The gated "Theater" (watch/sync) only appears once unlocked this session.
-  const theaterItem: SheetItem = { href: '/watch', label: 'Theater', icon: Film }
-  const displaySections: typeof sections = theaterUnlocked
-    ? sections.map(s => s.label === 'Watch & read' ? { ...s, items: [...s.items, theaterItem] } : s)
-    : sections
-  const displayGroups: typeof groups = theaterUnlocked
-    ? { ...groups, watch: { ...groups.watch, items: [...groups.watch.items, theaterItem] } }
-    : groups
-
-  const openGroup = sheet ? displayGroups[sheet] : null
+  function openHub(e: React.MouseEvent, hub: Hub) {
+    haptic()
+    // Tapping the tab you're already in pops back to its first page.
+    const href = hub === active ? hub.items[0].href : rememberedHref(hub)
+    if (href !== hub.items[0].href || hub === active) {
+      e.preventDefault()
+      if (href !== pathname) router.push(href)
+      else window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
 
   return (
     <>
-      {/* ── Desktop sidebar ── */}
-      <aside className="hidden md:flex flex-col w-56 h-screen glass border-r border-stone-800/50 px-3 py-8 fixed left-0 top-0 z-40 overflow-hidden">
-        <div className="px-3 mb-9">
-          {/* Logo mark — presentational, not a document heading. Using <p> avoids
-              creating a duplicate <h1> alongside each page's own heading, which
-              Google Lighthouse flags as a heading structure error. */}
-          <p className="font-serif text-[1.9rem] leading-none text-amber-50">Hiranda<span className="text-amber-500">.</span></p>
-          <p className="mt-2 text-[9px] uppercase tracking-[0.3em] text-stone-500">our little place</p>
-          <div className="mt-4 rule-fade" />
-        </div>
-        <nav className="flex flex-col gap-4 flex-1 overflow-y-auto">
-          {displaySections.map((section, i) => (
-            <div key={section.label ?? i} className="flex flex-col gap-0.5">
-              {section.label && (
-                <p className="px-3 pb-1.5 text-[9px] font-medium uppercase tracking-[0.25em] text-stone-600">{section.label}</p>
+      {/* ── Desktop: floating sidebar ── */}
+      <aside
+        style={{ viewTransitionName: 'sidebar' }}
+        className="hidden md:flex flex-col fixed left-3 top-3 bottom-3 w-60 z-40 rounded-[28px] material px-3 py-6 overflow-hidden"
+      >
+        <Link href="/" className="px-3 mb-5 block" aria-label="Hiranda home">
+          <span className="font-serif text-[1.9rem] leading-none text-amber-50">Hiranda<span className="text-amber-500">.</span></span>
+          <span className="block mt-2 text-[9px] uppercase tracking-[0.3em] text-stone-500">our little place</span>
+        </Link>
+
+        <nav className="flex flex-col gap-3.5 flex-1 overflow-y-auto -mx-1 px-1 [scrollbar-width:none]">
+          {hubs.map(hub => (
+            <div key={hub.key} className="flex flex-col gap-0.5">
+              {hub.items.length > 1 && (
+                <p className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-600">{hub.label}</p>
               )}
-              {section.items.map(({ href, label, icon: Icon }) => {
-                const active = href === '/' ? pathname === '/' : pathname.startsWith(href)
-                return <NavLink key={href} href={href} label={label} icon={Icon} active={active} />
+              {hub.items.map(item => {
+                const on = itemFor(pathname, hub) === item
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-[14px] transition-colors ${
+                      on ? 'bg-stone-800/80 text-amber-50' : 'text-stone-400 hover:text-amber-50 hover:bg-stone-800/40'
+                    }`}
+                  >
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors ${
+                      on ? 'bg-amber-600 text-amber-50' : 'bg-stone-800/70 text-stone-400'
+                    }`}>
+                      <Icon size={13} strokeWidth={2.2} />
+                    </span>
+                    {item.title ?? item.label}
+                  </Link>
+                )
               })}
             </div>
           ))}
         </nav>
-        <SpotifyStatus />
-        <SidebarTimer />
-        <NavLink href="/settings" label="Settings" icon={Settings} active={pathname === '/settings'} />
-        <form action={logout}>
-          <button type="submit" className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-stone-500 hover:text-red-400 hover:bg-stone-800/70 transition-all duration-200 w-full">
-            <LogOut size={17} />
-            <span>Sign out</span>
-          </button>
-        </form>
-      </aside>
 
-      {/* ── Mobile: group sheet (slides up above the tab bar) ── */}
-      {openGroup && (
-        <div className="md:hidden fixed inset-0 z-40" onClick={() => setSheet(null)}>
-          <div className="absolute inset-0 bg-black/60" />
-          <div
-            onClick={e => e.stopPropagation()}
-            className="absolute left-0 right-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] bg-stone-900 border-t border-stone-800/70 rounded-t-3xl px-3 pt-3 pb-4 shadow-2xl animate-page-in"
-          >
-            <div className="flex items-center justify-between px-3 pb-2">
-              <p className="text-stone-500 text-[10px] uppercase tracking-[0.25em]">{openGroup.label}</p>
-              <button onClick={() => setSheet(null)} aria-label="Close" className="text-stone-500 hover:text-amber-300 p-1 -mr-1">
-                <X size={18} />
+        <div className="pt-3 flex flex-col gap-1">
+          <SpotifyStatus />
+          <SidebarTimer />
+          <div className="flex items-center gap-1 px-1">
+            <Link
+              href="/settings"
+              className={`flex flex-1 items-center gap-2.5 rounded-xl px-2 py-1.5 text-[14px] transition-colors ${
+                pathname === '/settings' ? 'bg-stone-800/80 text-amber-50' : 'text-stone-400 hover:text-amber-50 hover:bg-stone-800/40'
+              }`}
+            >
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-stone-800/70"><Settings size={13} /></span>
+              Settings
+            </Link>
+            <form action={logout}>
+              <button type="submit" aria-label="Sign out" title="Sign out" className="flex h-9 w-9 items-center justify-center rounded-xl text-stone-500 hover:text-red-400 hover:bg-stone-800/40 transition-colors">
+                <LogOut size={15} />
               </button>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              {openGroup.items.map(({ href, label, icon: Icon }) => {
-                const active = pathname === href || pathname.startsWith(href + '/')
-                return <NavLink key={href} href={href} label={label} icon={Icon} active={active} onClick={() => setSheet(null)} />
-              })}
-              {sheet === 'more' && (
-                <form action={logout}>
-                  <button type="submit" className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-stone-500 hover:text-red-400 hover:bg-stone-800/70 transition-all duration-200 w-full">
-                    <LogOut size={17} />
-                    <span>Sign out</span>
-                  </button>
-                </form>
-              )}
-            </div>
+            </form>
           </div>
         </div>
-      )}
+      </aside>
 
-      {/* ── Mobile: bottom tab bar ── */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 h-16 pb-[env(safe-area-inset-bottom)] glass border-t border-stone-800/60 flex items-stretch">
-        <TabButton label="Home" icon={Home} href="/" active={pathname === '/'} />
-        <TabButton label="Together" icon={Heart} active={sheet === 'together' || pathInGroup(pathname, groups.together.items)} onClick={() => setSheet(s => s === 'together' ? null : 'together')} />
-        <TabButton label="Watch" icon={Clapperboard} active={sheet === 'watch' || pathInGroup(pathname, displayGroups.watch.items)} onClick={() => setSheet(s => s === 'watch' ? null : 'watch')} />
-        <TabButton label="Play" icon={Gamepad2} active={sheet === 'play' || pathInGroup(pathname, groups.play.items)} onClick={() => setSheet(s => s === 'play' ? null : 'play')} />
-        <TabButton label="More" icon={MoreHorizontal} active={sheet === 'more' || pathname.startsWith('/settings')} onClick={() => setSheet(s => s === 'more' ? null : 'more')} />
+      {/* ── Mobile: floating tab bar ── */}
+      <nav
+        aria-label="Tabs"
+        style={{ viewTransitionName: 'tabbar' }}
+        className="md:hidden fixed inset-x-3 bottom-[calc(10px+env(safe-area-inset-bottom))] z-50 h-[64px] rounded-[32px] material"
+      >
+        <div className="relative grid h-full grid-cols-5 p-1.5">
+          {/* Sliding selection pill */}
+          {activeIndex >= 0 && (
+            <span
+              aria-hidden
+              className="absolute top-1.5 bottom-1.5 left-1.5 rounded-[26px] bg-stone-800/90 shadow-[inset_0_0.5px_0_rgb(255_255_255/0.08)]"
+              style={{
+                width: 'calc((100% - 0.75rem) / 5)',
+                translate: `calc(${activeIndex} * 100%) 0`,
+                transition: 'translate var(--spring-duration) var(--spring)',
+              }}
+            />
+          )}
+          {hubs.map((hub, i) => {
+            const on = i === activeIndex
+            const Icon = hub.icon
+            return (
+              <Link
+                key={hub.key}
+                href={hub.items[0].href}
+                onClick={e => openHub(e, hub)}
+                aria-current={on ? 'page' : undefined}
+                className={`relative z-10 flex flex-col items-center justify-center gap-0.5 rounded-[26px] transition-colors ${
+                  on ? 'text-amber-300' : 'text-stone-500 active:text-stone-300'
+                }`}
+              >
+                <Icon key={on ? 'on' : 'off'} size={21} strokeWidth={on ? 2.2 : 1.8} className={on ? 'animate-pop' : ''} fill={on && hub.key === 'us' ? 'currentColor' : 'none'} />
+                <span className="text-[10px] font-medium leading-none">{hub.label}</span>
+              </Link>
+            )
+          })}
+        </div>
       </nav>
     </>
   )

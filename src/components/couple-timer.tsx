@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -59,9 +60,11 @@ function useTimer() {
   return { since, time }
 }
 
-/* ── Mobile: fixed bottom-right, hides on scroll so it never sits over content ── */
+/* ── Mobile: a small glass pill above the tab bar on Home only; hides on
+   scroll so it never sits over content ── */
 export default function CoupleTimer() {
   const { since, time } = useTimer()
+  const pathname = usePathname()
   const [hidden, setHidden] = useState(false)
 
   useEffect(() => {
@@ -70,12 +73,12 @@ export default function CoupleTimer() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  if (!since || !time) return null
+  if (!since || !time || pathname !== '/') return null
 
   return (
-    <div className={`md:hidden fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 bg-stone-900/90 backdrop-blur border border-stone-800 rounded-xl px-3 py-2 text-right pointer-events-none select-none transition-all duration-300 ${hidden ? 'opacity-0 translate-y-3' : 'opacity-100'}`}>
-      <p className="text-stone-500 text-xs leading-none mb-1">together</p>
-      <p className="text-amber-400 text-xs font-mono leading-none">
+    <div className={`md:hidden fixed bottom-[calc(84px+env(safe-area-inset-bottom))] right-4 z-30 material rounded-full px-3.5 py-2 flex items-baseline gap-2 pointer-events-none select-none transition-all duration-300 ${hidden ? 'opacity-0 translate-y-3' : 'opacity-100'}`}>
+      <p className="text-stone-400 text-[11px] leading-none">together</p>
+      <p className="text-amber-300 text-[12px] font-semibold tabular-nums leading-none">
         {time.years > 0 && `${time.years}y `}
         {time.months > 0 && `${time.months}mo `}
         {time.days}d {pad(time.hours)}:{pad(time.minutes)}:{pad(time.seconds)}
@@ -90,9 +93,9 @@ export function SidebarTimer() {
   if (!since || !time) return null
 
   return (
-    <div className="mx-3 mb-3 bg-stone-800/50 rounded-xl px-3 py-2.5 select-none">
+    <div className="mx-1 mb-1 bg-stone-800/50 rounded-xl px-3 py-2 select-none">
       <p className="text-stone-600 text-xs leading-none mb-1">together</p>
-      <p className="text-amber-500 text-xs font-mono leading-none">
+      <p className="text-amber-400 text-xs font-semibold tabular-nums leading-none">
         {time.years > 0 && `${time.years}y `}
         {time.months > 0 && `${time.months}mo `}
         {time.days}d {pad(time.hours)}:{pad(time.minutes)}:{pad(time.seconds)}

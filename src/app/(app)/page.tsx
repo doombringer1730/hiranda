@@ -145,9 +145,16 @@ export default async function HomeHub() {
   const hasWaiting = yourTurnPrompt || journalFresh
 
   return (
-    <div className="px-4 pt-4 pb-8 max-w-2xl mx-auto">
+    <div className="px-4 pb-8 max-w-2xl mx-auto">
       {/* Greeting */}
-      <header className="mb-8 pt-2">
+      <header className="relative mb-8 pt-[calc(env(safe-area-inset-top)+20px)] md:pt-8">
+        {/* Settings lives behind your avatar, iOS-style */}
+        <Link href="/settings" aria-label="Settings" className="absolute right-0 top-[calc(env(safe-area-inset-top)+16px)] md:top-8 h-10 w-10 rounded-full overflow-hidden material flex items-center justify-center text-sm font-semibold text-amber-100">
+          {me.avatar_url
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={me.avatar_url} alt="" className="h-full w-full object-cover" />
+            : firstName.slice(0, 1).toUpperCase()}
+        </Link>
         <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em]">
           <TodayLine />
         </p>

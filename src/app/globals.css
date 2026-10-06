@@ -149,6 +149,17 @@
   --color-parchment-300: #d9ccb8;
 }
 
+/* ── Motion ── */
+/* Real spring curves (simulated, then sampled into linear()) — the bouncy
+   one overshoots ~16% like a SwiftUI .bouncy spring, the soft one ~1%. */
+:root {
+  --spring: linear(0, 0.059, 0.197, 0.377, 0.569, 0.748, 0.889, 1.009, 1.093, 1.142, 1.162, 1.16, 1.143, 1.116, 1.085, 1.054, 1.029, 1.007, 0.99, 0.98, 0.974, 0.973, 0.975, 0.979, 0.984, 0.989, 0.993, 0.997, 1, 1.003, 1.004, 1.004, 1.004, 1.004, 1.003, 1.002, 1.001, 1.001, 1, 1, 1);
+  --spring-duration: 850ms;
+  --spring-soft: linear(0, 0.03, 0.091, 0.181, 0.272, 0.366, 0.468, 0.553, 0.631, 0.708, 0.768, 0.819, 0.867, 0.901, 0.93, 0.954, 0.972, 0.985, 0.995, 1.002, 1.007, 1.01, 1.011, 1.012, 1.011, 1.011, 1.01, 1.009, 1.008, 1.007, 1.006, 1.005, 1.004, 1.003, 1.002, 1.002, 1.001, 1.001, 1.001, 1, 1);
+  --spring-soft-duration: 620ms;
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 /* ── Base ── */
 * {
   box-sizing: border-box;
@@ -218,10 +229,10 @@ body::after {
 }
 
 /* ── Tap targets ── */
-/* Touch screens only — on a mouse/trackpad this just made small links and
-   pills look stretched. */
+/* Touch screens only, and never on controls that set their own height/size
+   (round checkboxes, dots, swatches) — those were being stretched to ovals. */
 @media (pointer: coarse) {
-  button, a, input, textarea, select {
+  :is(button, a, input, textarea, select):not([class*=" h-"], [class^="h-"], [class*=" size-"], [class^="size-"], [class*="aspect-"]) {
     min-height: 44px;
   }
 }
@@ -384,4 +395,77 @@ html {
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-card-flip { animation: none; }
+}
+
+
+/* ═══════════════════════ Swifty layer ═══════════════════════ */
+
+/* Material: the frosted "thick material" used by bars and sheets. */
+.material {
+  background: color-mix(in oklab, var(--color-stone-900) 70%, transparent);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow:
+    inset 0 0.5px 0 rgb(255 255 255 / 0.08),
+    0 0 0 0.5px rgb(255 255 255 / 0.06),
+    0 16px 40px -12px rgb(0 0 0 / 0.55);
+}
+
+/* Bottom sheet: springs up, backdrop fades. */
+@keyframes sheet-up { from { translate: 0 100%; } to { translate: 0 0; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.animate-sheet { animation: sheet-up var(--spring-soft-duration) var(--spring-soft) both; }
+.animate-fade { animation: fade-in 240ms ease-out both; }
+
+/* A little pop when something becomes active (tab icons, checks). */
+@keyframes pop {
+  0% { scale: 1; }
+  35% { scale: 0.82; }
+  100% { scale: 1; }
+}
+.animate-pop { animation: pop var(--spring-duration) var(--spring) both; }
+
+/* Content that appears: rise + fade on a soft spring, staggered via --i. */
+@keyframes rise {
+  from { opacity: 0; translate: 0 10px; }
+  to   { opacity: 1; translate: 0 0; }
+}
+.animate-rise {
+  animation: rise var(--spring-soft-duration) var(--spring-soft) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* Loading skeletons. */
+@keyframes shimmer { to { background-position: -200% 0; } }
+.skeleton {
+  border-radius: 18px;
+  background: linear-gradient(90deg,
+    color-mix(in oklab, var(--color-stone-900) 90%, transparent) 25%,
+    color-mix(in oklab, var(--color-stone-800) 80%, transparent) 50%,
+    color-mix(in oklab, var(--color-stone-900) 90%, transparent) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Page transitions (React <ViewTransition>): content rises in, the old page
+   fades back. Bars carry their own view-transition-name so they stay put. */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+::view-transition-old(.page) { animation: 160ms ease-in both vt-fade-out; }
+::view-transition-new(.page) { animation: 420ms var(--ease-out-quint) 60ms both vt-rise-in; }
+@keyframes vt-fade-out { to { opacity: 0; scale: 0.985; } }
+@keyframes vt-rise-in { from { opacity: 0; translate: 0 14px; } }
+::view-transition-group(tabbar), ::view-transition-group(sidebar), ::view-transition-group(compact-title) { animation: none; z-index: 100; }
+::view-transition-old(tabbar), ::view-transition-old(sidebar), ::view-transition-old(compact-title) { display: none; }
+::view-transition-new(tabbar), ::view-transition-new(sidebar), ::view-transition-new(compact-title) { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet, .animate-fade, .animate-pop, .animate-rise { animation: none; }
+  .skeleton { animation: none; }
+  ::view-transition-old(.page), ::view-transition-new(.page) { animation: none; }
+}
+
+/* Touch screens have no hover, so hover-revealed controls (delete buttons,
+   photo tools) were unreachable on phones. Show them there. */
+@media (hover: none) {
+  .group-hover\:opacity-100 { opacity: 1; }
 }

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Check, X, Loader2, Trash2, Plus, Sparkles } from 'lucide-react'
 import { createTrivia, guessTrivia, deleteTrivia } from './actions'
+import { haptic, celebrate } from '@/lib/feel'
 
 export type Trivia = {
   id: string
@@ -60,8 +61,12 @@ export default function TriviaClient({ myId, partnerName, questions }: {
 
   function guess(q: Trivia, i: number) {
     startTransition(async () => {
+      haptic()
       const res = await guessTrivia(q.id, i)
-      if ('correct' in res && res.correct !== undefined) setResults(r => ({ ...r, [q.id]: { guess: i, correct: res.correct! } }))
+      if ('correct' in res && res.correct !== undefined) {
+        if (res.correct) celebrate()
+        setResults(r => ({ ...r, [q.id]: { guess: i, correct: res.correct! } }))
+      }
     })
   }
 

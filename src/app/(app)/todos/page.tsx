@@ -3,6 +3,7 @@ import { getProfileMap } from '@/lib/profiles'
 import { addTodo, toggleTodo, deleteTodo } from './actions'
 import { Plus, Trash2, ClipboardList } from 'lucide-react'
 import PageHeader from '@/components/page-header'
+import CheckButton from '@/components/check-button'
 
 export default async function TodosPage() {
   const supabase = await createClient()
@@ -65,14 +66,7 @@ function TodoRow({ todo, name }: { todo: { id: string; text: string; completed: 
   return (
     <div className="flex items-center gap-3 bg-stone-900/80 border border-stone-800/80 rounded-xl px-4 py-3 group card-glow">
       <form action={toggleTodo.bind(null, todo.id, !todo.completed)}>
-        <button
-          type="submit"
-          className={`w-5 h-5 rounded-full border-2 flex-shrink-0 transition-colors ${
-            todo.completed
-              ? 'bg-amber-700 border-amber-700'
-              : 'border-stone-600 hover:border-amber-600'
-          }`}
-        />
+        <CheckButton done={todo.completed} label={todo.text} />
       </form>
       <span className={`flex-1 text-sm ${todo.completed ? 'line-through text-stone-600' : 'text-amber-50'}`}>
         {todo.text}

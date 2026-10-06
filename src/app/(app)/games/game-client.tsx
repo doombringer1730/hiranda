@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from 'react'
 import { submitResponse, getNextPrompt, getPromptState } from './actions'
 import { Loader2 } from 'lucide-react'
+import { haptic, celebrate } from '@/lib/feel'
 
 type PromptType = 'question' | 'would_you_rather' | 'this_or_that' | 'most_likely'
 
@@ -83,9 +84,11 @@ export default function GameClient({ tabs, partnerName, myId, partnerId }: Props
 
   function pick(value: string) {
     if (!current) return
+    haptic()
     handleAnswer(value)
     startTransition(async () => {
       await submitResponse(current.prompt.id, value)
+      if (current.partnerResponse === value) celebrate()
       setStates(prev => ({
         ...prev,
         [activeTab]: { ...current, myResponse: value }
@@ -114,6 +117,7 @@ export default function GameClient({ tabs, partnerName, myId, partnerId }: Props
     const interval = setInterval(async () => {
       const fresh = await getPromptState(promptId)
       if (fresh?.partnerResponse) {
+        if (fresh.myResponse === fresh.partnerResponse && fresh.prompt.type !== 'question') celebrate()
         setStates(prev => ({ ...prev, [type]: fresh }))
       }
     }, 3000)

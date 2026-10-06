@@ -3,6 +3,7 @@ import { getProfileMap } from '@/lib/profiles'
 import { addBucketItem, completeBucketItem, deleteBucketItem } from './actions'
 import { Plus, Trash2, Star, CheckCircle2 } from 'lucide-react'
 import PageHeader from '@/components/page-header'
+import CheckButton from '@/components/check-button'
 
 const CATEGORIES = ['travel', 'food', 'experience', 'other'] as const
 type Category = typeof CATEGORIES[number]
@@ -94,12 +95,10 @@ function BucketRow({ item, done = false, name }: { item: { id: string; title: st
     <div className="flex items-center gap-3 bg-stone-900/80 border border-stone-800/80 rounded-xl px-4 py-3.5 group card-glow">
       {!done ? (
         <form action={completeBucketItem.bind(null, item.id)}>
-          <button type="submit" className="text-stone-600 hover:text-amber-400 transition-colors flex-shrink-0">
-            <CheckCircle2 size={22} />
-          </button>
+          <CheckButton done={false} label={item.title} />
         </form>
       ) : (
-        <CheckCircle2 size={22} className="text-amber-700 flex-shrink-0" />
+        <span className="h-6 w-6 shrink-0 rounded-full bg-amber-700/70 flex items-center justify-center text-amber-50"><CheckCircle2 size={16} /></span>
       )}
       <span className={`flex-1 text-sm ${done ? 'line-through text-stone-600' : 'text-amber-50'}`}>
         {item.title}
