@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/theater/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import WatchPlayer from './watch-player'
 import { deleteWatchSession } from '../actions'

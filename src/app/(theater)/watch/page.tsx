@@ -5,7 +5,7 @@ import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal,
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, Library, Search, MoreHorizontal, Trash2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/theater/supabase/client'
 import JellyfinBrowser, { JellyfinNotConfigured } from './jellyfin-browser'
 import RealDebridBrowser, { RealDebridNotConfigured } from './real-debrid-browser'
 

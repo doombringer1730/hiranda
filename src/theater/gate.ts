@@ -1,7 +1,7 @@
 import 'server-only'
 import { createHash } from 'crypto'
 import { cookies } from 'next/headers'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/theater/supabase/server'
 
 // The Theater (watch/sync + streaming sources) is hidden behind a shared
 // passcode. Unlock is a session cookie whose value must equal the stored hash,

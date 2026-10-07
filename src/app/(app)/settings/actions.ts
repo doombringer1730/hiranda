@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import { hashPasscode, THEATER_COOKIE } from '@/lib/theater'
+import { hashPasscode, THEATER_COOKIE } from '@/theater/public'
 
 // ── Theater passcode gate ──
 export async function setTheaterPasscode(passcode: string): Promise<{ error?: string }> {

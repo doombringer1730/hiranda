@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getTheaterState } from '@/lib/theater'
+import { getTheaterState } from '@/theater/gate'
 
 // Gate the whole Theater (watch/sync + streaming sources) behind the passcode.
 // Locked → bounce to Settings, where you set/enter the passcode.
