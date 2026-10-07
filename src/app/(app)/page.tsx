@@ -10,6 +10,7 @@ import { CountUp, ThinkingOfYou } from './home-tiles'
 import { GAMES, type Kind } from './games/board/engine'
 import DailyQuestion from './daily-question'
 import TalkTime from './talk-time'
+import { awardMilestones } from './grow/actions'
 import { Greeting, TodayLine } from './greeting'
 import { InstallCard, NotificationCard } from '@/components/pwa'
 import { Polaroid, Scribble } from '@/components/handmade'
@@ -73,6 +74,9 @@ export default async function HomeHub() {
     ? couple.user1_id === user.id ? couple.user2_id : couple.user1_id
     : null
 
+  // New passport stamps (and their coupons) appear as soon as they're earned.
+  if (partnerId) await awardMilestones()
+
   const since = new Date(Date.now() - 45 * 86_400_000).toISOString()
 
   const [
@@ -116,7 +120,7 @@ export default async function HomeHub() {
     supabase.from('study_attempts').select('user_id, created_at').gte('created_at', since),
     supabase.from('prompt_responses').select('user_id, responded_at').gte('responded_at', since),
     // redeemed ("activated") coupons — someone's cashing them in
-    supabase.from('coupons').select('id, title, emoji, bought_by, redeemed_at').eq('redeemed', true).order('redeemed_at', { ascending: false }).limit(6),
+    supabase.from('coupons').select('id, title, emoji, bought_by, redeemed, revealed_at, done_at').or('redeemed.eq.false,done_at.is.null').order('created_at', { ascending: false }).limit(20),
     // live games where it's my move
     supabase.from('board_games').select('id, kind').eq('status', 'active').eq('turn', user.id),
     partnerId
@@ -211,8 +215,12 @@ export default async function HomeHub() {
   if (yourTurnPrompt && yourTurn) waiting.push({ href: `/games/questions?p=${yourTurn.prompt_id}`, icon: MessageCircleQuestion, title: `${partnerFirst} answered — your turn`, sub: `“${yourTurnPrompt.text}”` })
   if (triviaWaiting) waiting.push({ href: '/games/trivia', icon: Brain, title: `${triviaWaiting} trivia question${triviaWaiting === 1 ? '' : 's'} about ${partnerFirst}` })
   if (journalFresh && latestJournal) waiting.push({ href: `/journal/${latestJournal.id}`, icon: PenLine, title: `${partnerFirst} wrote in the journal`, sub: latestJournal.title || 'Untitled entry' })
-  for (const c of (activeCoupons ?? []) as { id: string; title: string; emoji: string | null; bought_by: string }[]) {
-    waiting.push({ href: '/study/shop', icon: Gift, title: `${c.emoji ?? '🎁'} ${c.title}`, sub: c.bought_by === user.id ? `${partnerFirst} owes you` : 'you owe this one!' })
+  type HomeCoupon = { id: string; title: string; emoji: string | null; bought_by: string; redeemed: boolean; revealed_at: string | null; done_at: string | null }
+  const cps = (activeCoupons ?? []) as HomeCoupon[]
+  const unrevealed = cps.filter(c => c.bought_by === user.id && !c.redeemed && !c.revealed_at).length
+  if (unrevealed) waiting.push({ href: '/grow/coupons', icon: Gift, title: `${unrevealed} new coupon${unrevealed === 1 ? '' : 's'} to reveal ✨`, sub: 'earned together' })
+  for (const c of cps.filter(c => c.bought_by === partnerId && c.redeemed && !c.done_at)) {
+    waiting.push({ href: '/grow/coupons', icon: Gift, title: `${c.emoji ?? '🎁'} ${c.title}`, sub: `${partnerFirst} is using this one on you` })
   }
 
   const lastLove = ((partnerLove ?? []) as { created_at: string }[])[0]?.created_at ?? null
@@ -324,9 +332,9 @@ export default async function HomeHub() {
           </div>
 
           {couple && (
-            <div className="animate-rise" style={{ '--i': 4 } as React.CSSProperties}>
+            <Link href="/grow" className="block animate-rise" style={{ '--i': 4 } as React.CSSProperties}>
               <FlameTile streak={streak} fedToday={fedToday} partnerMissing={!partnerId} />
-            </div>
+            </Link>
           )}
 
           {/* Continue watching (Theater link only — the watch page is untouched) */}

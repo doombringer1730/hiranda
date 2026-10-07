@@ -558,6 +558,29 @@ html {
 .animate-flap { animation: flap-open 0.5s var(--ease-out-quint) both; transform-origin: top; }
 .animate-letter { animation: letter-rise 0.7s var(--spring-soft) 0.35s both; }
 
+/* "Start here" bubble on the path bobs gently. */
+@keyframes bounce-soft { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+.animate-bounce-soft { animation: bounce-soft 1.6s ease-in-out infinite; }
+
+/* Coupons: rarity finishes. Legendary has a slow foil shimmer. */
+.coupon-common { background: #fbf7ef; color: #2b2620; }
+.coupon-gift { background: #fdf0f3; color: #3a2028; }
+.coupon-rare { background: linear-gradient(135deg, #dfeafb, #b8cff2 55%, #e6effc); color: #13253f; }
+.coupon-legendary {
+  background: linear-gradient(110deg, #f6e3a8 0%, #e8c25d 30%, #fff3c4 45%, #e3b445 60%, #f6e3a8 100%);
+  background-size: 250% 100%;
+  color: #3b2a05;
+  animation: foil 4s linear infinite;
+}
+@keyframes foil { to { background-position: -250% 0; } }
+/* A scratch-off cover over a coupon you haven't revealed yet. */
+.scratch {
+  background: repeating-linear-gradient(45deg, #b8b1a6 0 6px, #c9c2b7 6px 12px);
+  color: #3a332b;
+}
+@keyframes peel { to { transform: perspective(600px) rotateX(-95deg); opacity: 0; } }
+.animate-peel { animation: peel 0.55s var(--ease-out-quint) forwards; transform-origin: top; }
+
 /* Chat bubbles arrive on a soft spring. */
 @keyframes bubble-in {
   from { opacity: 0; translate: 0 8px; scale: 0.96; }
@@ -589,7 +612,7 @@ html {
 ::view-transition-new(tabbar), ::view-transition-new(sidebar), ::view-transition-new(compact-title) { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-sheet, .animate-fade, .animate-pop, .animate-rise, .animate-bubble, .animate-jar-shake, .animate-flap, .animate-letter { animation: none; }
+  .animate-sheet, .animate-fade, .animate-pop, .animate-rise, .animate-bubble, .animate-jar-shake, .animate-flap, .animate-letter, .animate-bounce-soft, .coupon-legendary, .animate-peel { animation: none; }
   .skeleton { animation: none; }
   ::view-transition-old(.page), ::view-transition-new(.page) { animation: none; }
 }
