@@ -33,15 +33,20 @@ export type Product = {
   delivery?: string
 }
 
-export type Category = 'cuddly' | 'jewelry' | 'cozy' | 'gift' | 'keepsake'
+export type Category = 'her' | 'him' | 'cuddly' | 'jewelry' | 'cozy' | 'gift' | 'keepsake'
 
 /** Where a gift ships from, as shoppers see it: printed or stocked in the US,
  *  or sent internationally (slower, more choice). */
 export const shipsFrom = (p: Pick<Product, 'vendor'>): 'US' | 'International' =>
   p.vendor?.name === 'cj' && p.vendor.from === 'CN' ? 'International' : 'US'
 
+/** The partner shop that makes it, if any — credited on the product. */
+export const madeBy = (p: Pick<Product, 'vendor'>) => p.vendor?.name === 'partner' ? p.vendor.partner : null
+
 /** Store sections, in order. */
 export const CATEGORIES: { key: Category; title: string }[] = [
+  { key: 'her', title: 'For her' },
+  { key: 'him', title: 'For him' },
   { key: 'gift', title: 'Little gifts' },
   { key: 'cuddly', title: 'Something to hug' },
   { key: 'jewelry', title: 'To wear and think of you' },
@@ -99,6 +104,50 @@ export const PRODUCTS: Product[] = [
     category: 'keepsake',
     fineprint: 'Printed with both your first names and the year you got together.',
     vendor: { name: 'printful', variantId: 1349, placement: 'default', art: { w: 3600, h: 4800 } },
+  },
+  {
+    key: 'framed',
+    title: 'Our names, framed',
+    blurb: 'A 12″×16″ museum-matte print in a black wooden frame, ready to hang.',
+    emoji: '🖼️',
+    priceCents: 7900, // ≈ $32 + ~$11 shipping
+    ships: true,
+    category: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 1350, placement: 'default', art: { w: 3600, h: 4800 } },
+  },
+  {
+    key: 'canvas',
+    title: 'Our names on canvas',
+    blurb: 'A gallery-wrapped 11″×14″ canvas for the wall you share — or will.',
+    emoji: '🖼️',
+    priceCents: 5900, // ≈ $17 + ~$10 shipping
+    ships: true,
+    category: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 19298, placement: 'default', art: { w: 5100, h: 4200 } },
+  },
+  {
+    key: 'pillow',
+    title: 'Our pillow',
+    blurb: 'A soft 18″×18″ premium pillow with your names, stuffing included.',
+    emoji: '🛏️',
+    priceCents: 5900, // ≈ $19 + ~$11 shipping
+    ships: true,
+    category: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 9515, placement: 'front', art: { w: 2850, h: 2850 } },
+  },
+  {
+    key: 'ornament',
+    title: 'Our heart ornament',
+    blurb: 'A glossy ceramic heart with your names, to hang somewhere you’ll see it.',
+    emoji: '🤍',
+    priceCents: 2900, // ≈ $8 + ~$6 shipping
+    ships: true,
+    category: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 23144, placement: 'front', art: { w: 978, h: 972 } },
   },
 ]
 

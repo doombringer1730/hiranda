@@ -10,7 +10,7 @@ import { deliveryText, suggestPrice, tidyTitle } from '@/lib/store/pricing'
 import { isStoreAdmin } from '@/lib/store/server'
 import { VENDORS } from '@/lib/store/vendors'
 import { cjPopular, cjQuote, cjVariants } from '@/lib/store/vendors/cj'
-import { AddForm, ProductRow } from './catalog-client'
+import { AddForm, PartnerForm, ProductRow } from './catalog-client'
 
 export const metadata = { title: 'Catalog' }
 
@@ -54,6 +54,14 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
             }} />
           ))}
         </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-stone-400 text-[11px] uppercase tracking-[0.22em] mb-3">Add a partner’s product</h2>
+        <details className="tile p-4">
+          <summary className="cursor-pointer text-sm text-stone-200 min-h-11 flex items-center">A shop you work with (Etsy and others) — they make and ship it</summary>
+          <div className="mt-3"><PartnerForm categories={CATEGORIES.map(c => ({ key: c.key, title: c.title }))} /></div>
+        </details>
       </section>
 
       <section className="mt-10">

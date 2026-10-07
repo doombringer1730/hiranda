@@ -50,10 +50,12 @@ export default async function StoreAdminPage() {
         {orders?.map(o => {
           const a = addressOf.get(o.recipient_id)
           const supplier = suppliers.get(o.id)
+          const item = product(o.product_key)
+          const partner = item?.vendor?.name === 'partner' ? item.vendor : null
           return (
             <div key={o.id} className="rounded-2xl border border-stone-800 bg-stone-900/60 p-4 flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <ProductThumb product={product(o.product_key)} />
+                <ProductThumb product={item} />
                 <div className="flex-1 min-w-0">
                   <p className="text-stone-100 font-medium">{o.title}</p>
                   <p className="text-stone-500 text-xs">{new Date(o.created_at).toLocaleString()} · {formatPrice(o.amount_cents)} · {o.status}</p>
@@ -62,6 +64,12 @@ export default async function StoreAdminPage() {
               {supplier && (
                 <p className="text-xs text-stone-400">
                   {o.vendor_order_id ? <>Sent to <span className="text-stone-200">{supplier.label}</span> · {o.vendor_order_id}</> : <>Made by <span className="text-stone-200">{supplier.label}</span> · not sent yet</>}
+                </p>
+              )}
+              {partner && (
+                <p className="text-xs text-stone-400">
+                  Made by <span className="text-stone-200">{partner.partner}</span> — place the order with them, using the address below.
+                  {partner.url && <> <a href={partner.url} target="_blank" rel="noopener noreferrer" className="text-amber-400 underline underline-offset-2">Order it there ↗</a></>}
                 </p>
               )}
               {o.vendor_error && <p className="rounded-xl border border-red-900/50 bg-red-950/30 px-3 py-2 text-xs text-red-300">{o.vendor_error}</p>}

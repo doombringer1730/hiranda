@@ -31,7 +31,7 @@ export default function PrivacyPage() {
         <li><b>Your browser’s push service</b> (Apple, Google or Mozilla) — delivers notifications you opt into.</li>
         <li><b>Google</b> — only if you choose “Continue with Google”.</li>
         <li><b>Spotify</b>, <b>TMDB</b>, the <b>Internet Archive</b> and <b>YouTube</b> — only for features that use them; we send them the minimum needed (for example, a title to look up).</li>
-        <li><b>Gelato</b>, <b>Printful</b>, <b>Printify</b>, <b>CJ Dropshipping</b> and <b>Goody</b> — make and deliver Hiranda Store gifts, using only what’s needed to ship each one.</li>
+        <li><b>Gelato</b>, <b>Printful</b>, <b>Printify</b>, <b>CJ Dropshipping</b>, <b>Goody</b> and the partner shops named on a gift — make and deliver Hiranda Store gifts, using only what’s needed to ship each one.</li>
         <li><b>Stripe</b> — payments for gifts and, on the web, Hiranda Plus. <b>Apple</b> and <b>RevenueCat</b> — Hiranda Plus bought in the iPhone app.</li>
       </ul>
 

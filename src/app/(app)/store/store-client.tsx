@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, X } from 'lucide-react'
-import { formatPrice, type Product } from '@/lib/store/catalog'
+import { formatPrice, madeBy, type Product } from '@/lib/store/catalog'
 import { hasPlugin, isNativeApp } from '@/lib/native'
 import { haptic, toast } from '@/lib/feel'
 import { askForAddress, startGift } from './actions'
@@ -37,6 +37,7 @@ export function GiftCard({ product, origin, partner, canSend }: { product: Produ
         </span>
         <span className="px-1.5 pt-2.5 pb-1.5 flex flex-col gap-1 flex-1">
           <span className="text-[15px] leading-snug text-amber-50 font-medium line-clamp-2">{product.title}</span>
+          {madeBy(product) && <span className="text-[11px] text-stone-400 truncate">by {madeBy(product)}</span>}
           <span className="mt-auto text-amber-200 text-sm">{formatPrice(product.priceCents)}</span>
         </span>
       </button>
@@ -87,6 +88,7 @@ function SendSheet({ product, origin, partner, canSend, onClose }: { product: Pr
           ? <img src={product.image} alt="" className="w-full aspect-[4/3] rounded-[20px] object-cover bg-stone-800" />
           : <div className="paper grid w-full aspect-[16/9] place-items-center rounded-[20px] text-7xl" aria-hidden="true">{product.emoji}</div>}
         <h3 className="font-serif text-[28px] leading-tight text-amber-50 mt-4">{product.title}</h3>
+        {madeBy(product) && <p className="text-stone-400 text-sm">Made by {madeBy(product)}</p>}
         {product.blurb && <p className="text-stone-400 text-sm mt-1">{product.blurb}</p>}
         <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-400">
           <span className="text-amber-200 text-sm font-medium">{formatPrice(product.priceCents)}</span>
