@@ -18,7 +18,7 @@ export default async function OrdersPage() {
   const ctx = await coupleContext()
   if (!ctx) redirect('/')
   const { data: orders } = await ctx.supabase.from('store_orders')
-    .select('id, product_key, title, note, amount_cents, status, tracking_url, created_at, option')
+    .select('id, product_key, title, note, amount_cents, status, tracking_url, created_at')
     .eq('sender_id', ctx.user.id).neq('status', 'pending').order('created_at', { ascending: false }).limit(50)
   const product = await productLookup()
 
@@ -31,7 +31,7 @@ export default async function OrdersPage() {
           <div key={o.id} className="flex items-center gap-3 rounded-2xl border border-stone-800 bg-stone-900/60 p-4">
             <ProductThumb product={product(o.product_key)} />
             <div className="flex-1 min-w-0">
-              <p className="text-stone-100 text-sm font-medium truncate">{o.title}{o.option ? ` · ${o.option}` : ''}</p>
+              <p className="text-stone-100 text-sm font-medium truncate">{o.title}</p>
               <p className="text-stone-500 text-xs">{new Date(o.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {formatPrice(o.amount_cents)}</p>
             </div>
             <div className="text-right">

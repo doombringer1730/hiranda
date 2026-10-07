@@ -17,10 +17,11 @@ export const metadata = { title: 'Hiranda Store' }
 export default async function StorePage() {
   const ctx = await coupleContext()
   if (!ctx) redirect('/')
-  const [people, { data: partnerReady }, { data: mine }] = await Promise.all([
+  const [people, { data: partnerReady }, { data: mine }, { data: partnerSizes }] = await Promise.all([
     getPeople(),
     ctx.supabase.rpc('partner_has_gift_address'),
     ctx.supabase.from('store_addresses').select('user_id').eq('user_id', ctx.user.id).maybeSingle(),
+    ctx.supabase.rpc('partner_size_kinds'),
   ])
   const partner = people.get(ctx.partnerId)?.first ?? 'your partner'
   const products = await storeProducts()
@@ -74,7 +75,7 @@ export default async function StorePage() {
           <h2 className="font-serif text-[26px] leading-tight text-amber-50 mb-3">{g.title}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {g.items.map(p => (
-              <GiftCard key={p.key} product={p} origin={shipsFrom(p)} partner={partner} canSend={open && !!partnerReady} />
+              <GiftCard key={p.key} product={p} origin={shipsFrom(p)} partner={partner} canSend={open && !!partnerReady} partnerSizes={(partnerSizes as string[] | null) ?? []} />
             ))}
           </div>
         </section>
@@ -101,7 +102,7 @@ export default async function StorePage() {
       <div className="mt-10 grid grid-cols-2 gap-3">
         <Link href="/store/address" className="tile active:scale-[0.98] transition-transform flex items-center gap-3 p-4 min-h-16">
           <MapPin size={20} className="text-amber-400 shrink-0" />
-          <span className="text-sm text-stone-200">{mine ? 'Your delivery address' : 'Add your address'}</span>
+          <span className="text-sm text-stone-200">{mine ? 'Your address & sizes' : 'Add your address'}</span>
         </Link>
         <Link href="/store/orders" className="tile active:scale-[0.98] transition-transform flex items-center gap-3 p-4 min-h-16">
           <Package size={20} className="text-amber-400 shrink-0" />

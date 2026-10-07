@@ -37,7 +37,17 @@ export type Product = {
 
 /** e.g. { name: 'Size', values: [{ label: 'M', vid: '…' }] } — `vid` picks the
  *  exact CJ variant; for partners the label is passed on with the order. */
-export type ProductOptions = { name: string; values: { label: string; vid?: string }[] }
+export type ProductOptions = { name: string; kind?: SizeKind; values: { label: string; vid?: string }[] }
+
+/** Which of the recipient's saved sizes a product uses (default 'top'). */
+export type SizeKind = 'top' | 'bottom' | 'shoe'
+export const SIZE_KINDS: { key: SizeKind; label: string; choices: string[] }[] = [
+  { key: 'top', label: 'Tops & sets', choices: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'] },
+  { key: 'bottom', label: 'Bottoms', choices: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'] },
+  { key: 'shoe', label: 'Shoes (US)', choices: ['5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13'] },
+]
+/** "2XL" and "XXL" are the same size. */
+export const sameSize = (a: string, b: string) => a.toUpperCase().replace(/^2XL$/, 'XXL') === b.toUpperCase().replace(/^2XL$/, 'XXL')
 
 export type Category = 'her' | 'him' | 'cuddly' | 'jewelry' | 'cozy' | 'gift' | 'keepsake'
 
