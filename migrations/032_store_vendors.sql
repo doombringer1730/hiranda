@@ -9,8 +9,10 @@
 --
 -- Safe to re-run.
 
-alter table store_orders add column if not exists vendor text
-  check (vendor in ('gelato', 'cj', 'goody'));
+alter table store_orders add column if not exists vendor text;
+alter table store_orders drop constraint if exists store_orders_vendor_check;
+alter table store_orders add constraint store_orders_vendor_check
+  check (vendor in ('gelato', 'printful', 'printify', 'cj', 'goody'));
 alter table store_orders add column if not exists vendor_order_id text
   check (char_length(vendor_order_id) <= 120);
 alter table store_orders add column if not exists vendor_error text

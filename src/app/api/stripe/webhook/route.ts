@@ -1,5 +1,7 @@
+import { after } from 'next/server'
 import type Stripe from 'stripe'
 import { getStripe, recordStripeSubscription } from '@/lib/billing'
+import { fulfilOrder } from '@/lib/store/fulfil'
 import { markGiftPaid } from '@/lib/store/server'
 
 // Stripe → Hiranda Plus and Store gifts. Configure in Stripe → Developers → Webhooks with
@@ -29,7 +31,9 @@ export async function POST(request: Request) {
       const session = event.data.object as Stripe.Checkout.Session
       // A Store gift (one-time payment).
       if (session.mode === 'payment' && session.metadata?.order_id && session.payment_status === 'paid') {
-        await markGiftPaid(session.metadata.order_id, session.id)
+        const orderId = session.metadata.order_id
+        // Then hand it to its supplier, after Stripe has its answer.
+        if (await markGiftPaid(orderId, session.id)) after(() => fulfilOrder(orderId).catch(() => {}))
       }
       if (session.subscription) {
         const id = typeof session.subscription === 'string' ? session.subscription : session.subscription.id

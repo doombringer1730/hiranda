@@ -21,14 +21,15 @@ async function firstName(db: ReturnType<typeof createAdminClient>, id: string) {
   return data?.display_name?.split(' ')[0] || 'Your partner'
 }
 
-// Stripe says a gift was paid for: move it on and tell both ends.
-export async function markGiftPaid(orderId: string, sessionId: string) {
+// Stripe says a gift was paid for: move it on and tell both ends. True the
+// first time (so the caller hands it to the supplier once).
+export async function markGiftPaid(orderId: string, sessionId: string): Promise<boolean> {
   const db = createAdminClient()
   const { data: order } = await db.from('store_orders')
     .update({ status: 'paid', updated_at: new Date().toISOString() })
     .eq('id', orderId).eq('stripe_session_id', sessionId).eq('status', 'pending')
     .select('id, sender_id, recipient_id, title').maybeSingle()
-  if (!order) return // already handled, or not ours
+  if (!order) return false // already handled, or not ours
 
   const from = await firstName(db, order.sender_id)
   await notifyUser(order.recipient_id, {
@@ -39,13 +40,18 @@ export async function markGiftPaid(orderId: string, sessionId: string) {
   })
 
   // Let the shop owners know there's an order to fulfil.
+  await notifyAdmins('New Hiranda Store order', order.title)
+  return true
+}
+
+/** Push a note to everyone in STORE_ADMIN_EMAILS. */
+export async function notifyAdmins(title: string, body: string) {
   const admins = (process.env.STORE_ADMIN_EMAILS ?? '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
-  if (admins.length) {
-    const { data } = await db.auth.admin.listUsers({ perPage: 1000 })
-    for (const u of data?.users ?? []) {
-      if (u.email && admins.includes(u.email.toLowerCase())) {
-        await notifyUser(u.id, { title: 'New Hiranda Store order', body: order.title, url: '/store/admin', tag: 'store-admin' })
-      }
+  if (!admins.length) return
+  const { data } = await createAdminClient().auth.admin.listUsers({ perPage: 1000 })
+  for (const u of data?.users ?? []) {
+    if (u.email && admins.includes(u.email.toLowerCase())) {
+      await notifyUser(u.id, { title, body, url: '/store/admin', tag: 'store-admin' })
     }
   }
 }

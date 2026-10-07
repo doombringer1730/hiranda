@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Fonts read at runtime by the gift-card print files.
+  outputFileTracingIncludes: {
+    '/api/store/print/*': ['./assets/fonts/**/*'],
+  },
   async headers() {
     return [
       {

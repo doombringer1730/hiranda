@@ -1,12 +1,16 @@
 // The Hiranda Store catalog — edit freely.
 //
-// 'made' gifts are sold by Hiranda through Stripe and fulfilled by you (or,
-// later, a print/gift partner): you see paid orders at /store/admin with the
-// recipient's address, ship them, and add tracking. Prices are in cents, USD.
+// Gifts are sold by Hiranda through Stripe. A gift with a `vendor` is sent to
+// that supplier automatically once paid (see lib/store/fulfil.ts); find the
+// ids to paste here at /store/admin/suppliers. A gift without one — or whose
+// ids are still empty — shows up in /store/admin for you to ship by hand.
+// Prices are in cents, USD. Keep each price above the supplier's cost plus
+// shipping plus Stripe's fee (~3%).
 // 'partner' gifts are affiliate links to other shops (no payment here).
 //
-// Nothing can be bought until STORE_ENABLED=1 and Stripe is configured, so
-// set up your suppliers first.
+// Nothing can be bought until STORE_ENABLED=1 and Stripe is configured.
+
+import type { VendorSpec } from './vendors/types'
 
 export type Product = {
   key: string
@@ -18,17 +22,21 @@ export type Product = {
   ships: true
   /** Shown to the buyer before paying. */
   fineprint?: string
+  /** Who makes and ships it. Omit to ship it yourself. */
+  vendor?: VendorSpec
 }
 
 export const PRODUCTS: Product[] = [
   {
     key: 'letter',
-    title: 'A real letter in the mail',
-    blurb: 'Write it here — we print it on thick cream paper, seal it, and mail it.',
+    title: 'A card in the mail',
+    blurb: 'Write it here — we print it in handwriting on a thick A5 card and mail it.',
     emoji: '💌',
-    priceCents: 600,
+    priceCents: 900,
     ships: true,
-    fineprint: 'Hiranda prints your note to mail it, so we’ll see the words.',
+    fineprint: 'Our print partner prints your note, so they’ll see the words.',
+    // A5 flat card, 350 gsm silk, printed both sides (front: "for <name>", back: your note).
+    vendor: { name: 'gelato', productUid: 'cards_pf_a5_pt_350-gsm-coated-silk_cl_4-4_ver' },
   },
   {
     key: 'rose',
@@ -45,6 +53,8 @@ export const PRODUCTS: Product[] = [
     emoji: '🍫',
     priceCents: 2400,
     ships: true,
+    // Pick a product at /store/admin/suppliers → Goody, paste its id here.
+    vendor: { name: 'goody', productId: '' },
   },
   {
     key: 'care',
@@ -53,7 +63,21 @@ export const PRODUCTS: Product[] = [
     emoji: '🧸',
     priceCents: 3800,
     ships: true,
+    // Pick items from CJ's US warehouse at /store/admin/suppliers → CJ,
+    // e.g. [{ vid: '…candle…', quantity: 1 }, { vid: '…socks…', quantity: 1 }].
+    vendor: { name: 'cj', items: [] },
   },
+  // Ready when you are — a blanket with your names (Printful, 50×60 sherpa).
+  // Check Printful's price for variant 17482 first; keep ours well above it.
+  // {
+  //   key: 'blanket',
+  //   title: 'Our blanket',
+  //   blurb: 'A soft sherpa throw with your two names on it, for movie nights apart.',
+  //   emoji: '🛋️',
+  //   priceCents: 8900,
+  //   ships: true,
+  //   vendor: { name: 'printful', variantId: 17482, placement: 'default', art: { w: 7500, h: 9000 } },
+  // },
 ]
 
 export const productByKey = (key: string) => PRODUCTS.find(p => p.key === key) ?? null
