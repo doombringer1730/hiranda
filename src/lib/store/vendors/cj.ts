@@ -4,7 +4,8 @@ import { fetchJson } from './contact'
 import { VendorError, type Vendor, type VendorState } from './types'
 
 // CJ Dropshipping — gift items shipped from CJ's US warehouse (a few days)
-// or from China (about 1–2 weeks to the US; far more to choose from).
+// or internationally from its main warehouses (about 1–2 weeks; far more
+// to choose from).
 // Docs: https://developers.cjdropshipping.com/en/api/introduction.html
 // Env: CJ_API_KEY (My CJ → Authorization → API → API Key). Orders are paid
 // from your CJ wallet, so keep it topped up. CJ_TEST=1 places sandbox orders
@@ -67,7 +68,7 @@ export const cjDropshipping: Vendor = {
       startCountryCode: from, endCountryCode: to.country, zip: to.postalCode, products,
     })
     const cheapest = pickShipping(options ?? [])
-    if (!cheapest) throw new VendorError(`CJ can’t ship these items from ${from === 'US' ? 'its US warehouse' : 'China'} right now`)
+    if (!cheapest) throw new VendorError(`CJ can’t ship these items ${from === 'US' ? 'from its US warehouse' : 'internationally'} right now`)
 
     const data = await cj<{ orderId?: string }>('order', '/shopping/order/createOrderV2', {
       orderNumber: order.id,

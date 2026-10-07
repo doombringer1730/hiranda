@@ -49,7 +49,7 @@ const SETUP: Record<string, { env: string[]; steps: string[] }> = {
       'Sign up at cjdropshipping.com (free).',
       'Apps → install “API”, then API → Add API → API Key → copy it into CJ_API_KEY.',
       'Top up your CJ wallet — orders are paid from it. CJ suspends API access after 30 days with no orders.',
-      'Then open Catalog to add popular gifts — from the US warehouse or China.',
+      'Then open Catalog to add popular gifts — shipped from the US or internationally.',
     ],
   },
   goody: {

@@ -35,6 +35,11 @@ export type Product = {
 
 export type Category = 'cuddly' | 'jewelry' | 'cozy' | 'gift' | 'keepsake'
 
+/** Where a gift ships from, as shoppers see it: printed or stocked in the US,
+ *  or sent internationally (slower, more choice). */
+export const shipsFrom = (p: Pick<Product, 'vendor'>): 'US' | 'International' =>
+  p.vendor?.name === 'cj' && p.vendor.from === 'CN' ? 'International' : 'US'
+
 /** Store sections, in order. */
 export const CATEGORIES: { key: Category; title: string }[] = [
   { key: 'gift', title: 'Little gifts' },
@@ -82,8 +87,8 @@ export const PRODUCTS: Product[] = [
     priceCents: 3800,
     ships: true,
     category: 'cozy',
-    // Pick items from CJ's US warehouse at /store/admin/suppliers → CJ,
-    // e.g. [{ vid: '…candle…', quantity: 1 }, { vid: '…socks…', quantity: 1 }].
+    // Pick items in /store/admin/catalog, e.g.
+    // [{ vid: '…candle…', quantity: 1 }, { vid: '…socks…', quantity: 1 }].
     vendor: { name: 'cj', items: [] },
   },
   // Keepsakes — printed by Printful with both your first names and the year

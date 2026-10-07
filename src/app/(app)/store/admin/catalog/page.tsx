@@ -75,7 +75,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           </form>
           {q && !pid && (
             <div className="mt-3 flex gap-2 text-xs">
-              {[['popular', 'Popular'], ['new', 'New this month'], ['us', 'US warehouse']].map(([v, l]) => (
+              {[['popular', 'Popular'], ['new', 'New this month'], ['us', 'Ships from the US']].map(([v, l]) => (
                 <Link key={v} href={link({ view: v })} className={`h-8 px-3 inline-flex items-center whitespace-nowrap rounded-full ${view === v ? 'bg-stone-200 text-stone-900' : 'bg-stone-900 text-stone-400'}`}>
                   {v === 'new' && <Sparkles size={12} className="mr-1" />}{l}
                 </Link>
@@ -137,14 +137,14 @@ async function Product({ pid, vid, from, link, category, emoji }: {
     <div className="mt-4 flex flex-col gap-3">
       <Link href={link({ pid: '', vid: '' })} className="text-stone-400 text-sm hover:text-stone-200">← Back to results</Link>
       <div className="flex gap-2 text-xs">
-        {(['CN', 'US'] as const).map(f => (
+        {(['US', 'CN'] as const).map(f => (
           <Link key={f} href={link({ pid, vid: '', from: f })} className={`h-8 px-3 inline-flex items-center whitespace-nowrap rounded-full ${from === f ? 'bg-stone-200 text-stone-900' : 'bg-stone-900 text-stone-400'}`}>
-            {f === 'CN' ? 'Ships from China (1–2 wks)' : 'US warehouse (days)'}
+            {f === 'CN' ? 'International (1–2 wks)' : 'US (a few days)'}
           </Link>
         ))}
       </div>
       {error && <p className="text-sm text-red-300">{error}</p>}
-      {!error && !variants.length && <p className="text-sm text-stone-500">None in stock {from === 'US' ? 'in the US — try China' : 'right now'}.</p>}
+      {!error && !variants.length && <p className="text-sm text-stone-500">None in stock {from === 'US' ? 'in the US — try International' : 'right now'}.</p>}
       {!chosen && variants.length > 0 && (
         <>
           <p className="text-stone-400 text-sm">Pick the version to sell:</p>
@@ -184,7 +184,7 @@ async function Product({ pid, vid, from, link, category, emoji }: {
           </div>
         )
       })()}
-      {chosen && !quote && !error && <p className="text-sm text-stone-500">CJ can’t ship this {from === 'US' ? 'from the US' : 'from China'} right now.</p>}
+      {chosen && !quote && !error && <p className="text-sm text-stone-500">CJ can’t ship this {from === 'US' ? 'from the US' : 'internationally'} right now.</p>}
     </div>
   )
 }

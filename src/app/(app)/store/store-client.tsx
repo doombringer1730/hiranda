@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Gift, Loader2, X } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
 import { formatPrice, type Product } from '@/lib/store/catalog'
 import { hasPlugin, isNativeApp } from '@/lib/native'
 import { haptic, toast } from '@/lib/feel'
@@ -22,32 +22,42 @@ export function AskForAddress({ partner }: { partner: string }) {
   )
 }
 
-export function GiftCard({ product, partner, canSend }: { product: Product; partner: string; canSend: boolean }) {
+export function GiftCard({ product, origin, partner, canSend }: { product: Product; origin: 'US' | 'International'; partner: string; canSend: boolean }) {
   const [open, setOpen] = useState(false)
   return (
     <>
       <button onClick={() => { haptic(); setOpen(true) }}
-        className="text-left rounded-3xl border border-stone-800 bg-stone-900/60 p-5 hover:border-amber-800/50 transition-colors flex flex-col gap-3">
-        {product.image
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={product.image} alt="" loading="lazy" className="w-full aspect-[4/3] rounded-2xl object-cover bg-stone-800" />
-          : <span className="text-5xl" aria-hidden="true">{product.emoji}</span>}
-        <span>
-          <span className="block font-serif text-2xl text-amber-50 leading-tight">{product.title}</span>
-          <span className="block text-stone-400 text-sm mt-1">{product.blurb}</span>
-          {product.delivery && <span className="block text-stone-500 text-xs mt-1.5">{product.delivery}</span>}
+        className="tile group text-left p-2 flex flex-col active:scale-[0.98] transition-transform">
+        <span className="relative block overflow-hidden rounded-[20px]">
+          {product.image
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={product.image} alt="" loading="lazy" className="w-full aspect-[4/5] object-cover bg-stone-800 transition-transform duration-500 group-hover:scale-[1.03]" />
+            : <span className="paper grid w-full aspect-[4/5] place-items-center rounded-[20px] text-6xl" aria-hidden="true">{product.emoji}</span>}
+          <OriginBadge origin={origin} className="absolute left-2 top-2" />
         </span>
-        <span className="mt-auto flex items-center justify-between">
-          <span className="text-amber-200 text-sm font-medium">{formatPrice(product.priceCents)}</span>
-          <span className="inline-flex items-center gap-1.5 text-xs text-stone-300"><Gift size={14} /> Send to {partner}</span>
+        <span className="px-1.5 pt-2.5 pb-1.5 flex flex-col gap-1 flex-1">
+          <span className="text-[15px] leading-snug text-amber-50 font-medium line-clamp-2">{product.title}</span>
+          <span className="mt-auto text-amber-200 text-sm">{formatPrice(product.priceCents)}</span>
         </span>
       </button>
-      {open && <SendSheet product={product} partner={partner} canSend={canSend} onClose={() => setOpen(false)} />}
+      {open && <SendSheet product={product} origin={origin} partner={partner} canSend={canSend} onClose={() => setOpen(false)} />}
     </>
   )
 }
 
-function SendSheet({ product, partner, canSend, onClose }: { product: Product; partner: string; canSend: boolean; onClose: () => void }) {
+// Only gifts we print or pack ourselves carry the note on paper; the rest
+// show it to the recipient in Hiranda.
+const printsNote = (p: Product) => !p.vendor || p.vendor.name === 'gelato'
+
+function OriginBadge({ origin, className = '' }: { origin: 'US' | 'International'; className?: string }) {
+  return (
+    <span className={`inline-flex items-center h-6 px-2 rounded-full bg-black/55 backdrop-blur-sm text-[10px] uppercase tracking-[0.14em] text-white/90 ${className}`}>
+      {origin}
+    </span>
+  )
+}
+
+function SendSheet({ product, origin, partner, canSend, onClose }: { product: Product; origin: 'US' | 'International'; partner: string; canSend: boolean; onClose: () => void }) {
   const router = useRouter()
   const [note, setNote] = useState('')
   const [pending, start] = useTransition()
@@ -70,19 +80,24 @@ function SendSheet({ product, partner, canSend, onClose }: { product: Product; p
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" role="dialog" aria-modal="true" aria-label={`Send ${product.title}`}>
       <button className="absolute inset-0 bg-black/60" aria-label="Close" onClick={onClose} />
-      <div className="relative w-full md:max-w-md rounded-t-3xl md:rounded-3xl border border-stone-800 bg-stone-900 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-page-in">
-        <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-stone-500 hover:text-stone-300"><X size={18} /></button>
+      <div className="tile relative w-full md:max-w-md !rounded-b-none md:!rounded-[28px] !bg-stone-900 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] max-h-[92dvh] overflow-y-auto animate-page-in">
+        <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 z-10 grid place-items-center size-11 rounded-full bg-black/40 text-stone-200 hover:bg-black/60"><X size={18} /></button>
         {product.image
           // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={product.image} alt="" className="size-20 rounded-2xl object-cover bg-stone-800" />
-          : <p className="text-4xl" aria-hidden="true">{product.emoji}</p>}
-        <h3 className="font-serif text-2xl text-amber-50 mt-2">{product.title}</h3>
-        <p className="text-stone-400 text-sm mt-1">{product.blurb}</p>
-        {product.delivery && <p className="text-stone-500 text-xs mt-1">{product.delivery}</p>}
+          ? <img src={product.image} alt="" className="w-full aspect-[4/3] rounded-[20px] object-cover bg-stone-800" />
+          : <div className="paper grid w-full aspect-[16/9] place-items-center rounded-[20px] text-7xl" aria-hidden="true">{product.emoji}</div>}
+        <h3 className="font-serif text-[28px] leading-tight text-amber-50 mt-4">{product.title}</h3>
+        {product.blurb && <p className="text-stone-400 text-sm mt-1">{product.blurb}</p>}
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-400">
+          <span className="text-amber-200 text-sm font-medium">{formatPrice(product.priceCents)}</span>
+          <span aria-hidden="true">·</span>
+          <span>Ships from {origin === 'US' ? 'the US' : 'abroad'}</span>
+          {product.delivery && <><span aria-hidden="true">·</span><span>{product.delivery}</span></>}
+        </p>
 
         <label className="block mt-5 text-stone-400 text-xs uppercase tracking-[0.18em]" htmlFor="gift-note">Your note to {partner}</label>
         <textarea id="gift-note" value={note} onChange={e => setNote(e.target.value.slice(0, 300))} rows={product.key === 'letter' ? 6 : 3}
-          placeholder={product.key === 'letter' ? `Dear ${partner},…` : product.category === 'keepsake' ? `A few words — ${partner} sees them in Hiranda` : 'A few words for the card'}
+          placeholder={product.key === 'letter' ? `Dear ${partner},…` : printsNote(product) ? 'A few words for the card' : `A few words — ${partner} sees them in Hiranda`}
           className="paper paper-ruled mt-2 w-full rounded-[4px] px-4 py-3 font-hand text-[21px] leading-[30px] text-[var(--paper-ink)] placeholder:text-[var(--paper-muted)] focus:outline-none" />
         <p className="text-right text-[11px] text-stone-500 mt-1">{note.length}/300</p>
         {product.fineprint && <p className="text-stone-500 text-xs mt-1">{product.fineprint}</p>}
