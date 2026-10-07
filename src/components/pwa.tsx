@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Download, Share, X } from 'lucide-react'
+import { isNativeApp } from '@/lib/native'
 
 // Registers the service worker (production only — it would fight dev reloads).
 export function ServiceWorkerRegister() {
@@ -28,7 +29,7 @@ export function InstallCard() {
       || (navigator as Navigator & { standalone?: boolean }).standalone === true
     let dismissed = false
     try { dismissed = localStorage.getItem(DISMISS_KEY) === '1' } catch {}
-    if (standalone || dismissed) return
+    if (standalone || dismissed || isNativeApp()) return
 
     const ua = navigator.userAgent
     const ios = /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1)
@@ -96,7 +97,7 @@ export function InstallCard() {
 
 // ── Push notifications ──
 
-type PushState = 'loading' | 'unsupported' | 'needs-install' | 'off' | 'on' | 'denied'
+type PushState = 'loading' | 'unsupported' | 'needs-install' | 'native' | 'off' | 'on' | 'denied'
 
 function urlBase64ToUint8Array(base64: string) {
   const padded = (base64 + '='.repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/')
@@ -121,6 +122,8 @@ export function usePushNotifications() {
   useEffect(() => {
     let live = true
     ;(async () => {
+      // The iPhone app has no web push; native notifications come later.
+      if (isNativeApp()) { if (live) setState('native'); return }
       const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
         && !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
       // iPhone only allows web push for apps added to the home screen.
@@ -177,6 +180,7 @@ export function NotificationSettings() {
   const note: Partial<Record<PushState, string>> = {
     'unsupported': 'This browser doesn’t support notifications.',
     'needs-install': 'On iPhone, add Hiranda to your Home Screen first (Share → Add to Home Screen), then turn this on from the app.',
+    'native': 'Notifications in the iPhone app are coming in a future update.',
     'denied': 'Notifications are blocked. Allow them for Hiranda in your phone or browser settings.',
   }
   return (

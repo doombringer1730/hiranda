@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
-import { hashPasscode, THEATER_COOKIE } from '@/lib/theater'
+import { hashPasscode, THEATER_COOKIE } from '@/theater/public'
 
 // ── Theater passcode gate ──
 export async function setTheaterPasscode(passcode: string): Promise<{ error?: string }> {
@@ -101,45 +101,6 @@ export async function updateDisplayName(name: string) {
   await supabase
     .from('profiles')
     .upsert({ id: user.id, display_name: name.trim() })
-
-  revalidatePath('/settings')
-}
-
-export async function saveJellyfinSettings(jellyfinUrl: string, jellyfinApiKey: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  await supabase
-    .from('couple')
-    .update({ jellyfin_url: jellyfinUrl || null, jellyfin_api_key: jellyfinApiKey || null })
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-
-  revalidatePath('/settings')
-}
-
-export async function saveTorBoxSettings(apiKey: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  await supabase
-    .from('couple')
-    .update({ torbox_api_key: apiKey || null })
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-
-  revalidatePath('/settings')
-}
-
-export async function saveRealDebridSettings(apiKey: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  await supabase
-    .from('couple')
-    .update({ real_debrid_api_key: apiKey || null })
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
 
   revalidatePath('/settings')
 }

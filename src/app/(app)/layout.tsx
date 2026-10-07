@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Nav from '@/components/nav'
 import HubSwitcher from '@/components/hub-switcher'
 import PageTransition from '@/components/page-transition'
-import { getTheaterState } from '@/lib/theater'
+import { getTheaterState } from '@/theater/public'
 import { RememberAccount, type RememberedAccount } from '@/components/remember-account'
 
 

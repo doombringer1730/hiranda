@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { APP_SCHEME, hasPlugin } from '@/lib/native'
 
 // "Continue with Google". Only renders once Google is switched on in Supabase
 // (Authentication → Providers), so there's never a dead button.
@@ -24,7 +25,22 @@ export default function GoogleButton({ next = '/' }: { next?: string }) {
 
   async function go() {
     setBusy(true)
-    const redirectTo = `${location.origin}/api/auth/callback?next=${encodeURIComponent(next || '/')}`
+    const after = `?next=${encodeURIComponent(next || '/')}`
+    // Google refuses to sign in inside an app's web view, so the iPhone app
+    // opens it in a Safari sheet; Google then returns to hiranda://auth/callback,
+    // which reopens the app and NativeBridge finishes the sign-in there.
+    if (hasPlugin('Browser')) {
+      const { data, error } = await createClient().auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${APP_SCHEME}://auth/callback${after}`, skipBrowserRedirect: true },
+      })
+      if (error || !data.url) { setBusy(false); return }
+      const { Browser } = await import('@capacitor/browser')
+      await Browser.open({ url: data.url, presentationStyle: 'popover' })
+      setBusy(false)
+      return
+    }
+    const redirectTo = `${location.origin}/api/auth/callback${after}`
     const { error } = await createClient().auth.signInWithOAuth({ provider: 'google', options: { redirectTo } })
     if (error) setBusy(false)
   }
