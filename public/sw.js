@@ -29,6 +29,9 @@ self.addEventListener('push', event => {
     badge: '/icons/icon-192.png',
     tag: data.tag,
     renotify: !!data.tag,
+    // Urgent: stays until tapped, with a stronger buzz where supported.
+    requireInteraction: !!data.urgent,
+    vibrate: data.urgent ? [200, 100, 200, 100, 400] : undefined,
     data: { url: data.url || '/' },
   }))
 })

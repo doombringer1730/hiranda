@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowUp, PartyPopper, Heart, Loader2, X } from 'lucide-react'
+import { ArrowUp, PartyPopper, Heart, Loader2, X, Moon, Siren } from 'lucide-react'
 import { useLive } from '@/lib/use-live'
 import { haptic, celebrate } from '@/lib/feel'
 import WhyItWorks from '@/components/why-it-works'
+import { isQuiet, dndOn, type QuietPrefs } from '@/lib/quiet'
+import { setDnd } from '@/app/quiet-actions'
+import { nextMorning } from '@/components/quiet-settings'
+import { toast } from '@/lib/feel'
 import { Avatar, ProfileCard, ProfileEditor, editableFrom, usePresence, type PresonProfile } from '../presence-cards'
 import { getMessages, sendMessage, reactTo, markRead, unsend, type Message } from './actions'
 
@@ -29,9 +33,13 @@ function dayLabel(iso: string) {
 }
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 
-export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: partnerProfile, togetherDays }: {
+export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: partnerProfile, togetherDays, quiet }: {
   myId: string; coupleId: string; me: PresonProfile; partner: PresonProfile; togetherDays: number | null
+  quiet: { mine: QuietPrefs | null; partner: QuietPrefs | null }
 }) {
+  const [myPrefs, setMyPrefs] = useState(quiet.mine)
+  const partnerQuiet = isQuiet(quiet.partner)
+  const [urgent, setUrgent] = useState(false)
   const partner = { name: partnerProfile.display_name.split(' ')[0] }
   const online = usePresence(coupleIdProp, myId)
   const [viewing, setViewing] = useState<'me' | 'partner' | null>(null)
@@ -100,7 +108,7 @@ export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: 
     if (atBottom.current) window.scrollTo({ top: document.body.scrollHeight })
   }, [count])
 
-  async function send(text: string, kind: 'text' | 'good_news' = 'text') {
+  async function send(text: string, kind: 'text' | 'good_news' | 'urgent' = 'text') {
     const body = text.trim()
     if (!body) return
     haptic()
@@ -111,6 +119,7 @@ export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: 
     if (res.error) {
       setPending(p => p.filter(m => m.id !== temp.id))
       setDraft(body)
+      toast(res.error)
       return
     }
     await refresh()
@@ -120,8 +129,8 @@ export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: 
   function submit() {
     const text = draft
     setDraft('')
-    const kind = goodNews ? 'good_news' : 'text'
-    setGoodNews(false)
+    const kind = urgent ? 'urgent' : goodNews ? 'good_news' : 'text'
+    setGoodNews(false); setUrgent(false)
     if (kind === 'good_news') celebrate(box.current, { count: 22 })
     void send(text, kind)
     box.current?.focus()
@@ -172,7 +181,9 @@ export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: 
           <span className="min-w-0">
             <span className="block font-serif text-2xl leading-none text-amber-50">{partner.name}</span>
             <span className="block text-xs mt-1 truncate">
-              {online.has(partnerProfile.id)
+              {partnerQuiet
+                ? <span className="text-indigo-300">🌙 {dndOn(quiet.partner) ? 'on Do Not Disturb' : 'in quiet hours'}</span>
+                : online.has(partnerProfile.id)
                 ? <span className="text-emerald-400">online now</span>
                 : partnerProfile.status_text
                   ? <span className="font-hand text-[17px] text-amber-200/90">{partnerProfile.status_text}</span>
@@ -180,7 +191,24 @@ export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: 
             </span>
           </span>
         </button>
-        <button onClick={() => { haptic(); setViewing('me') }} className="ml-auto lg:hidden" aria-label="Your profile">
+        <button
+          onClick={async () => {
+            haptic()
+            const on = dndOn(myPrefs)
+            const until = on ? null : nextMorning()
+            const res = await setDnd(until)
+            if ('error' in res && res.error) { toast(res.error); return }
+            setMyPrefs(p => ({ quiet_start: p?.quiet_start ?? null, quiet_end: p?.quiet_end ?? null, tz: p?.tz ?? null, dnd_until: until }))
+            toast(on ? 'Do Not Disturb is off' : 'Do Not Disturb until morning 🌙')
+          }}
+          aria-pressed={dndOn(myPrefs)}
+          aria-label={dndOn(myPrefs) ? 'Turn off Do Not Disturb' : 'Do Not Disturb until morning'}
+          title={dndOn(myPrefs) ? 'Do Not Disturb is on — tap to turn off' : 'Do Not Disturb until morning'}
+          className={`ml-auto grid place-items-center h-9 w-9 rounded-full transition-colors ${dndOn(myPrefs) ? 'bg-indigo-500/25 text-indigo-200' : 'text-stone-500 hover:text-stone-300 hover:bg-stone-800'}`}
+        >
+          <Moon size={17} fill={dndOn(myPrefs) ? 'currentColor' : 'none'} />
+        </button>
+        <button onClick={() => { haptic(); setViewing('me') }} className="lg:hidden" aria-label="Your profile">
           <Avatar person={me} size={34} />
         </button>
       </header>
@@ -231,7 +259,12 @@ export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: 
                   className={`relative max-w-[82%] text-left animate-bubble ${m.pending ? 'opacity-60' : ''}`}
                   aria-label={mine ? 'Your message — tap for options' : 'Tap to react'}
                 >
-                  {m.kind === 'good_news' ? (
+                  {m.kind === 'urgent' ? (
+                    <div className="rounded-[18px] px-4 pt-2.5 pb-3 bg-red-600 text-white ring-2 ring-red-300/40 min-w-[180px]">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/85 flex items-center gap-1.5"><Siren size={12} /> Urgent</p>
+                      <p className="text-[15px] leading-snug mt-1 whitespace-pre-wrap break-words">{m.body}</p>
+                    </div>
+                  ) : m.kind === 'good_news' ? (
                     <div className="paper rounded-[18px] px-4 pt-3 pb-3.5 min-w-[200px]">
                       <p className="text-[10px] uppercase tracking-[0.22em] text-amber-700 flex items-center gap-1.5"><PartyPopper size={12} /> Good news</p>
                       <p className="font-serif text-[20px] leading-snug text-[var(--paper-ink)] mt-1 whitespace-pre-wrap break-words">{m.body}</p>
@@ -290,7 +323,16 @@ export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: 
             ))}
           </div>
         )}
-        <div className={`material rounded-[26px] p-1.5 flex items-end gap-1.5 transition-shadow ${goodNews ? 'ring-2 ring-amber-500/60' : ''}`}>
+        {partnerQuiet && (
+          <p className="text-[12px] text-indigo-200/90 px-2 pb-1.5 flex items-center gap-1.5">
+            🌙 {partner.name} is resting — messages wait quietly.
+            <button onClick={() => { haptic(); setUrgent(u => !u); setGoodNews(false); box.current?.focus() }} aria-pressed={urgent}
+              className={`ml-auto inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${urgent ? 'bg-red-600 text-white' : 'bg-red-500/15 text-red-300 hover:bg-red-500/25'}`}>
+              <Siren size={12} /> {urgent ? 'Urgent on' : 'It’s urgent'}
+            </button>
+          </p>
+        )}
+        <div className={`material rounded-[26px] p-1.5 flex items-end gap-1.5 transition-shadow ${urgent ? 'ring-2 ring-red-500/70' : goodNews ? 'ring-2 ring-amber-500/60' : ''}`}>
           <button
             type="button"
             onClick={() => { haptic(); setGoodNews(g => !g); box.current?.focus() }}
@@ -312,7 +354,7 @@ export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: 
             }}
             rows={1}
             maxLength={4000}
-            placeholder={goodNews ? 'Share your good news…' : `Message ${partner.name}`}
+            placeholder={urgent ? 'Urgent — this one gets through…' : goodNews ? 'Share your good news…' : `Message ${partner.name}`}
             className="flex-1 min-h-10 max-h-36 resize-none bg-transparent px-2 py-2.5 text-[15px] text-amber-50 placeholder:text-stone-500 focus:outline-none [field-sizing:content]"
           />
           {draft.trim() ? (

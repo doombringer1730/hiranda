@@ -27,7 +27,15 @@ export async function getCoupleMemberIds() {
   return { userId: user.id, partnerId }
 }
 
-export async function getActivePrompt(type: PromptType) {
+// Questions come in decks (1 Light, 2 Deeper, 3 Deepest). A deck only opens
+// once you've both opted in, so the requested deck is capped at couple_depth().
+async function allowedDeck(supabase: Awaited<ReturnType<typeof createClient>>, type: PromptType, deck?: number) {
+  if (type !== 'question' || !deck) return null
+  const { data } = await supabase.rpc('couple_depth')
+  return Math.max(1, Math.min(deck, (data as number | null) ?? 1))
+}
+
+export async function getActivePrompt(type: PromptType, deck?: number) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -45,12 +53,16 @@ export async function getActivePrompt(type: PromptType) {
     ? couple.user1_id === user.id ? couple.user2_id : couple.user1_id
     : null
 
+  const depth = await allowedDeck(supabase, type, deck)
+
   // Find a prompt where one or both members have responded (most recent activity first)
-  const { data: activeResponse } = await supabase
+  let active = supabase
     .from('prompt_responses')
-    .select('prompt_id, prompts!inner(id, type, text, option_a, option_b)')
+    .select('prompt_id, prompts!inner(id, type, text, option_a, option_b, depth)')
     .eq('prompts.type', type)
     .in('user_id', [user.id, ...(partnerId ? [partnerId] : [])])
+  if (depth) active = active.eq('prompts.depth', depth)
+  const { data: activeResponse } = await active
     .order('responded_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -70,12 +82,13 @@ export async function getActivePrompt(type: PromptType) {
 
     const answeredIds = [...new Set(answered?.map(r => r.prompt_id) ?? [])]
 
-    const query = supabase
+    let query = supabase
       .from('prompts')
       .select('id, text, option_a, option_b')
       .eq('type', type)
+    if (depth) query = query.eq('depth', depth)
 
-    if (answeredIds.length > 0) query.not('id', 'in', `(${answeredIds.join(',')})`)
+    if (answeredIds.length > 0) query = query.not('id', 'in', `(${answeredIds.join(',')})`)
 
     const { data: unanswered } = await query
     if (unanswered && unanswered.length > 0) {
@@ -83,10 +96,12 @@ export async function getActivePrompt(type: PromptType) {
       promptId = pick.id
     } else {
       // All answered — pick any random one
-      const { data: any } = await supabase
+      let anyQ = supabase
         .from('prompts')
         .select('id')
         .eq('type', type)
+      if (depth) anyQ = anyQ.eq('depth', depth)
+      const { data: any } = await anyQ
       if (any && any.length > 0) promptId = any[Math.floor(Math.random() * any.length)].id
     }
   }
@@ -178,7 +193,7 @@ export async function getPromptState(promptId: string) {
   return { prompt, myResponse, partnerResponse }
 }
 
-export async function getNextPrompt(type: PromptType, excludePromptId: string) {
+export async function getNextPrompt(type: PromptType, excludePromptId: string, deck?: number) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -202,25 +217,66 @@ export async function getNextPrompt(type: PromptType, excludePromptId: string) {
     .in('user_id', [user.id, ...(partnerId ? [partnerId] : [])])
 
   const answeredIds = [...new Set(answered?.map(r => r.prompt_id) ?? []), excludePromptId]
+  const depth = await allowedDeck(supabase, type, deck)
 
-  const { data: unanswered } = await supabase
+  let freshQ = supabase
     .from('prompts')
     .select('id, type, text, option_a, option_b')
     .eq('type', type)
     .not('id', 'in', `(${answeredIds.join(',')})`)
+  if (depth) freshQ = freshQ.eq('depth', depth)
+  const { data: unanswered } = await freshQ
 
   let prompt = unanswered && unanswered.length > 0
     ? unanswered[Math.floor(Math.random() * unanswered.length)]
     : null
 
   if (!prompt) {
-    const { data: any } = await supabase
+    let anyQ = supabase
       .from('prompts')
       .select('id, type, text, option_a, option_b')
       .eq('type', type)
       .neq('id', excludePromptId)
+    if (depth) anyQ = anyQ.eq('depth', depth)
+    const { data: any } = await anyQ
     if (any && any.length > 0) prompt = any[Math.floor(Math.random() * any.length)]
   }
 
   return prompt ? { prompt, myResponse: null, partnerResponse: null } : null
+}
+
+// ── Depth decks ──
+export async function getDepthState() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const [{ data: rows }, { data: both }] = await Promise.all([
+    supabase.from('depth_optins').select('user_id, max_depth'),
+    supabase.rpc('couple_depth'),
+  ])
+  const mine = rows?.find(r => r.user_id === user.id)?.max_depth ?? 1
+  const theirs = rows?.find(r => r.user_id !== user.id)?.max_depth ?? 1
+  return { mine, theirs, both: (both as number | null) ?? 1 }
+}
+
+export async function setDepthOptin(level: number) {
+  if (![1, 2, 3].includes(level)) return { error: 'Pick a deck' }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not signed in' }
+  const { data: couple } = await supabase.from('couple').select('id, user1_id, user2_id')
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .order('user2_id', { nullsFirst: false }).limit(1).maybeSingle()
+  if (!couple?.user2_id) return { error: 'Not paired' }
+  const { data: before } = await supabase.rpc('couple_depth')
+  await supabase.from('depth_optins').upsert({ couple_id: couple.id, user_id: user.id, max_depth: level, updated_at: new Date().toISOString() })
+  const { data: after } = await supabase.rpc('couple_depth')
+  const names = ['', 'Light', 'Deeper', 'Deepest']
+  if ((after as number) > (before as number)) {
+    notifyPartner(async () => ({ title: `The ${names[after as number]} deck is open 🔓`, body: `You and ${await myFirstName()} both opted in.`, url: '/games/questions?t=question', tag: 'depth' }))
+  } else if (level > (after as number)) {
+    // Gentle, one-time: never pressure.
+    notifyPartner(async () => ({ title: `${await myFirstName()} is ready for ${names[level]} questions`, body: 'It only opens if you want it to — no pressure.', url: '/games/questions?t=question', tag: 'depth' }))
+  }
+  return { ok: true, both: (after as number) ?? 1 }
 }

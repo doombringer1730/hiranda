@@ -42,15 +42,18 @@ export async function getDailyPrompt(day: string): Promise<DailyPrompt | null> {
   if (!couple || !partnerId) return null
 
   const [{ data: prompts }, { data: earlier }] = await Promise.all([
-    supabase.from('prompts').select('id, type, text, option_a, option_b').in('type', TYPES).order('id'),
+    supabase.from('prompts').select('id, type, text, option_a, option_b, depth').in('type', TYPES).order('id'),
     supabase.from('prompt_responses').select('prompt_id')
       .in('user_id', [user.id, partnerId]).lt('responded_at', dayStart.toISOString()),
   ])
   if (!prompts?.length) return null
+  // Only decks you've both opened (Deeper/Deepest questions are opt-in).
+  const { data: openDepth } = await supabase.rpc('couple_depth')
 
   const used = new Set((earlier ?? []).map(r => r.prompt_id))
-  const fresh = prompts.filter(p => !used.has(p.id))
-  const pool = fresh.length ? fresh : prompts
+  const allowed = prompts.filter(p => (p.depth ?? 1) <= ((openDepth as number | null) ?? 1))
+  const fresh = allowed.filter(p => !used.has(p.id))
+  const pool = fresh.length ? fresh : allowed
   const prompt = pool[hash(`${couple.id}:${day}`) % pool.length]
 
   const { data: responses } = await supabase
