@@ -65,7 +65,8 @@ const SETUP: Record<string, { env: string[]; steps: string[] }> = {
 }
 
 const WEBHOOK: Record<string, string | null> = {
-  gelato: `${siteUrl()}/api/store/webhooks/gelato?key=<STORE_WEBHOOK_KEY>`,
+  // The real key (this page is admin-only) so it can be pasted into Gelato.
+  gelato: `${siteUrl()}/api/store/webhooks/gelato?key=${encodeURIComponent(process.env.STORE_WEBHOOK_KEY ?? '<set STORE_WEBHOOK_KEY>')}`,
   printful: null,
   printify: null,
   cj: null,
@@ -120,7 +121,7 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
           </ol>
           <p className="text-xs text-stone-500">Vercel settings: {SETUP[n].env.join(' · ')}</p>
           {VENDORS[n].connectWebhook && status[n].ok && <ConnectWebhook vendor={n} label={VENDORS[n].label} />}
-          {WEBHOOK[n] && <p className="text-xs text-stone-500 break-all">Webhook URL: <span className="font-mono text-stone-300">{WEBHOOK[n]}</span></p>}
+          {WEBHOOK[n] && <p className="text-xs text-stone-500 break-all">Webhook URL (keep it private): <span className="font-mono text-stone-300 select-all">{WEBHOOK[n]}</span></p>}
           {(n === 'cj' || n === 'goody') && status[n].ok && (
             <form className="flex gap-2" action="/store/admin/suppliers">
               <input type="hidden" name="v" value={n} />

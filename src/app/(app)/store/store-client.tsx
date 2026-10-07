@@ -74,7 +74,7 @@ function SendSheet({ product, partner, canSend, onClose }: { product: Product; p
 
         <label className="block mt-5 text-stone-400 text-xs uppercase tracking-[0.18em]" htmlFor="gift-note">Your note to {partner}</label>
         <textarea id="gift-note" value={note} onChange={e => setNote(e.target.value.slice(0, 300))} rows={product.key === 'letter' ? 6 : 3}
-          placeholder={product.key === 'letter' ? `Dear ${partner},…` : 'A few words for the card'}
+          placeholder={product.key === 'letter' ? `Dear ${partner},…` : product.section === 'keepsake' ? `A few words — ${partner} sees them in Hiranda` : 'A few words for the card'}
           className="paper paper-ruled mt-2 w-full rounded-[4px] px-4 py-3 font-hand text-[21px] leading-[30px] text-[var(--paper-ink)] placeholder:text-[var(--paper-muted)] focus:outline-none" />
         <p className="text-right text-[11px] text-stone-500 mt-1">{note.length}/300</p>
         {product.fineprint && <p className="text-stone-500 text-xs mt-1">{product.fineprint}</p>}

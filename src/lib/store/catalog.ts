@@ -24,6 +24,8 @@ export type Product = {
   fineprint?: string
   /** Who makes and ships it. Omit to ship it yourself. */
   vendor?: VendorSpec
+  /** 'keepsake': printed with your two names (shown in its own section). */
+  section?: 'gift' | 'keepsake'
 }
 
 export const PRODUCTS: Product[] = [
@@ -67,17 +69,42 @@ export const PRODUCTS: Product[] = [
     // e.g. [{ vid: '…candle…', quantity: 1 }, { vid: '…socks…', quantity: 1 }].
     vendor: { name: 'cj', items: [] },
   },
-  // Ready when you are — a blanket with your names (Printful, 50×60 sherpa).
-  // Check Printful's price for variant 17482 first; keep ours well above it.
-  // {
-  //   key: 'blanket',
-  //   title: 'Our blanket',
-  //   blurb: 'A soft sherpa throw with your two names on it, for movie nights apart.',
-  //   emoji: '🛋️',
-  //   priceCents: 8900,
-  //   ships: true,
-  //   vendor: { name: 'printful', variantId: 17482, placement: 'default', art: { w: 7500, h: 9000 } },
-  // },
+  // Keepsakes — printed by Printful with both your first names and the year
+  // you got together (see /api/store/print). Printful cost (Oct 2026) +
+  // ~US shipping noted per item; keep prices well above it.
+  {
+    key: 'blanket',
+    title: 'Our blanket',
+    blurb: 'A soft sherpa throw (50″×60″) with your two names on it — for movie nights, together or apart.',
+    emoji: '🛋️',
+    priceCents: 7900, // ≈ $36 + ~$11 shipping
+    ships: true,
+    section: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 17482, placement: 'default', art: { w: 6000, h: 7200 } },
+  },
+  {
+    key: 'mug',
+    title: 'Our mug',
+    blurb: 'Your names on a glossy 11 oz mug, for the morning question.',
+    emoji: '☕',
+    priceCents: 2400, // ≈ $6 + ~$8 shipping
+    ships: true,
+    section: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 1320, placement: 'default', art: { w: 2700, h: 1050 } },
+  },
+  {
+    key: 'print',
+    title: 'Our names, on the wall',
+    blurb: 'A 12″×16″ matte print with your names and your year — ready for a frame.',
+    emoji: '🖼️',
+    priceCents: 2900, // ≈ $11 + ~$7 shipping
+    ships: true,
+    section: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 1349, placement: 'default', art: { w: 3600, h: 4800 } },
+  },
 ]
 
 export const productByKey = (key: string) => PRODUCTS.find(p => p.key === key) ?? null
