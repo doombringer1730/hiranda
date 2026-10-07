@@ -1,8 +1,9 @@
 // The Hiranda Store catalog — edit freely.
 //
 // Gifts are sold by Hiranda through Stripe. A gift with a `vendor` is sent to
-// that supplier automatically once paid (see lib/store/fulfil.ts); find the
-// ids to paste here at /store/admin/suppliers. A gift without one — or whose
+// that supplier automatically once paid (see lib/store/fulfil.ts). The ones
+// here are built in; more are added from /store/admin/catalog (the
+// store_products table, merged in by lib/store/products.ts). A gift without one — or whose
 // ids are still empty — shows up in /store/admin for you to ship by hand.
 // Prices are in cents, USD. Keep each price above the supplier's cost plus
 // shipping plus Stripe's fee (~3%).
@@ -24,9 +25,24 @@ export type Product = {
   fineprint?: string
   /** Who makes and ships it. Omit to ship it yourself. */
   vendor?: VendorSpec
-  /** 'keepsake': printed with your two names (shown in its own section). */
-  section?: 'gift' | 'keepsake'
+  /** Which Store section it's shown in (default 'gift'). */
+  category?: Category
+  /** A product photo (https) — shown instead of the emoji. */
+  image?: string
+  /** e.g. "Arrives in about 1–2 weeks". */
+  delivery?: string
 }
+
+export type Category = 'cuddly' | 'jewelry' | 'cozy' | 'gift' | 'keepsake'
+
+/** Store sections, in order. */
+export const CATEGORIES: { key: Category; title: string }[] = [
+  { key: 'gift', title: 'Little gifts' },
+  { key: 'cuddly', title: 'Something to hug' },
+  { key: 'jewelry', title: 'To wear and think of you' },
+  { key: 'cozy', title: 'Cozy days apart' },
+  { key: 'keepsake', title: 'Keepsakes with your names' },
+]
 
 export const PRODUCTS: Product[] = [
   {
@@ -65,6 +81,7 @@ export const PRODUCTS: Product[] = [
     emoji: '🧸',
     priceCents: 3800,
     ships: true,
+    category: 'cozy',
     // Pick items from CJ's US warehouse at /store/admin/suppliers → CJ,
     // e.g. [{ vid: '…candle…', quantity: 1 }, { vid: '…socks…', quantity: 1 }].
     vendor: { name: 'cj', items: [] },
@@ -79,7 +96,7 @@ export const PRODUCTS: Product[] = [
     emoji: '🛋️',
     priceCents: 7900, // ≈ $36 + ~$11 shipping
     ships: true,
-    section: 'keepsake',
+    category: 'keepsake',
     fineprint: 'Printed with both your first names and the year you got together.',
     vendor: { name: 'printful', variantId: 17482, placement: 'default', art: { w: 6000, h: 7200 } },
   },
@@ -90,7 +107,7 @@ export const PRODUCTS: Product[] = [
     emoji: '☕',
     priceCents: 2400, // ≈ $6 + ~$8 shipping
     ships: true,
-    section: 'keepsake',
+    category: 'keepsake',
     fineprint: 'Printed with both your first names and the year you got together.',
     vendor: { name: 'printful', variantId: 1320, placement: 'default', art: { w: 2700, h: 1050 } },
   },
@@ -101,13 +118,15 @@ export const PRODUCTS: Product[] = [
     emoji: '🖼️',
     priceCents: 2900, // ≈ $11 + ~$7 shipping
     ships: true,
-    section: 'keepsake',
+    category: 'keepsake',
     fineprint: 'Printed with both your first names and the year you got together.',
     vendor: { name: 'printful', variantId: 1349, placement: 'default', art: { w: 3600, h: 4800 } },
   },
 ]
 
-export const productByKey = (key: string) => PRODUCTS.find(p => p.key === key) ?? null
+/** A built-in product (server code should use lib/store/products.ts, which
+ *  also knows the ones added from the admin catalog). */
+export const builtInProduct = (key: string) => PRODUCTS.find(p => p.key === key) ?? null
 
 export type PartnerGift = { key: string; title: string; blurb: string; emoji: string; cta: string; url: string }
 

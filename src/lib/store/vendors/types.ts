@@ -6,7 +6,8 @@ export type VendorName = 'gelato' | 'cj' | 'goody' | 'printful' | 'printify'
  *  product is then fulfilled by hand from /store/admin. */
 export type VendorSpec =
   | { name: 'gelato'; productUid: string }
-  | { name: 'cj'; items: { vid: string; quantity: number }[] }
+  // `from`: CJ's US warehouse (days) or China (1–2 weeks, far more choice).
+  | { name: 'cj'; items: { vid: string; quantity: number }[]; from?: 'US' | 'CN' }
   | { name: 'goody'; productId: string; variants?: string[] }
   // Print on demand with the couple's names design (see /api/store/print),
   // rendered at `art` pixels — match the product's print area.

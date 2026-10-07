@@ -3,7 +3,8 @@ import { stripeTestMode } from '@/lib/billing'
 import { fetchJson } from './contact'
 import { VendorError, type Vendor, type VendorState } from './types'
 
-// CJ Dropshipping — gift items shipped from CJ's US warehouse.
+// CJ Dropshipping — gift items shipped from CJ's US warehouse (a few days)
+// or from China (about 1–2 weeks to the US; far more to choose from).
 // Docs: https://developers.cjdropshipping.com/en/api/introduction.html
 // Env: CJ_API_KEY (My CJ → Authorization → API → API Key). Orders are paid
 // from your CJ wallet, so keep it topped up. CJ_TEST=1 places sandbox orders
@@ -39,6 +40,18 @@ async function cj<T>(what: string, path: string, body?: unknown): Promise<T> {
   return r.body.data as T
 }
 
+type ShippingOption = { logisticName: string; logisticPrice: number; logisticAging?: string }
+
+/** Slowest delivery an option promises, in days ("5-11" → 11). */
+const maxDays = (o: ShippingOption) => Math.max(...String(o.logisticAging ?? '').split(/[^0-9]+/).map(Number).filter(Boolean), 0) || 99
+
+/** The cheapest way that still arrives within about two weeks — gifts
+ *  shouldn't take a month — or else the fastest. */
+export function pickShipping(options: ShippingOption[]) {
+  const quick = options.filter(o => maxDays(o) <= 15).sort((a, b) => a.logisticPrice - b.logisticPrice)
+  return quick[0] ?? [...options].sort((a, b) => maxDays(a) - maxDays(b))[0] ?? null
+}
+
 export const cjDropshipping: Vendor = {
   name: 'cj',
   label: 'CJ Dropshipping',
@@ -49,12 +62,12 @@ export const cjDropshipping: Vendor = {
   async submit(order, spec, to) {
     if (spec.name !== 'cj') throw new VendorError('Not a CJ product')
     const products = spec.items.map(i => ({ vid: i.vid, quantity: i.quantity }))
-    // Cheapest way to send it from the US warehouse.
-    const options = await cj<{ logisticName: string; logisticPrice: number }[]>('shipping quote', '/logistic/freightCalculate', {
-      startCountryCode: 'US', endCountryCode: to.country, zip: to.postalCode, products,
+    const from = spec.from ?? 'US'
+    const options = await cj<ShippingOption[]>('shipping quote', '/logistic/freightCalculate', {
+      startCountryCode: from, endCountryCode: to.country, zip: to.postalCode, products,
     })
-    const cheapest = [...(options ?? [])].sort((a, b) => a.logisticPrice - b.logisticPrice)[0]
-    if (!cheapest) throw new VendorError('CJ can’t ship these items from its US warehouse right now')
+    const cheapest = pickShipping(options ?? [])
+    if (!cheapest) throw new VendorError(`CJ can’t ship these items from ${from === 'US' ? 'its US warehouse' : 'China'} right now`)
 
     const data = await cj<{ orderId?: string }>('order', '/shopping/order/createOrderV2', {
       orderNumber: order.id,
@@ -67,7 +80,7 @@ export const cjDropshipping: Vendor = {
       ...(to.line2 ? { shippingAddress2: to.line2 } : {}),
       shippingCustomerName: `${to.firstName} ${to.lastName}`.trim(),
       ...(to.phone ? { shippingPhone: to.phone } : {}),
-      fromCountryCode: 'US',
+      fromCountryCode: from,
       logisticName: cheapest.logisticName,
       payType: 2, // pay from the CJ wallet straight away
       isSandbox: this.testMode() ? 1 : 0,
@@ -96,29 +109,45 @@ export const cjDropshipping: Vendor = {
   },
 }
 
-// ── For the owner's supplier page ──
+// ── For the owner's supplier and catalog pages ──
 
-export type CjProduct = { pid: string; name: string; image: string | null; price: string | null }
-export type CjVariant = { vid: string; name: string; sku: string | null; price: string | null; image: string | null }
+export type CjProduct = { pid: string; name: string; image: string | null; price: string | null; listed: number; usStock: number | null }
+export type CjVariant = { vid: string; name: string; sku: string | null; price: number | null; image: string | null }
 
-/** Products with stock in CJ's US warehouse. */
-export async function cjSearch(q: string): Promise<CjProduct[]> {
-  const d = await cj<{ list?: Record<string, unknown>[] }>('search',
-    `/product/list?productNameEn=${encodeURIComponent(q)}&pageNum=1&pageSize=24&countryCode=US`)
-  return (d?.list ?? []).map(p => ({
-    pid: String(p.pid ?? ''), name: String(p.productNameEn ?? p.productName ?? ''),
-    image: typeof p.productImage === 'string' ? p.productImage : null,
+/** CJ's catalog ranked by how many shops sell each product — the popular
+ *  ones first. `newOnly`: listed in the last 45 days. `usOnly`: in stock in
+ *  the US warehouse. */
+export async function cjPopular(q: string, { newOnly = false, usOnly = false, page = 1 } = {}): Promise<CjProduct[]> {
+  const params = new URLSearchParams({ keyWord: q, page: String(page), size: '24', orderBy: '1', sort: 'desc' })
+  if (usOnly) params.set('countryCode', 'US')
+  if (newOnly) params.set('timeStart', String(Date.now() - 45 * 86_400_000))
+  const d = await cj<{ content?: { productList?: Record<string, unknown>[] }[] }>('search', `/product/listV2?${params}`)
+  return (d?.content ?? []).flatMap(c => c.productList ?? []).map(p => ({
+    pid: String(p.id ?? ''), name: String(p.nameEn ?? ''),
+    image: typeof p.bigImage === 'string' && p.bigImage.startsWith('https://') ? p.bigImage : null,
     price: p.sellPrice != null ? String(p.sellPrice) : null,
+    listed: Number(p.listedNum ?? 0),
+    usStock: usOnly ? Number(p.warehouseInventoryNum ?? 0) : null,
   })).filter(p => p.pid)
 }
 
-/** A product's variants that are in stock in the US — the vids for catalog.ts. */
-export async function cjVariants(pid: string): Promise<CjVariant[]> {
-  const d = await cj<Record<string, unknown>[]>('variants', `/product/variant/query?pid=${encodeURIComponent(pid)}&countryCode=US`)
+/** A product's variants (the vids for an order). `country`: only those in
+ *  stock there. */
+export async function cjVariants(pid: string, country?: 'US'): Promise<CjVariant[]> {
+  const d = await cj<Record<string, unknown>[]>('variants', `/product/variant/query?pid=${encodeURIComponent(pid)}${country ? `&countryCode=${country}` : ''}`)
   return (Array.isArray(d) ? d : []).map(v => ({
     vid: String(v.vid ?? ''), name: String(v.variantNameEn ?? v.variantKey ?? ''),
     sku: typeof v.variantSku === 'string' ? v.variantSku : null,
-    price: v.variantSellPrice != null ? String(v.variantSellPrice) : null,
-    image: typeof v.variantImage === 'string' ? v.variantImage : null,
+    price: v.variantSellPrice != null ? Number(v.variantSellPrice) : null,
+    image: typeof v.variantImage === 'string' && v.variantImage.startsWith('https://') ? v.variantImage : null,
   })).filter(v => v.vid)
+}
+
+/** What shipping one of this variant would cost and take. */
+export async function cjQuote(vid: string, from: 'US' | 'CN', to = 'US', zip = '10001') {
+  const options = await cj<ShippingOption[]>('shipping quote', '/logistic/freightCalculate', {
+    startCountryCode: from, endCountryCode: to, zip, products: [{ vid, quantity: 1 }],
+  })
+  const pick = pickShipping(options ?? [])
+  return pick ? { name: pick.logisticName, price: Number(pick.logisticPrice), days: String(pick.logisticAging ?? '') } : null
 }

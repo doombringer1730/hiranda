@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Store, Truck } from 'lucide-react'
+import { LayoutGrid, Store, Truck } from 'lucide-react'
 import PageHeader from '@/components/page-header'
 import { coupleContext } from '@/lib/couple'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { formatPrice, productByKey } from '@/lib/store/catalog'
+import { formatPrice } from '@/lib/store/catalog'
+import { productLookup } from '@/lib/store/products'
+import ProductThumb from '@/components/product-thumb'
 import { isStoreAdmin } from '@/lib/store/server'
 import { supplierFor } from '@/lib/store/fulfil'
 import { VENDORS } from '@/lib/store/vendors'
@@ -27,12 +29,17 @@ export default async function StoreAdminPage() {
     ? await db.from('store_addresses').select('user_id, full_name, line1, line2, city, region, postal_code, country, phone').in('user_id', ids)
     : { data: [] }
   const addressOf = new Map((addresses ?? []).map(a => [a.user_id, a]))
+  const product = await productLookup()
+  const suppliers = new Map(await Promise.all((orders ?? []).map(async o => [o.id, o.vendor
+    ? VENDORS[o.vendor as keyof typeof VENDORS]
+    : (await supplierFor(o.product_key))?.vendor] as const)))
 
   return (
     <div className="px-4 pt-6 pb-12 max-w-2xl mx-auto">
       <div className="flex items-end justify-between gap-3">
         <PageHeader eyebrow="Hiranda Store" title="Orders to ship" />
-        <div className="mb-1 flex gap-2">
+        <div className="mb-1 flex flex-wrap justify-end gap-2">
+          <Link href="/store/admin/catalog" className="inline-flex items-center gap-1.5 rounded-full bg-amber-700 px-3 h-9 text-xs text-amber-50 hover:bg-amber-600"><LayoutGrid size={14} /> Catalog</Link>
           <Link href="/store/admin/sellers" className="inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-3 h-9 text-xs text-stone-300 hover:bg-stone-700"><Store size={14} /> Sellers</Link>
           <Link href="/store/admin/suppliers" className="inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-3 h-9 text-xs text-stone-300 hover:bg-stone-700"><Truck size={14} /> Suppliers</Link>
         </div>
@@ -42,11 +49,11 @@ export default async function StoreAdminPage() {
       <div className="flex flex-col gap-4">
         {orders?.map(o => {
           const a = addressOf.get(o.recipient_id)
-          const supplier = o.vendor ? VENDORS[o.vendor as keyof typeof VENDORS] : supplierFor(o.product_key)?.vendor
+          const supplier = suppliers.get(o.id)
           return (
             <div key={o.id} className="rounded-2xl border border-stone-800 bg-stone-900/60 p-4 flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <span className="text-3xl" aria-hidden="true">{productByKey(o.product_key)?.emoji ?? '🎁'}</span>
+                <ProductThumb product={product(o.product_key)} />
                 <div className="flex-1 min-w-0">
                   <p className="text-stone-100 font-medium">{o.title}</p>
                   <p className="text-stone-500 text-xs">{new Date(o.created_at).toLocaleString()} · {formatPrice(o.amount_cents)} · {o.status}</p>

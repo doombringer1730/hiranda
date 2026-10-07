@@ -28,10 +28,14 @@ export function GiftCard({ product, partner, canSend }: { product: Product; part
     <>
       <button onClick={() => { haptic(); setOpen(true) }}
         className="text-left rounded-3xl border border-stone-800 bg-stone-900/60 p-5 hover:border-amber-800/50 transition-colors flex flex-col gap-3">
-        <span className="text-5xl" aria-hidden="true">{product.emoji}</span>
+        {product.image
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={product.image} alt="" loading="lazy" className="w-full aspect-[4/3] rounded-2xl object-cover bg-stone-800" />
+          : <span className="text-5xl" aria-hidden="true">{product.emoji}</span>}
         <span>
           <span className="block font-serif text-2xl text-amber-50 leading-tight">{product.title}</span>
           <span className="block text-stone-400 text-sm mt-1">{product.blurb}</span>
+          {product.delivery && <span className="block text-stone-500 text-xs mt-1.5">{product.delivery}</span>}
         </span>
         <span className="mt-auto flex items-center justify-between">
           <span className="text-amber-200 text-sm font-medium">{formatPrice(product.priceCents)}</span>
@@ -68,13 +72,17 @@ function SendSheet({ product, partner, canSend, onClose }: { product: Product; p
       <button className="absolute inset-0 bg-black/60" aria-label="Close" onClick={onClose} />
       <div className="relative w-full md:max-w-md rounded-t-3xl md:rounded-3xl border border-stone-800 bg-stone-900 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-page-in">
         <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 text-stone-500 hover:text-stone-300"><X size={18} /></button>
-        <p className="text-4xl" aria-hidden="true">{product.emoji}</p>
+        {product.image
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={product.image} alt="" className="size-20 rounded-2xl object-cover bg-stone-800" />
+          : <p className="text-4xl" aria-hidden="true">{product.emoji}</p>}
         <h3 className="font-serif text-2xl text-amber-50 mt-2">{product.title}</h3>
         <p className="text-stone-400 text-sm mt-1">{product.blurb}</p>
+        {product.delivery && <p className="text-stone-500 text-xs mt-1">{product.delivery}</p>}
 
         <label className="block mt-5 text-stone-400 text-xs uppercase tracking-[0.18em]" htmlFor="gift-note">Your note to {partner}</label>
         <textarea id="gift-note" value={note} onChange={e => setNote(e.target.value.slice(0, 300))} rows={product.key === 'letter' ? 6 : 3}
-          placeholder={product.key === 'letter' ? `Dear ${partner},…` : product.section === 'keepsake' ? `A few words — ${partner} sees them in Hiranda` : 'A few words for the card'}
+          placeholder={product.key === 'letter' ? `Dear ${partner},…` : product.category === 'keepsake' ? `A few words — ${partner} sees them in Hiranda` : 'A few words for the card'}
           className="paper paper-ruled mt-2 w-full rounded-[4px] px-4 py-3 font-hand text-[21px] leading-[30px] text-[var(--paper-ink)] placeholder:text-[var(--paper-muted)] focus:outline-none" />
         <p className="text-right text-[11px] text-stone-500 mt-1">{note.length}/300</p>
         {product.fineprint && <p className="text-stone-500 text-xs mt-1">{product.fineprint}</p>}

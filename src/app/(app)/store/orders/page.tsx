@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation'
 import PageHeader from '@/components/page-header'
 import { EmptyState } from '@/components/ui'
 import { coupleContext } from '@/lib/couple'
-import { formatPrice, productByKey } from '@/lib/store/catalog'
+import { formatPrice } from '@/lib/store/catalog'
+import { productLookup } from '@/lib/store/products'
+import ProductThumb from '@/components/product-thumb'
 
 export const metadata = { title: 'Gifts you’ve sent' }
 
@@ -18,6 +20,7 @@ export default async function OrdersPage() {
   const { data: orders } = await ctx.supabase.from('store_orders')
     .select('id, product_key, title, note, amount_cents, status, tracking_url, created_at')
     .eq('sender_id', ctx.user.id).neq('status', 'pending').order('created_at', { ascending: false }).limit(50)
+  const product = await productLookup()
 
   return (
     <div className="px-4 pt-6 pb-12 max-w-lg mx-auto">
@@ -26,7 +29,7 @@ export default async function OrdersPage() {
         {!orders?.length && <EmptyState title="No gifts yet." sub="Send something small — it means a lot from far away." href="/store" action="Open the store" />}
         {orders?.map(o => (
           <div key={o.id} className="flex items-center gap-3 rounded-2xl border border-stone-800 bg-stone-900/60 p-4">
-            <span className="text-3xl" aria-hidden="true">{productByKey(o.product_key)?.emoji ?? '🎁'}</span>
+            <ProductThumb product={product(o.product_key)} />
             <div className="flex-1 min-w-0">
               <p className="text-stone-100 text-sm font-medium truncate">{o.title}</p>
               <p className="text-stone-500 text-xs">{new Date(o.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · {formatPrice(o.amount_cents)}</p>

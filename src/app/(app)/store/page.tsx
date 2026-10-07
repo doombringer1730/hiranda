@@ -4,7 +4,8 @@ import { MapPin, Package, Settings2 } from 'lucide-react'
 import PageHeader from '@/components/page-header'
 import { coupleContext } from '@/lib/couple'
 import { getPeople } from '@/lib/profiles'
-import { PARTNER_GIFTS, PRODUCTS } from '@/lib/store/catalog'
+import { CATEGORIES, PARTNER_GIFTS } from '@/lib/store/catalog'
+import { storeProducts } from '@/lib/store/products'
 import { isStoreAdmin, storeEnabled } from '@/lib/store/server'
 import { stripeOpenTo, stripeTestMode } from '@/lib/billing'
 import TestCardHint from '@/components/test-card-hint'
@@ -21,6 +22,7 @@ export default async function StorePage() {
     ctx.supabase.from('store_addresses').select('user_id').eq('user_id', ctx.user.id).maybeSingle(),
   ])
   const partner = people.get(ctx.partnerId)?.first ?? 'your partner'
+  const products = await storeProducts()
   const open = storeEnabled() && stripeOpenTo(ctx.user.email)
 
   return (
@@ -47,10 +49,8 @@ export default async function StorePage() {
 
       {open && stripeTestMode() && <div className="mb-6"><TestCardHint /></div>}
 
-      {[
-        { title: 'Little gifts', items: PRODUCTS.filter(p => p.section !== 'keepsake') },
-        { title: 'Keepsakes with your names', items: PRODUCTS.filter(p => p.section === 'keepsake') },
-      ].filter(g => g.items.length).map((g, i) => (
+      {CATEGORIES.map(c => ({ ...c, items: products.filter(p => (p.category ?? 'gift') === c.key) }))
+        .filter(g => g.items.length).map((g, i) => (
         <section key={g.title} className={i ? 'mt-10' : ''}>
           <h2 className="text-stone-400 text-[11px] uppercase tracking-[0.22em] mb-3">{g.title}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
