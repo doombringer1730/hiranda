@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { APP_SCHEME, hasPlugin } from '@/lib/native'
+import { APP_SCHEME, hasPlugin, isNativeApp } from '@/lib/native'
 
 // "Continue with Google". Only renders once Google is switched on in Supabase
 // (Authentication → Providers), so there's never a dead button.
@@ -11,6 +11,10 @@ export default function GoogleButton({ next = '/' }: { next?: string }) {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
+    // Apple requires Sign in with Apple alongside any other sign-in provider
+    // in an iPhone app, so the app only offers Google once Apple is there too.
+    // The website is unaffected.
+    if (isNativeApp() && !hasPlugin('SignInWithApple')) return
     let live = true
     fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, {
       headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! },

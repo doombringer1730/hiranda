@@ -4,7 +4,9 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Play, Users, Timer, ExternalLink, Clapperboard } from 'lucide-react'
 import { startArchiveSession, startPartySession, startYouTubeSession } from '../../../discover-actions'
-import type { SyncMode } from '@/theater/catalog/types'
+import type { SyncMode, WatchOption } from '@/theater/catalog/types'
+import { MODE_COPY } from '@/theater/catalog/providers'
+import { useIsNativeApp } from '@/theater/native'
 
 type Started = { sessionId?: string; error?: string }
 
@@ -97,5 +99,55 @@ export function PartyButton({ platform, provider, title, poster, url, mode }: {
       </div>
       {error && <p className="text-red-400 text-xs">{error}</p>}
     </div>
+  )
+}
+
+const OFFER_LABEL: Record<WatchOption['offer'], string> = { free: 'Free', ads: 'Free with ads', subscription: 'Subscription', rent: 'Rent', buy: 'Buy' }
+
+export function Group({ mode, children }: { mode: SyncMode; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-stone-800 bg-stone-900/60 p-4 flex flex-col gap-4">
+      <div>
+        <p className="text-amber-200 text-sm font-medium">{MODE_COPY[mode].label}</p>
+        <p className="text-stone-500 text-xs mt-0.5">{MODE_COPY[mode].hint}</p>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function OptionRow({ o, mode, title, poster }: { o: WatchOption; mode: SyncMode; title: string; poster: string | null }) {
+  return (
+    <div className="flex items-center gap-3">
+      {o.logo
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={o.logo} alt="" className="h-10 w-10 rounded-xl shrink-0" />
+        : <span className="h-10 w-10 rounded-xl bg-stone-800 shrink-0" />}
+      <div className="flex-1 min-w-0">
+        <p className="text-stone-100 text-sm truncate">{o.provider}</p>
+        <p className="text-stone-500 text-xs">{OFFER_LABEL[o.offer]}</p>
+      </div>
+      <PartyButton platform={o.platform} provider={o.provider} title={title} poster={poster} url={o.url} mode={mode} />
+    </div>
+  )
+}
+
+// Streaming services, grouped by how you can watch together. Inside the iPhone
+// app the extension can't run, so every service becomes "Start together".
+export function ServiceGroups({ options, title, poster }: { options: WatchOption[]; title: string; poster: string | null }) {
+  const native = useIsNativeApp()
+  const modeOf = (o: WatchOption): SyncMode => (native && o.mode === 'party' ? 'countdown' : o.mode)
+  return (
+    <>
+      {(['party', 'countdown'] as const).map(mode => {
+        const list = options.filter(o => modeOf(o) === mode)
+        if (!list.length) return null
+        return (
+          <Group key={mode} mode={mode}>
+            {list.map(o => <OptionRow key={`${o.platform}-${o.offer}`} o={o} mode={mode} title={title} poster={poster} />)}
+          </Group>
+        )
+      })}
+    </>
   )
 }
