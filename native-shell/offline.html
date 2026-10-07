@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hiranda</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #120c08; color: #f5ebe0;
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    display: grid; place-items: center; text-align: center;
+    padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+  }
+  h1 { font: 400 52px/1 Georgia, 'Times New Roman', serif; margin: 0 0 12px; }
+  h1 span { color: #c08a4a; }
+  p { color: #a8998a; margin: 0 auto 28px; max-width: 18rem; }
+  button {
+    font: 600 16px system-ui, sans-serif; color: #fff7ed; background: #9a5b23;
+    border: 0; border-radius: 999px; padding: 14px 28px;
+  }
+</style>
+<body>
+  <main>
+    <h1>Hiranda<span>.</span></h1>
+    <p>You're offline right now. Hiranda will be right here when you're back.</p>
+    <button onclick="location.replace('https://hiranda-616i.vercel.app')">Try again</button>
+  </main>
+</body>
+</html>
