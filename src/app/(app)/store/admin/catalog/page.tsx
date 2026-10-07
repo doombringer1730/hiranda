@@ -10,7 +10,7 @@ import { deliveryText, suggestPrice, tidyTitle } from '@/lib/store/pricing'
 import { isStoreAdmin } from '@/lib/store/server'
 import { VENDORS } from '@/lib/store/vendors'
 import { cjPopular, cjQuote, cjVariants } from '@/lib/store/vendors/cj'
-import { AddForm, ProductRow } from './catalog-client'
+import { AddForm, PartnerForm, ProductRow } from './catalog-client'
 
 export const metadata = { title: 'Catalog' }
 
@@ -30,7 +30,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const cjReady = VENDORS.cj.configured()
 
   const { data: mine } = await createAdminClient().from('store_products')
-    .select('key, title, image_url, emoji, category, price_cents, cost_cents, active, delivery, source_ref').order('created_at', { ascending: false })
+    .select('key, title, image_url, emoji, category, price_cents, cost_cents, active, delivery, source_ref, options').order('created_at', { ascending: false })
   const inStore = new Set((mine ?? []).map(p => p.source_ref?.replace(/^cj:/, '')).filter(Boolean))
 
   const link = (p: Partial<Params>) => `/store/admin/catalog?${new URLSearchParams(Object.entries({ q, view, ...p }).filter(([, v]) => v) as [string, string][])}`
@@ -51,9 +51,18 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
               key: p.key, title: p.title, image: p.image_url, emoji: p.emoji, active: p.active, delivery: p.delivery,
               section: CATEGORIES.find(c => c.key === p.category)?.title ?? p.category,
               price: (p.price_cents / 100).toFixed(2), cost: p.cost_cents != null ? money(p.cost_cents) : null,
+              options: (p.options as { values?: { label: string }[] } | null)?.values?.map(v => v.label).join(', ') ?? null,
             }} />
           ))}
         </div>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-stone-400 text-[11px] uppercase tracking-[0.22em] mb-3">Add a partner’s product</h2>
+        <details className="tile p-4">
+          <summary className="cursor-pointer text-sm text-stone-200 min-h-11 flex items-center">A shop you work with (Etsy and others) — they make and ship it</summary>
+          <div className="mt-3"><PartnerForm categories={CATEGORIES.map(c => ({ key: c.key, title: c.title }))} /></div>
+        </details>
       </section>
 
       <section className="mt-10">
@@ -164,6 +173,10 @@ async function Product({ pid, vid, from, link, category, emoji }: {
       )}
       {chosen && quote && (() => {
         const cost = Math.round(((chosen.price ?? 0) + quote.price) * 100)
+        // Same product in other sizes: "Pink-M" → siblings "Pink-S", "Pink-L"…
+        const cut = chosen.key.lastIndexOf('-')
+        const stem = cut > 0 ? chosen.key.slice(0, cut + 1) : null
+        const sizes = stem ? variants.filter(v => v.key.startsWith(stem)).map(v => ({ label: v.key.slice(stem.length).trim(), vid: v.vid })).filter(v => v.label) : []
         return (
           <div className="rounded-2xl border border-stone-800 bg-stone-900/60 p-4 flex flex-col gap-3">
             <div className="flex gap-3">
@@ -180,7 +193,7 @@ async function Product({ pid, vid, from, link, category, emoji }: {
               title: tidyTitle(chosen.name), category, emoji, image: chosen.image ?? '',
               price: (suggestPrice(cost) / 100).toFixed(2), cost: (cost / 100).toFixed(2),
               delivery: deliveryText(quote.days), vid: chosen.vid, pid, from,
-            }} categories={CATEGORIES.map(c => ({ key: c.key, title: c.title }))} />
+            }} sizes={sizes.length > 1 ? sizes : []} categories={CATEGORIES.map(c => ({ key: c.key, title: c.title }))} />
           </div>
         )
       })()}

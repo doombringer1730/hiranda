@@ -17,6 +17,21 @@ async function admin() {
 const clean = (v: FormDataEntryValue | null, max: number) => String(v ?? '').trim().slice(0, max)
 const cents = (v: FormDataEntryValue | null) => Math.round(Number(String(v ?? '').replace(/[^0-9.]/g, '')) * 100)
 
+/** Sizes from the forms → { name: 'Size', values } (2–20 short labels). */
+function parseOptions(raw: FormDataEntryValue | null, fromList?: FormDataEntryValue | null) {
+  let values: { label: string; vid?: string }[] = []
+  if (raw) {
+    try {
+      const o = JSON.parse(String(raw)) as { values?: { label?: unknown; vid?: unknown }[] }
+      values = (o.values ?? []).map(v => ({ label: String(v.label ?? '').slice(0, 20), vid: typeof v.vid === 'string' ? v.vid.slice(0, 80) : undefined }))
+    } catch { /* ignore */ }
+  } else if (fromList) {
+    values = String(fromList).split(',').map(x => ({ label: x.trim().slice(0, 20) }))
+  }
+  values = values.filter((v, i, a) => v.label && a.findIndex(w => w.label === v.label) === i).slice(0, 20)
+  return values.length >= 2 ? { name: 'Size', values } : null
+}
+
 function refresh() {
   revalidatePath('/store')
   revalidatePath('/store/admin/catalog')
@@ -50,7 +65,46 @@ export async function addCjProduct(form: FormData): Promise<{ ok?: true; error?:
     vendor: { name: 'cj', items: [{ vid, quantity: 1 }], from },
     delivery: delivery || null,
     source_ref: pid ? `cj:${pid}` : null,
+    options: parseOptions(form.get('options')),
     active: true, updated_at: new Date().toISOString(),
+  })
+  if (error) return { error: 'Couldn’t save — try again.' }
+  refresh()
+  return { ok: true }
+}
+
+// A partner shop's product (e.g. on Etsy): sold in Hiranda, made and shipped
+// by them — paid orders show up in /store/admin with a link to order it there.
+export async function addPartnerProduct(form: FormData): Promise<{ ok?: true; error?: string }> {
+  if (!(await admin())) return { error: 'Not allowed' }
+  const title = clean(form.get('title'), 120)
+  const blurb = clean(form.get('blurb'), 300)
+  const partner = clean(form.get('partner'), 80)
+  const category = clean(form.get('category'), 20) as Category
+  const price = cents(form.get('price'))
+  const cost = cents(form.get('cost'))
+  const delivery = clean(form.get('delivery'), 80)
+  let image = clean(form.get('image'), 500)
+  let url = clean(form.get('url'), 500)
+
+  if (!title || !partner) return { error: 'A name and the partner’s shop are needed.' }
+  if (!CATEGORIES.some(c => c.key === category)) return { error: 'Pick a section.' }
+  if (!(price >= 100 && price <= 100000)) return { error: 'Price looks off.' }
+  if (cost && price < cost + 300) return { error: `That’s barely above what you pay them (${(cost / 100).toFixed(2)}).` }
+  try { if (image) image = new URL(image).protocol === 'https:' ? image : '' } catch { image = '' }
+  try { if (url) url = new URL(url).protocol === 'https:' ? url : '' } catch { url = '' }
+
+  const base = `${partner}-${title}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 52) || 'partner-gift'
+  const key = `${base}-${Date.now().toString(36).slice(-6)}`
+  const { error } = await createAdminClient().from('store_products').insert({
+    key, title, blurb, category, emoji: '🎁',
+    image_url: image || null,
+    price_cents: price, cost_cents: cost || null,
+    vendor: { name: 'partner', partner, ...(url ? { url } : {}) },
+    delivery: delivery || null,
+    source_ref: `partner:${partner}`.slice(0, 120),
+    options: parseOptions(null, form.get('sizes')),
+    active: true,
   })
   if (error) return { error: 'Couldn’t save — try again.' }
   refresh()

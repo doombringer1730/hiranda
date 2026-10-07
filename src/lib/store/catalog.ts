@@ -31,17 +31,38 @@ export type Product = {
   image?: string
   /** e.g. "Arrives in about 1–2 weeks". */
   delivery?: string
+  /** Something the sender picks, like a size. */
+  options?: ProductOptions
 }
 
-export type Category = 'cuddly' | 'jewelry' | 'cozy' | 'gift' | 'keepsake'
+/** e.g. { name: 'Size', values: [{ label: 'M', vid: '…' }] } — `vid` picks the
+ *  exact CJ variant; for partners the label is passed on with the order. */
+export type ProductOptions = { name: string; kind?: SizeKind; values: { label: string; vid?: string }[] }
+
+/** Which of the recipient's saved sizes a product uses (default 'top'). */
+export type SizeKind = 'top' | 'bottom' | 'shoe'
+export const SIZE_KINDS: { key: SizeKind; label: string; choices: string[] }[] = [
+  { key: 'top', label: 'Tops & sets', choices: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'] },
+  { key: 'bottom', label: 'Bottoms', choices: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'] },
+  { key: 'shoe', label: 'Shoes (US)', choices: ['5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13'] },
+]
+/** "2XL" and "XXL" are the same size. */
+export const sameSize = (a: string, b: string) => a.toUpperCase().replace(/^2XL$/, 'XXL') === b.toUpperCase().replace(/^2XL$/, 'XXL')
+
+export type Category = 'her' | 'him' | 'cuddly' | 'jewelry' | 'cozy' | 'gift' | 'keepsake'
 
 /** Where a gift ships from, as shoppers see it: printed or stocked in the US,
  *  or sent internationally (slower, more choice). */
 export const shipsFrom = (p: Pick<Product, 'vendor'>): 'US' | 'International' =>
   p.vendor?.name === 'cj' && p.vendor.from === 'CN' ? 'International' : 'US'
 
+/** The partner shop that makes it, if any — credited on the product. */
+export const madeBy = (p: Pick<Product, 'vendor'>) => p.vendor?.name === 'partner' ? p.vendor.partner : null
+
 /** Store sections, in order. */
 export const CATEGORIES: { key: Category; title: string }[] = [
+  { key: 'her', title: 'For her' },
+  { key: 'him', title: 'For him' },
   { key: 'gift', title: 'Little gifts' },
   { key: 'cuddly', title: 'Something to hug' },
   { key: 'jewelry', title: 'To wear and think of you' },
@@ -99,6 +120,50 @@ export const PRODUCTS: Product[] = [
     category: 'keepsake',
     fineprint: 'Printed with both your first names and the year you got together.',
     vendor: { name: 'printful', variantId: 1349, placement: 'default', art: { w: 3600, h: 4800 } },
+  },
+  {
+    key: 'framed',
+    title: 'Our names, framed',
+    blurb: 'A 12″×16″ museum-matte print in a black wooden frame, ready to hang.',
+    emoji: '🖼️',
+    priceCents: 7900, // ≈ $32 + ~$11 shipping
+    ships: true,
+    category: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 1350, placement: 'default', art: { w: 3600, h: 4800 } },
+  },
+  {
+    key: 'canvas',
+    title: 'Our names on canvas',
+    blurb: 'A gallery-wrapped 11″×14″ canvas for the wall you share — or will.',
+    emoji: '🖼️',
+    priceCents: 5900, // ≈ $17 + ~$10 shipping
+    ships: true,
+    category: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 19298, placement: 'default', art: { w: 5100, h: 4200 } },
+  },
+  {
+    key: 'pillow',
+    title: 'Our pillow',
+    blurb: 'A soft 18″×18″ premium pillow with your names, stuffing included.',
+    emoji: '🛏️',
+    priceCents: 5900, // ≈ $19 + ~$11 shipping
+    ships: true,
+    category: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 9515, placement: 'front', art: { w: 2850, h: 2850 } },
+  },
+  {
+    key: 'ornament',
+    title: 'Our heart ornament',
+    blurb: 'A glossy ceramic heart with your names, to hang somewhere you’ll see it.',
+    emoji: '🤍',
+    priceCents: 2900, // ≈ $8 + ~$6 shipping
+    ships: true,
+    category: 'keepsake',
+    fineprint: 'Printed with both your first names and the year you got together.',
+    vendor: { name: 'printful', variantId: 23144, placement: 'front', art: { w: 978, h: 972 } },
   },
 ]
 

@@ -6,7 +6,7 @@ import { coupleContext } from '@/lib/couple'
 import { getStripe, stripeOpenTo } from '@/lib/billing'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPartner, myFirstName } from '@/lib/push'
-import { SHIP_TO } from '@/lib/store/catalog'
+import { SHIP_TO, SIZE_KINDS, sameSize } from '@/lib/store/catalog'
 import { findProduct } from '@/lib/store/products'
 import { isStoreAdmin, storeEnabled } from '@/lib/store/server'
 import { usStateCode } from '@/lib/store/vendors/us-states'
@@ -67,7 +67,7 @@ async function origin() {
 }
 
 // Start a gift: record it as pending, then hand off to Stripe Checkout.
-export async function startGift(productKey: string, note: string): Promise<{ url?: string; error?: string }> {
+export async function startGift(productKey: string, note: string, option?: string): Promise<{ url?: string; error?: string }> {
   if (!storeEnabled()) return { error: 'The store opens soon.' }
   const product = await findProduct(productKey)
   if (!product) return { error: 'Unknown gift' }
@@ -77,17 +77,36 @@ export async function startGift(productKey: string, note: string): Promise<{ url
   const { data: hasAddress } = await ctx.supabase.rpc('partner_has_gift_address')
   if (!hasAddress) return { error: 'Your partner hasn’t added a delivery address yet.' }
 
+  // A size: your partner's saved one if they have it (private — you never
+  // see it), otherwise the one you picked.
+  let picked: string | undefined
+  let privateSize = false
+  if (product.options) {
+    const kind = product.options.kind ?? 'top'
+    const { data: sizes } = await createAdminClient().from('gift_sizes').select('top, bottom, shoe').eq('user_id', ctx.partnerId).maybeSingle()
+    const saved = sizes?.[kind] as string | null | undefined
+    if (saved) {
+      picked = product.options.values.find(v => sameSize(v.label, saved))?.label
+      if (!picked) return { error: 'Their saved size isn’t available for this one — try another gift.' }
+      privateSize = true
+    } else {
+      picked = product.options.values.find(v => v.label === option)?.label
+      if (!picked) return { error: `Pick a ${product.options.name.toLowerCase()} first.` }
+    }
+  }
+
   const text = note.trim().slice(0, 300) || null
   const { data: order, error } = await ctx.supabase.from('store_orders').insert({
     couple_id: ctx.couple.id, sender_id: ctx.user.id, recipient_id: ctx.partnerId,
     product_key: product.key, title: product.title, note: text, amount_cents: product.priceCents,
+    option: picked ?? null,
   }).select('id').single()
   if (error || !order) return { error: 'Couldn’t start the order — try again.' }
 
   const base = await origin()
   const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
-    line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: product.priceCents, product_data: { name: product.title } } }],
+    line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: product.priceCents, product_data: { name: picked && !privateSize ? `${product.title} (${product.options!.name}: ${picked})` : product.title } } }],
     customer_email: ctx.user.email ?? undefined,
     metadata: { order_id: order.id, kind: 'gift' },
     payment_intent_data: { metadata: { order_id: order.id } },
@@ -169,5 +188,34 @@ export async function setApplicationStatus(id: string, status: 'new' | 'contacte
   if (!['new', 'contacted', 'approved', 'declined'].includes(status)) return { error: 'Unknown status' }
   await createAdminClient().from('seller_applications').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
   revalidatePath('/store/admin/sellers')
+  return { ok: true }
+}
+
+// ── Sizes (private, like your address) ──
+
+export async function saveSizes(form: FormData): Promise<{ ok?: true; error?: string }> {
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Not signed in' }
+  const row: Record<string, string | null> = {}
+  for (const k of SIZE_KINDS) {
+    const v = String(form.get(k.key) ?? '').trim()
+    row[k.key] = k.choices.includes(v) ? v : null
+  }
+  const { error } = await ctx.supabase.from('gift_sizes').upsert({ user_id: ctx.user.id, ...row, updated_at: new Date().toISOString() })
+  if (error) return { error: 'Couldn’t save — try again.' }
+  revalidatePath('/store')
+  return { ok: true }
+}
+
+// "Add your sizes" — a nudge to your partner (they never share them with you).
+export async function askForSizes() {
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Not signed in' }
+  notifyPartner(async () => ({
+    title: `${await myFirstName()} wants to get you something that fits 👀`,
+    body: 'Add your sizes in Hiranda — they stay private, even from them.',
+    url: '/store/address',
+    tag: 'store-sizes',
+  }))
   return { ok: true }
 }

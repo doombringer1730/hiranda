@@ -1,7 +1,7 @@
 import 'server-only'
 import { cache } from 'react'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { PRODUCTS, type Category, type Product } from './catalog'
+import { PRODUCTS, type Category, type Product, type ProductOptions } from './catalog'
 import type { VendorSpec } from './vendors/types'
 
 // Every product the Store knows: the built-in ones (catalog.ts) plus those
@@ -10,17 +10,18 @@ import type { VendorSpec } from './vendors/types'
 
 type Row = {
   key: string; title: string; blurb: string; image_url: string | null; emoji: string; category: Category
-  price_cents: number; vendor: VendorSpec; delivery: string | null; active: boolean
+  price_cents: number; vendor: VendorSpec; delivery: string | null; active: boolean; options: ProductOptions | null
 }
 
 const toProduct = (r: Row): Product => ({
   key: r.key, title: r.title, blurb: r.blurb, emoji: r.emoji, priceCents: r.price_cents, ships: true,
   category: r.category, vendor: r.vendor, image: r.image_url ?? undefined, delivery: r.delivery ?? undefined,
+  options: r.options?.values?.length ? r.options : undefined,
 })
 
 const added = cache(async (): Promise<(Product & { active: boolean })[]> => {
   const { data } = await createAdminClient().from('store_products')
-    .select('key, title, blurb, image_url, emoji, category, price_cents, vendor, delivery, active')
+    .select('key, title, blurb, image_url, emoji, category, price_cents, vendor, delivery, active, options')
     .order('sort').order('created_at')
   return (data as Row[] | null ?? []).map(r => ({ ...toProduct(r), active: r.active }))
 })

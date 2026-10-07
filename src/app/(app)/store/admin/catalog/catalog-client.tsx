@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
-import { addCjProduct, deleteProduct, setProductActive, setProductPrice } from './actions'
+import { addCjProduct, addPartnerProduct, deleteProduct, setProductActive, setProductPrice } from './actions'
 
 const field = 'w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-sm text-amber-50 placeholder:text-stone-600'
 const label = 'block text-stone-500 text-[11px] uppercase tracking-[0.16em] mb-1'
@@ -13,11 +13,14 @@ type Defaults = {
   delivery: string; vid: string; pid: string; from: 'US' | 'CN'
 }
 
-export function AddForm({ defaults, categories }: { defaults: Defaults; categories: { key: string; title: string }[] }) {
+export function AddForm({ defaults, categories, sizes }: {
+  defaults: Defaults; categories: { key: string; title: string }[]; sizes: { label: string; vid: string }[]
+}) {
   const router = useRouter()
   const [pending, start] = useTransition()
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [price, setPrice] = useState(defaults.price)
+  const [withSizes, setWithSizes] = useState(sizes.length > 1)
   const profit = Number(price) - Number(defaults.cost) - Number(price) * 0.03 - 0.3
 
   return (
@@ -27,6 +30,13 @@ export function AddForm({ defaults, categories }: { defaults: Defaults; categori
       if (res.ok) router.refresh()
     })} className="flex flex-col gap-3">
       {(['vid', 'pid', 'from', 'image', 'cost', 'emoji'] as const).map(k => <input key={k} type="hidden" name={k} value={defaults[k]} />)}
+      {withSizes && <input type="hidden" name="options" value={JSON.stringify({ name: 'Size', values: sizes })} />}
+      {sizes.length > 1 && (
+        <label className="flex items-start gap-2.5 text-sm text-stone-300">
+          <input type="checkbox" checked={withSizes} onChange={e => setWithSizes(e.target.checked)} className="mt-1 accent-amber-600" />
+          <span>Let them pick a size: {sizes.map(s => s.label).join(', ')} <span className="text-stone-500">(same price for every size — check the costs match)</span></span>
+        </label>
+      )}
       <div><label className={label} htmlFor="title">Name in your store</label>
         <input id="title" name="title" defaultValue={defaults.title} maxLength={120} required className={field} /></div>
       <div><label className={label} htmlFor="blurb">A line about it</label>
@@ -52,7 +62,56 @@ export function AddForm({ defaults, categories }: { defaults: Defaults; categori
   )
 }
 
-type Row = { key: string; title: string; image: string | null; emoji: string; active: boolean; delivery: string | null; section: string; price: string; cost: string | null }
+export function PartnerForm({ categories }: { categories: { key: string; title: string }[] }) {
+  const router = useRouter()
+  const [pending, start] = useTransition()
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [price, setPrice] = useState('')
+  const [cost, setCost] = useState('')
+  const profit = Number(price) - Number(cost) - Number(price) * 0.03 - 0.3
+  return (
+    <form action={form => start(async () => {
+      const res = await addPartnerProduct(form)
+      setMsg(res.ok ? { ok: true, text: 'Added to your store ✓' } : { ok: false, text: res.error ?? 'Something went wrong' })
+      if (res.ok) router.refresh()
+    })} className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className={label} htmlFor="p-partner">Partner shop</label>
+          <input id="p-partner" name="partner" required maxLength={80} className={field} placeholder="PeachCustomShirts" /></div>
+        <div><label className={label} htmlFor="p-category">Section</label>
+          <select id="p-category" name="category" defaultValue="her" className={field}>
+            {categories.map(c => <option key={c.key} value={c.key}>{c.title}</option>)}
+          </select></div>
+      </div>
+      <div><label className={label} htmlFor="p-title">Name in your store</label>
+        <input id="p-title" name="title" required maxLength={120} className={field} placeholder="Matching couple shirts" /></div>
+      <div><label className={label} htmlFor="p-blurb">A line about it</label>
+        <input id="p-blurb" name="blurb" maxLength={300} className={field} /></div>
+      <div><label className={label} htmlFor="p-url">Link to order it from them</label>
+        <input id="p-url" name="url" inputMode="url" maxLength={500} className={field} placeholder="https://www.etsy.com/listing/…" /></div>
+      <div><label className={label} htmlFor="p-image">Photo link (https)</label>
+        <input id="p-image" name="image" inputMode="url" maxLength={500} className={field} placeholder="Right-click their photo → Copy image address" /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className={label} htmlFor="p-price">Your price ($)</label>
+          <input id="p-price" name="price" inputMode="decimal" required value={price} onChange={e => setPrice(e.target.value)} className={field} /></div>
+        <div><label className={label} htmlFor="p-cost">You pay them ($)</label>
+          <input id="p-cost" name="cost" inputMode="decimal" value={cost} onChange={e => setCost(e.target.value)} className={field} placeholder="incl. their shipping" /></div>
+      </div>
+      <div><label className={label} htmlFor="p-sizes">Sizes (optional)</label>
+        <input id="p-sizes" name="sizes" maxLength={200} className={field} placeholder="S, M, L, XL, 2XL" /></div>
+      <div><label className={label} htmlFor="p-delivery">Delivery note</label>
+        <input id="p-delivery" name="delivery" maxLength={80} className={field} defaultValue="Made to order — arrives in about 1–2 weeks" /></div>
+      {price && cost && <p className={`text-xs ${profit >= 5 ? 'text-emerald-300' : 'text-amber-300'}`}>You keep about ${Number.isFinite(profit) ? profit.toFixed(2) : '—'} per sale.</p>}
+      <p className="text-stone-500 text-xs">Only use photos you have the partner’s OK to show.</p>
+      <button disabled={pending} className="inline-flex items-center justify-center gap-2 h-11 rounded-full bg-amber-600 hover:bg-amber-500 text-stone-950 font-medium disabled:opacity-60">
+        {pending && <Loader2 size={16} className="animate-spin" />} Add partner product
+      </button>
+      {msg && <p className={`text-sm ${msg.ok ? 'text-emerald-300' : 'text-red-300'}`} role="status">{msg.text}</p>}
+    </form>
+  )
+}
+
+type Row = { key: string; title: string; image: string | null; emoji: string; active: boolean; delivery: string | null; section: string; price: string; cost: string | null; options: string | null }
 
 export function ProductRow({ product: p }: { product: Row }) {
   const router = useRouter()
@@ -73,7 +132,7 @@ export function ProductRow({ product: p }: { product: Row }) {
           : <span className="text-3xl" aria-hidden="true">{p.emoji}</span>}
         <div className="flex-1 min-w-0">
           <p className="text-stone-100 text-sm truncate">{p.title}</p>
-          <p className="text-stone-500 text-xs truncate">{p.section}{p.cost ? ` · cost ${p.cost}` : ''}{p.delivery ? ` · ${p.delivery}` : ''}</p>
+          <p className="text-stone-500 text-xs truncate">{p.section}{p.cost ? ` · cost ${p.cost}` : ''}{p.options ? ` · sizes ${p.options}` : ''}{p.delivery ? ` · ${p.delivery}` : ''}</p>
         </div>
         <div className="flex items-center gap-1">
           <span className="text-stone-500 text-sm">$</span>

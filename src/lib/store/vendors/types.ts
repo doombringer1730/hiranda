@@ -13,6 +13,9 @@ export type VendorSpec =
   // rendered at `art` pixels — match the product's print area.
   | { name: 'printful'; variantId: number; placement: string; art: ArtSize }
   | { name: 'printify'; blueprintId: number; printProviderId: number; variantId: number; position: string; art: ArtSize }
+  // A partner shop (e.g. on Etsy) makes and ships it: paid orders show up in
+  // /store/admin with a link to place the order with them.
+  | { name: 'partner'; partner: string; url?: string }
 
 export type ArtSize = { w: number; h: number }
 

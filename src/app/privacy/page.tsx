@@ -18,7 +18,7 @@ export default function PrivacyPage() {
         <li><b>Your account:</b> email, display name, and (if you add them) a profile photo, banner, bio and status.</li>
         <li><b>What you create:</b> memories and photos, journal entries, dates, todos, bucket list, watchlist, books, music, game moves, quiz answers, and study decks.</li>
         <li><b>Optional connections you choose to set up:</b> Spotify (to share what you’re listening to) and push notifications for your devices.</li>
-        <li><b>Gifts (Hiranda Store):</b> if you add a delivery address, only you can see it — your partner never does. When your partner sends you a gift, the store uses it to ship, and sees the note so it can be printed on the card. If a partner makes the gift, they get your name, address and phone (if you added one) to deliver it, and the note if it’s printed. We keep a record of gifts sent (what, when, status); card details are handled by Stripe, never by us.</li>
+        <li><b>Gifts (Hiranda Store):</b> if you add a delivery address, only you can see it — your partner never does. When your partner sends you a gift, the store uses it to ship, and sees the note so it can be printed on the card. If a partner makes the gift, they get your name, address and phone (if you added one) to deliver it, and the note if it’s printed. If you save your sizes, they’re private in the same way: your partner only learns that you’ve saved one, and the store uses it to order clothes that fit. We keep a record of gifts sent (what, when, status); card details are handled by Stripe, never by us.</li>
         <li><b>Selling on Hiranda:</b> if you apply to sell, we keep what you send (your name, email and shop details) to review it and reply. It isn’t shown to anyone else.</li>
         <li><b>Hiranda Plus:</b> whether your couple has an active subscription and when it renews. Payments are handled by Apple or Stripe; we never see your card.</li>
         <li><b>Sign-in security:</b> if you turn on two-factor login, your authenticator setup.</li>
@@ -31,7 +31,7 @@ export default function PrivacyPage() {
         <li><b>Your browser’s push service</b> (Apple, Google or Mozilla) — delivers notifications you opt into.</li>
         <li><b>Google</b> — only if you choose “Continue with Google”.</li>
         <li><b>Spotify</b>, <b>TMDB</b>, the <b>Internet Archive</b> and <b>YouTube</b> — only for features that use them; we send them the minimum needed (for example, a title to look up).</li>
-        <li><b>Gelato</b>, <b>Printful</b>, <b>Printify</b>, <b>CJ Dropshipping</b> and <b>Goody</b> — make and deliver Hiranda Store gifts, using only what’s needed to ship each one.</li>
+        <li><b>Gelato</b>, <b>Printful</b>, <b>Printify</b>, <b>CJ Dropshipping</b>, <b>Goody</b> and the partner shops named on a gift — make and deliver Hiranda Store gifts, using only what’s needed to ship each one.</li>
         <li><b>Stripe</b> — payments for gifts and, on the web, Hiranda Plus. <b>Apple</b> and <b>RevenueCat</b> — Hiranda Plus bought in the iPhone app.</li>
       </ul>
 

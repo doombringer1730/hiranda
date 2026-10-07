@@ -24,7 +24,7 @@ const firstName = (s: string | null | undefined) => (s ?? '').trim().split(/\s+/
 /** The supplier that makes this product, if one is set up for it. */
 export async function supplierFor(productKey: string): Promise<{ vendor: Vendor; spec: VendorSpec } | null> {
   const spec = (await findProduct(productKey, { includeInactive: true }))?.vendor
-  if (!spec) return null
+  if (!spec || spec.name === 'partner') return null // shipped by hand / by a partner
   const vendor = VENDORS[spec.name]
   return vendor.ready(spec) ? { vendor, spec } : null
 }
@@ -32,12 +32,18 @@ export async function supplierFor(productKey: string): Promise<{ vendor: Vendor;
 export async function fulfilOrder(orderId: string): Promise<{ ok?: true; manual?: true; error?: string }> {
   const db = createAdminClient()
   const { data: order } = await db.from('store_orders')
-    .select('id, product_key, note, sender_id, recipient_id, status, vendor, vendor_order_id')
+    .select('id, product_key, note, sender_id, recipient_id, status, vendor, vendor_order_id, option')
     .eq('id', orderId).maybeSingle()
   if (!order || order.status !== 'paid' || order.vendor_order_id) return { error: 'This gift isn’t waiting to be sent.' }
   const pick = await supplierFor(order.product_key)
   if (!pick) return { manual: true }
-  const { vendor, spec } = pick
+  const { vendor } = pick
+  let { spec } = pick
+  // A size (or other option) that maps to its own CJ variant.
+  if (order.option && spec.name === 'cj') {
+    const chosen = (await findProduct(order.product_key, { includeInactive: true }))?.options?.values.find(v => v.label === order.option)
+    if (chosen?.vid) spec = { ...spec, items: [{ vid: chosen.vid, quantity: 1 }] }
+  }
 
   // Claim it, so two runs can't both send it.
   const { data: claimed } = await db.from('store_orders')
