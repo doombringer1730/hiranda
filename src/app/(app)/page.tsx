@@ -15,6 +15,7 @@ import { awardMilestones } from './grow/actions'
 import { Greeting, TodayLine } from './greeting'
 import { InstallCard, NotificationCard } from '@/components/pwa'
 import { Polaroid, Scribble } from '@/components/handmade'
+import SponsorCard from '@/components/sponsor-card'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
 
@@ -353,6 +354,7 @@ export default async function HomeHub() {
         </div>
       </div>
 
+      <div className="mt-8"><SponsorCard place="home" /></div>
     </div>
   )
 }

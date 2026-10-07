@@ -7,6 +7,7 @@ import PageHeader from '@/components/page-header'
 import CheckButton from '@/components/check-button'
 import { EmptyState, PersonChip } from '@/components/ui'
 import WhyItWorks from '@/components/why-it-works'
+import SponsorCard from '@/components/sponsor-card'
 
 const CATEGORIES = ['travel', 'food', 'experience', 'other'] as const
 type Category = typeof CATEGORIES[number]
@@ -88,6 +89,7 @@ export default async function BucketListPage() {
       <WhyItWorks className="mt-12" source="Aron et al., 2000">
         New experiences shared with a partner get linked to the relationship itself — that’s why doing something new together feels like falling for them again.
       </WhyItWorks>
+      <div className="mt-8"><SponsorCard place="someday" /></div>
     </div>
   )
 }

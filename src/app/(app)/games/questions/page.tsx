@@ -5,6 +5,7 @@ import { coupleContext } from '@/lib/couple'
 import { getActivePrompt, getPromptState, getDepthState } from '../actions'
 import GameClient from '../game-client'
 import DeckPicker from './deck-picker'
+import { hasPlus } from '@/lib/plus'
 import WhyItWorks from '@/components/why-it-works'
 
 type PromptType = 'question' | 'would_you_rather' | 'this_or_that' | 'most_likely'
@@ -52,7 +53,7 @@ export default async function QuickQuestionsPage({ searchParams }: { searchParam
       <h1 className="font-serif text-[44px] leading-none text-amber-50 mt-2 mb-6">{game.title}<span className="text-amber-500">.</span></h1>
 
       {type === 'question' && depthState && deck && (
-        <DeckPicker deck={deck} mine={depthState.mine} theirs={depthState.theirs} both={depthState.both} partnerName={partnerName} />
+        <DeckPicker deck={deck} mine={depthState.mine} theirs={depthState.theirs} both={depthState.both} partnerName={partnerName} plus={await hasPlus()} />
       )}
 
       {!locked && (

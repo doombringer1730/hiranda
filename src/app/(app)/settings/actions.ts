@@ -1,5 +1,8 @@
 'use server'
 
+import { hasPlus } from '@/lib/plus'
+import { FREE_THEMES } from '@/lib/plus-config'
+
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
@@ -164,6 +167,7 @@ const THEME_KEYS = new Set(['coffee', 'preppy', 'midnight', 'rose', 'forest', 'o
 
 export async function saveTheme(theme: string) {
   if (!THEME_KEYS.has(theme)) return
+  if (!FREE_THEMES.has(theme) && !(await hasPlus())) return
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

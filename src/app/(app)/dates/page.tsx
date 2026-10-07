@@ -5,6 +5,7 @@ import { deleteDate } from './actions'
 import PageHeader from '@/components/page-header'
 import { Scribble } from '@/components/handmade'
 import { EmptyState, primaryButton } from '@/components/ui'
+import SponsorCard from '@/components/sponsor-card'
 
 type DateRow = {
   id: string
@@ -127,6 +128,7 @@ export default async function DatesPage() {
           })}
         </div>
       )}
+      <div className="mt-8"><SponsorCard place="dates" /></div>
     </div>
   )
 }

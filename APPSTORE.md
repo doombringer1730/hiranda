@@ -20,6 +20,7 @@ In Xcode, click the blue **App** project → target **App** → **Signing & Capa
    - **Push Notifications**
    - **Sign in with Apple**
    - **App Groups** → **+** → `group.com.hiranda.app`
+   - **In-App Purchase** (for Hiranda Plus)
    - *(optional)* **Time Sensitive Notifications**, so urgent messages break through Focus
 
 ## 2. Xcode: the home-screen widget
@@ -83,7 +84,7 @@ Go to appstoreconnect.apple.com → **Apps → + → New App**.
 - **Privacy Policy URL:** https://hiranda-616i.vercel.app/privacy
 - **Support URL:** https://hiranda-616i.vercel.app/support
 - **App Privacy**, which must match `ios/App/App/PrivacyInfo.xcprivacy`:
-  - **Data collected:** Email Address, Name, User ID, Photos or Videos, Other User Content.
+  - **Data collected:** Email Address, Name, User ID, Photos or Videos, Other User Content, Purchase History.
   - **Linked to the user:** yes.
   - **Used for tracking:** no.
   - **Purpose:** App Functionality.
@@ -112,9 +113,55 @@ Go to appstoreconnect.apple.com → **Apps → + → New App**.
 > The Theater (watch-together) is behind a couple passcode, which a couple sets in Settings. For review it is: [passcode]
 > Theater content is public-domain films from the Internet Archive and YouTube videos played through YouTube's official embedded player. For commercial services, Hiranda only links out to the official apps, and partners start playback together with a countdown.
 >
+> Hiranda Plus is an optional auto-renewing subscription (monthly or yearly, one plan covering both partners). The demo couple can test it with a Sandbox Apple ID. Free users see at most one clearly labeled sponsored card on a few browse pages.
+>
 > Native features: push notifications when your partner answers, writes or plays; Sign in with Apple; a home-screen widget (Days together); haptics; native share sheet.
 
-## 7. Upload
+## 7. Hiranda Plus (subscriptions)
+
+Plus is one subscription per couple: $4.99/month or $39.99/year, with a 7-day
+trial. Prices, perks, free themes and free Grow units all live in
+`src/lib/plus-config.ts`. Sponsors live in `src/lib/sponsors.ts`.
+
+**App Store (in-app purchase, via RevenueCat):**
+1. App Store Connect → your app → **Subscriptions** → create a group "Hiranda Plus" with:
+   - **Monthly:** `hiranda_plus_monthly`, $4.99, 1-week free trial.
+   - **Yearly:** `hiranda_plus_yearly`, $39.99, 1-week free trial.
+2. Sign the **Paid Apps agreement** (Business → Agreements). Purchases don't work without it.
+3. Join the **Small Business Program**, so Apple takes 15% instead of 30%.
+4. Set up RevenueCat (free under $2.5k/month in revenue):
+   - Create a project and add your iOS app with its App Store Connect API key.
+   - Create the entitlement **`plus`** and attach both products.
+   - Create an offering marked **Current** with a **Monthly** and an **Annual** package.
+5. Add to Vercel:
+   - `NEXT_PUBLIC_REVENUECAT_IOS_KEY`: RevenueCat's public iOS SDK key
+   - `REVENUECAT_SECRET_KEY`: a secret (v1) API key
+   - `REVENUECAT_WEBHOOK_AUTH`: any long random string
+6. In RevenueCat → Integrations → Webhooks, set the URL to
+   `https://hiranda-616i.vercel.app/api/revenuecat/webhook` and the Authorization
+   header to the same `REVENUECAT_WEBHOOK_AUTH` value.
+
+**Web (Stripe):**
+1. In Stripe, create the product "Hiranda Plus" with two recurring prices
+   ($4.99 monthly, $39.99 yearly). Turn on the customer portal (Settings → Billing → Customer portal).
+2. Add a webhook at `https://hiranda-616i.vercel.app/api/stripe/webhook` with these events:
+   - `checkout.session.completed`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+3. Add to Vercel:
+   - `STRIPE_SECRET_KEY`
+   - `STRIPE_WEBHOOK_SECRET`
+   - `STRIPE_PRICE_MONTHLY`
+   - `STRIPE_PRICE_YEARLY`
+
+**Both** need `SUPABASE_SERVICE_ROLE_KEY` set in Vercel, spelled exactly like
+that. The old misspelled `UPABASE_SERVICE_ROLE_KEY` doesn't count.
+
+Inside the app, Plus is only ever sold through Apple. The web checkout never
+appears there (App Store rule 3.1.1). Your couple has a permanent "founders" grant.
+
+## 8. Upload
 
 1. In Xcode's device menu, choose **Any iOS Device (arm64)**.
 2. Go to **Product → Archive**, then **Distribute App → App Store Connect → Upload**.

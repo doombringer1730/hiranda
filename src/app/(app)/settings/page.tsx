@@ -12,9 +12,11 @@ import { getTheaterState } from '@/theater/public'
 import PageHeader from '@/components/page-header'
 import AccountSection from './account-section'
 import MfaSettings from '@/components/mfa-settings'
+import { hasPlus } from '@/lib/plus'
+import { Sparkles } from 'lucide-react'
 
 export default async function SettingsPage() {
-  const theater = await getTheaterState()
+  const [theater, plus] = await Promise.all([getTheaterState(), hasPlus()])
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase
@@ -42,6 +44,16 @@ export default async function SettingsPage() {
 
       <div className="flex flex-col gap-4">
 
+        {/* Plus */}
+        <Link href="/plus" className="flex items-center gap-3 rounded-2xl border border-amber-800/40 bg-amber-950/20 p-5 hover:border-amber-700/60 transition-colors">
+          <Sparkles size={18} className="text-amber-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-amber-100 font-medium">Hiranda Plus</p>
+            <p className="text-stone-400 text-sm">{plus ? 'Active for you both — thank you 💛' : 'No ads, every theme, the Deepest deck and more — one plan for both of you.'}</p>
+          </div>
+          <span className="text-stone-500 text-sm">›</span>
+        </Link>
+
         {/* Notifications */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
           <h3 className="text-amber-200 font-medium mb-1">Notifications</h3>
@@ -55,7 +67,7 @@ export default async function SettingsPage() {
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
           <h3 className="text-amber-200 font-medium mb-1">Theme</h3>
           <p className="text-stone-500 text-sm mb-4">Shared with your partner — you both see the same one.</p>
-          <SettingsClient type="theme" currentTheme={theme} />
+          <SettingsClient type="theme" currentTheme={theme} plus={plus} />
         </section>
 
         {/* Profile — photo, banner, colour now live on your profile */}
