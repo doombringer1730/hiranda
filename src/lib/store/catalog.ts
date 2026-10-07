@@ -49,6 +49,9 @@ export const CATEGORIES: { key: Category; title: string }[] = [
   { key: 'keepsake', title: 'Keepsakes with your names' },
 ]
 
+// Built-in gifts. Most of the Store now comes from /store/admin/catalog.
+// (Sweets via Goody can come back here once Goody approves direct send:
+//   vendor: { name: 'goody', productId: '<id from the Suppliers page>' }.)
 export const PRODUCTS: Product[] = [
   {
     key: 'letter',
@@ -60,36 +63,6 @@ export const PRODUCTS: Product[] = [
     fineprint: 'Our print partner prints your note, so they’ll see the words.',
     // A5 flat card, 350 gsm silk, printed both sides (front: "for <name>", back: your note).
     vendor: { name: 'gelato', productUid: 'cards_pf_a5_pt_350-gsm-coated-silk_cl_4-4_ver' },
-  },
-  {
-    key: 'rose',
-    title: 'A preserved rose & a card',
-    blurb: 'One rose that lasts for years, with your note handwritten on the card.',
-    emoji: '🌹',
-    priceCents: 2800,
-    ships: true,
-  },
-  {
-    key: 'sweets',
-    title: 'Something sweet',
-    blurb: 'A small box of chocolates and a card in your words.',
-    emoji: '🍫',
-    priceCents: 2400,
-    ships: true,
-    // Pick a product at /store/admin/suppliers → Goody, paste its id here.
-    vendor: { name: 'goody', productId: '' },
-  },
-  {
-    key: 'care',
-    title: 'A little care package',
-    blurb: 'Tea, a candle, a cozy pair of socks — for the hard weeks apart.',
-    emoji: '🧸',
-    priceCents: 3800,
-    ships: true,
-    category: 'cozy',
-    // Pick items in /store/admin/catalog, e.g.
-    // [{ vid: '…candle…', quantity: 1 }, { vid: '…socks…', quantity: 1 }].
-    vendor: { name: 'cj', items: [] },
   },
   // Keepsakes — printed by Printful with both your first names and the year
   // you got together (see /api/store/print). Printful cost (Oct 2026) +
