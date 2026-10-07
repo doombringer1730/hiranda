@@ -161,3 +161,12 @@ export async function connectSupplierWebhook(vendor: string): Promise<{ ok?: str
     return { error: e instanceof Error ? e.message : 'Couldn’t connect.' }
   }
 }
+
+// Owner: move a seller application along (/store/admin/sellers).
+export async function setApplicationStatus(id: string, status: 'new' | 'contacted' | 'approved' | 'declined') {
+  if (!(await requireAdmin())) return { error: 'Not allowed' }
+  if (!['new', 'contacted', 'approved', 'declined'].includes(status)) return { error: 'Unknown status' }
+  await createAdminClient().from('seller_applications').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
+  revalidatePath('/store/admin/sellers')
+  return { ok: true }
+}

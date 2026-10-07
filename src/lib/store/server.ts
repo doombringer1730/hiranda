@@ -45,13 +45,13 @@ export async function markGiftPaid(orderId: string, sessionId: string): Promise<
 }
 
 /** Push a note to everyone in STORE_ADMIN_EMAILS. */
-export async function notifyAdmins(title: string, body: string) {
+export async function notifyAdmins(title: string, body: string, url = '/store/admin') {
   const admins = (process.env.STORE_ADMIN_EMAILS ?? '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
   if (!admins.length) return
   const { data } = await createAdminClient().auth.admin.listUsers({ perPage: 1000 })
   for (const u of data?.users ?? []) {
     if (u.email && admins.includes(u.email.toLowerCase())) {
-      await notifyUser(u.id, { title, body, url: '/store/admin', tag: 'store-admin' })
+      await notifyUser(u.id, { title, body, url, tag: 'store-admin' })
     }
   }
 }

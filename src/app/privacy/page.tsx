@@ -19,6 +19,7 @@ export default function PrivacyPage() {
         <li><b>What you create:</b> memories and photos, journal entries, dates, todos, bucket list, watchlist, books, music, game moves, quiz answers, and study decks.</li>
         <li><b>Optional connections you choose to set up:</b> Spotify (to share what you’re listening to) and push notifications for your devices.</li>
         <li><b>Gifts (Hiranda Store):</b> if you add a delivery address, only you can see it — your partner never does. When your partner sends you a gift, the store uses it to ship, and sees the note so it can be printed on the card. If a partner makes the gift, they get your name, address and phone (if you added one) to deliver it, and the note if it’s printed. We keep a record of gifts sent (what, when, status); card details are handled by Stripe, never by us.</li>
+        <li><b>Selling on Hiranda:</b> if you apply to sell, we keep what you send (your name, email and shop details) to review it and reply. It isn’t shown to anyone else.</li>
         <li><b>Hiranda Plus:</b> whether your couple has an active subscription and when it renews. Payments are handled by Apple or Stripe; we never see your card.</li>
         <li><b>Sign-in security:</b> if you turn on two-factor login, your authenticator setup.</li>
       </ul>

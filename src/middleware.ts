@@ -33,7 +33,8 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/join/') ||
     request.nextUrl.pathname.startsWith('/privacy') ||
     request.nextUrl.pathname.startsWith('/terms') ||
-    request.nextUrl.pathname.startsWith('/support')
+    request.nextUrl.pathname.startsWith('/support') ||
+    request.nextUrl.pathname.startsWith('/sell')
 
   if (!user && !isPublicPage) {
     const url = request.nextUrl.clone()

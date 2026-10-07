@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { Truck } from 'lucide-react'
+import { Store, Truck } from 'lucide-react'
 import PageHeader from '@/components/page-header'
 import { coupleContext } from '@/lib/couple'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -32,7 +32,10 @@ export default async function StoreAdminPage() {
     <div className="px-4 pt-6 pb-12 max-w-2xl mx-auto">
       <div className="flex items-end justify-between gap-3">
         <PageHeader eyebrow="Hiranda Store" title="Orders to ship" />
-        <Link href="/store/admin/suppliers" className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-3 h-9 text-xs text-stone-300 hover:bg-stone-700"><Truck size={14} /> Suppliers</Link>
+        <div className="mb-1 flex gap-2">
+          <Link href="/store/admin/sellers" className="inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-3 h-9 text-xs text-stone-300 hover:bg-stone-700"><Store size={14} /> Sellers</Link>
+          <Link href="/store/admin/suppliers" className="inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-3 h-9 text-xs text-stone-300 hover:bg-stone-700"><Truck size={14} /> Suppliers</Link>
+        </div>
       </div>
       <p className="text-stone-500 text-sm mt-2 mb-6">Oldest first. Gifts with a supplier go out on their own; the rest you ship. Refunds happen in your Stripe dashboard.</p>
       {!orders?.length && <p className="text-stone-500 text-sm py-12 text-center">Nothing to ship right now.</p>}
