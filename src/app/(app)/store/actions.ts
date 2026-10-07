@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPartner, myFirstName } from '@/lib/push'
 import { productByKey, SHIP_TO } from '@/lib/store/catalog'
 import { isStoreAdmin, storeEnabled } from '@/lib/store/server'
+import { usStateCode } from '@/lib/store/vendors/us-states'
 
 export type Address = {
   full_name: string; line1: string; line2: string | null; city: string
@@ -28,6 +29,11 @@ export async function saveAddress(form: FormData): Promise<{ ok?: true; error?: 
   }
   if (!a.full_name || !a.line1 || !a.city || !a.postal_code) return { error: 'Name, street, city and postal code are needed.' }
   if (!(SHIP_TO as readonly string[]).includes(a.country)) return { error: `For now gifts ship within: ${SHIP_TO.join(', ')}.` }
+  if (a.country === 'US') {
+    const state = usStateCode(a.region)
+    if (!state) return { error: 'Add your state (like NY or New York).' }
+    a.region = state
+  }
   const { error } = await ctx.supabase.from('store_addresses').upsert({ user_id: ctx.user.id, ...a, updated_at: new Date().toISOString() })
   if (error) return { error: 'Couldn’t save — try again.' }
   revalidatePath('/store')
@@ -123,4 +129,35 @@ export async function setOrderStatus(orderId: string, status: 'fulfilling' | 'sh
   }
   revalidatePath('/store/admin')
   return { ok: true }
+}
+
+// Hand a paid gift to its supplier now (first time, or after fixing a problem).
+export async function sendToSupplier(orderId: string) {
+  if (!(await requireAdmin())) return { error: 'Not allowed' }
+  const { fulfilOrder } = await import('@/lib/store/fulfil')
+  const res = await fulfilOrder(orderId)
+  revalidatePath('/store/admin')
+  return res.manual ? { error: 'This gift has no supplier set up — ship it by hand.' } : res
+}
+
+// Ask the supplier for news (status, tracking) right now.
+export async function checkSupplier(orderId: string) {
+  if (!(await requireAdmin())) return { error: 'Not allowed' }
+  const { refreshOrder } = await import('@/lib/store/fulfil')
+  const res = await refreshOrder(orderId)
+  revalidatePath('/store/admin')
+  return res
+}
+
+// Register our tracking webhook with a supplier that allows it over its API.
+export async function connectSupplierWebhook(vendor: string): Promise<{ ok?: string; error?: string }> {
+  if (!(await requireAdmin())) return { error: 'Not allowed' }
+  const { VENDORS } = await import('@/lib/store/vendors')
+  const v = VENDORS[vendor as keyof typeof VENDORS]
+  if (!v?.connectWebhook) return { error: 'This supplier is set up in its own dashboard.' }
+  try {
+    return { ok: await v.connectWebhook() }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Couldn’t connect.' }
+  }
 }

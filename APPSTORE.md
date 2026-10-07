@@ -173,22 +173,40 @@ appears there (App Store rule 3.1.1). Your couple has a permanent "founders" gra
 Partners can send each other gifts (`/store`). Physical goods are paid with
 Stripe, which Apple allows outside in-app purchase (rule 3.1.3(e)).
 
-1. Edit the catalog and prices in `src/lib/store/catalog.ts`. Add affiliate
-   gifts to `PARTNER_GIFTS` there, and sponsors to `src/lib/sponsors.ts`.
-2. Line up how you'll make and ship each gift: buy, print and mail them
-   yourself, or use a print/gift service.
-3. Add to Vercel:
-   - `STORE_ENABLED=1`: the store stays "opens soon" until you set this
-   - `STORE_ADMIN_EMAILS=you@example.com`: who sees `/store/admin`
-   - the same Stripe keys as Plus
-4. The Stripe webhook you set up for Plus also handles gifts
-   (`checkout.session.completed`).
-5. For each paid order you get a notification. Open **Gifts → Orders to ship**
-   to see the address and note, ship it, paste the tracking link, then tap
-   **Mark shipped**. Your partner gets notified.
+**Suppliers make and ship the gifts.** Once Stripe confirms a payment, the
+gift goes to its supplier automatically, and tracking flows back to the
+recipient. Set each one up from **Gifts → Orders to ship → Suppliers**
+(`/store/admin/suppliers`). That page shows whether each supplier is connected,
+the exact steps, and a product finder for the ids that go in
+`src/lib/store/catalog.ts`.
 
-Before selling to the public, set up sales tax (Stripe Tax) and a business
-(for example an LLC). Stripe needs the account holder to be 18 or older.
+| Supplier | Makes | Vercel settings |
+|---|---|---|
+| Gelato | The printed card ("A card in the mail") | `GELATO_API_KEY` |
+| Printful | Blankets, mugs and posters with your names | `PRINTFUL_API_TOKEN` (`PRINTFUL_STORE_ID` only with an account-level token) |
+| Printify | The same, from many print shops | `PRINTIFY_API_TOKEN`, `PRINTIFY_SHOP_ID` |
+| CJ Dropshipping | Care-package items from its US warehouse | `CJ_API_KEY` (paid from your CJ wallet) |
+| Goody | Chocolates and treats, sent straight to the address | `GOODY_API_KEY`, `GOODY_WEBHOOK_SECRET`; needs Goody's "direct send" approval |
+
+All of them also need:
+- `STORE_CONTACT_EMAIL`: your email, which suppliers put on shipments instead of the user's.
+- `STORE_WEBHOOK_KEY`: any long random text, used to secure tracking updates.
+- `CRON_SECRET`: any long random text. A daily job checks every order in flight.
+
+A gift whose supplier ids are empty is fulfilled **by hand**. It appears under
+**Orders to ship** with the address and note, and you press **Mark shipped**.
+
+While Stripe uses test keys, suppliers get **test orders only**: Gelato and
+Printful drafts, and CJ sandbox orders. Goody is used only with
+`GOODY_SANDBOX=1` and a sandbox key, and Printify not at all.
+
+Then add to Vercel:
+- `STORE_ENABLED=1`: the store stays "opens soon" until you set this.
+- `STORE_ADMIN_EMAILS=you@example.com`: who sees `/store/admin`.
+
+Keep every price above the supplier's cost plus shipping plus Stripe's fee
+(about 3%). Before selling to the public, set up sales tax (Stripe Tax) and a
+business (for example an LLC).
 
 ## 9. Upload
 
