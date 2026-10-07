@@ -25,7 +25,6 @@ export const CLASSICS: CatalogItem[] = [
   ['NothingSacred', 'Nothing Sacred', 1937],
   ['TheStranger_0', 'The Stranger', 1946],
   ['mclintok_widescreen', 'McLintock!', 1963],
-  ['plan.-9.-from.-outer.-space.-1957', 'Plan 9 from Outer Space', 1957],
 ].map(([id, title, year]) => ({ kind: 'archive' as const, id: id as string, title: title as string, year: year as number, poster: archivePoster(id as string) }))
 
 export function archivePoster(identifier: string) {
@@ -43,9 +42,11 @@ type ArchiveMeta = {
   files?: ArchiveFile[]
 }
 
-// Prefer H.264, then older MPEG4 encodes; among equals, a size near 700 MB
-// (good quality without making phones download gigabytes).
-const FORMAT_RANK = ['h.264', 'h.264 mpeg4', 'h.264 ia', 'mpeg4', '512kb mpeg4']
+// Prefer files known to be H.264 (plays in every browser, iPhone included):
+// the Archive's own H.264 derivatives, then H.264 uploads, then its 512Kb
+// derivative. Plain "MPEG4" uploads come last — some use an older codec
+// browsers can't decode. Among equals, a size near 700 MB.
+const FORMAT_RANK = ['h.264 ia', 'h.264', 'h.264 mpeg4', '512kb mpeg4', 'mpeg4']
 function pickMp4(files: ArchiveFile[]): ArchiveFile | null {
   const mp4s = files.filter(f => f.name.toLowerCase().endsWith('.mp4'))
   if (!mp4s.length) return null
@@ -58,6 +59,13 @@ function pickMp4(files: ArchiveFile[]): ArchiveFile | null {
 }
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null
+// Archive descriptions run long; keep whole sentences up to about `max` chars.
+function trimToSentence(text: string | null, max: number) {
+  if (!text || text.length <= max) return text
+  const cut = text.slice(0, max)
+  const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '))
+  return end > max / 3 ? cut.slice(0, end + 1) : cut.replace(/\s+\S*$/, '') + '…'
+}
 const stripHtml = (s: string | null) => s?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || null
 
 export async function archiveItem(identifier: string) {
@@ -72,7 +80,7 @@ export async function archiveItem(identifier: string) {
     return {
       title: curated?.title ?? first(meta.metadata?.title) ?? identifier,
       year,
-      overview: stripHtml(first(meta.metadata?.description))?.slice(0, 600) ?? null,
+      overview: trimToSentence(stripHtml(first(meta.metadata?.description)), 420),
       poster: archivePoster(identifier),
       url: file ? `https://archive.org/download/${encodeURIComponent(identifier)}/${encodeURIComponent(file.name)}` : null,
     }

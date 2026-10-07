@@ -48,7 +48,7 @@ export function PosterRow({ title, hint, items, badge }: { title: string; hint?:
         <h2 className="font-serif text-2xl text-amber-50 leading-tight">{title}</h2>
         {hint && <p className="text-stone-500 text-xs mt-0.5">{hint}</p>}
       </div>
-      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-4 md:px-0 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-px-4 md:scroll-px-0 px-4 md:px-0 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map(item => (
           <div key={`${item.kind}-${item.id}`} className="snap-start shrink-0 w-[30%] sm:w-[22%] md:w-[15%]">
             <PosterCard item={item} badge={badge} />
