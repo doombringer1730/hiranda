@@ -1,10 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { getActivePrompt } from './actions'
 import { getLatestGames } from './board/actions'
 import { GAMES, type Kind } from './board/engine'
-import GameClient from './game-client'
 import { ChevronRight } from 'lucide-react'
 import PageHeader from '@/components/page-header'
 import { Jar, SLIP_ME, SLIP_PARTNER } from '@/components/jar'
@@ -20,6 +18,7 @@ export default async function GamesPage() {
     .from('couple')
     .select('user1_id, user2_id')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .order('user2_id', { nullsFirst: false }).limit(1)
     .maybeSingle()
 
   const partnerId = couple
@@ -30,11 +29,7 @@ export default async function GamesPage() {
     ? await supabase.from('profiles').select('display_name').eq('id', partnerId).maybeSingle()
     : { data: null }
 
-  const [questions, wyr, tot, likely, latest, { count: triviaWaiting }, { data: jarSlips }] = await Promise.all([
-    getActivePrompt('question'),
-    getActivePrompt('would_you_rather'),
-    getActivePrompt('this_or_that'),
-    getActivePrompt('most_likely'),
+  const [latest, { count: triviaWaiting }, { data: jarSlips }] = await Promise.all([
     getLatestGames(),
     partnerId
       ? supabase.from('trivia_questions').select('id', { count: 'exact', head: true }).eq('author', partnerId).is('guess', null)
@@ -53,6 +48,7 @@ export default async function GamesPage() {
 
   // ── Match stats: how often the two of you picked the same answer ──────────
   let stats: { together: number; matches: number; comparable: number; streak: number } | null = null
+  let promptWaiting = false // your partner answered something you haven't
   if (partnerId) {
     const { data: allResponses } = await supabase
       .from('prompt_responses')
@@ -75,6 +71,7 @@ export default async function GamesPage() {
     for (const rows of byPrompt.values()) {
       const mine = rows.find(r => r.user_id === user.id)
       const theirs = rows.find(r => r.user_id === partnerId)
+      if (theirs && !mine) promptWaiting = true
       if (!mine || !theirs) continue
       together++
       // Free-text questions can't "match"; only compare option-based prompts.
@@ -91,17 +88,11 @@ export default async function GamesPage() {
     if (together > 0) stats = { together, matches, comparable, streak }
   }
 
-  const tabs = [
-    { type: 'question' as const, label: 'Questions', initial: questions },
-    { type: 'would_you_rather' as const, label: 'Would You Rather', shortLabel: 'WYR', initial: wyr },
-    { type: 'this_or_that' as const, label: 'This or That', shortLabel: 'This/That', initial: tot },
-    { type: 'most_likely' as const, label: 'Most Likely To', shortLabel: 'Most Likely', initial: likely },
-  ]
-
   const partnerFirst = partnerProfile?.display_name?.split(' ')[0] ?? 'your partner'
 
   // Every game gets its own box colour — a shelf of games, not a list.
   const games: Tile[] = [
+    { href: '/games/questions', name: 'Quick Questions', blurb: 'Would you rather, this or that — answers unlock together.', emoji: '💬', color: '#2f8f9d', badge: promptWaiting ? 'Your turn' : null },
     { href: '/games/daring', name: 'Daring Questions', blurb: 'Deep, flirty, silly — or take the dare.', emoji: '💋', color: '#d9466f', badge: null },
     { href: '/games/trivia', name: 'Trivia About Us', blurb: 'How well do you really know each other?', emoji: '🧠', color: '#4f6fd8', badge: triviaWaiting ? `${triviaWaiting} to answer` : null },
     { href: `/games/${GAMES.uno.slug}`, name: GAMES.uno.name, blurb: GAMES.uno.blurb, emoji: GAMES.uno.emoji, color: '#e0a21a', badge: liveBadge('uno') },
@@ -110,7 +101,7 @@ export default async function GamesPage() {
     { href: `/games/${GAMES.dots_and_boxes.slug}`, name: GAMES.dots_and_boxes.name, blurb: GAMES.dots_and_boxes.blurb, emoji: GAMES.dots_and_boxes.emoji, color: '#8a5cc7', badge: liveBadge('dots_and_boxes') },
   ]
   // Open loops first: anything waiting on you leads the shelf.
-  const yourMove = games.filter(g => g.badge === 'Your move' || g.badge?.endsWith('to answer'))
+  const yourMove = games.filter(g => g.badge === 'Your move' || g.badge === 'Your turn' || g.badge?.endsWith('to answer'))
   const shelf = [...yourMove, ...games.filter(g => !yourMove.includes(g))]
 
   return (
@@ -143,14 +134,6 @@ export default async function GamesPage() {
         {shelf.map((g, i) => <GameBox key={g.href} g={g} i={i} />)}
       </div>
 
-      <h2 className="text-stone-400 text-[11px] uppercase tracking-[0.22em] mb-3 mt-12">Quick questions</h2>
-      <GameClient
-        tabs={tabs}
-        partnerName={partnerProfile?.display_name ?? 'your partner'}
-        myId={user.id}
-        partnerId={partnerId}
-      />
-
       <WhyItWorks className="mt-10" source="Aron et al., 2000">
         Playing and trying new things together — not just spending time together — is what lifted couples’ relationship quality in the lab.
       </WhyItWorks>
@@ -162,7 +145,7 @@ type Tile = { href: string; name: string; blurb: string; emoji: string; color: s
 
 // A game box: a coloured lid with a big tilted emoji, the name underneath.
 function GameBox({ g, i }: { g: Tile; i: number }) {
-  const waiting = g.badge === 'Your move' || g.badge?.endsWith('to answer')
+  const waiting = g.badge === 'Your move' || g.badge === 'Your turn' || g.badge?.endsWith('to answer')
   return (
     <Link href={g.href} className="group tile flex flex-col overflow-hidden animate-rise" style={{ '--i': i + 1 } as React.CSSProperties}>
       <div className="relative h-24 md:h-28 grid place-items-center overflow-hidden" style={{ background: `radial-gradient(120% 120% at 30% 0%, ${g.color}, color-mix(in oklab, ${g.color} 55%, black))` }}>

@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { getProfileMap } from '@/lib/profiles'
+import { getPeople } from '@/lib/profiles'
 import Link from 'next/link'
-import { Plus, PenLine, Camera } from 'lucide-react'
+import { Plus, Camera } from 'lucide-react'
 import PageHeader from '@/components/page-header'
+import { EmptyState, PersonChip, primaryButton } from '@/components/ui'
 
 const MOOD_LABELS: Record<string, string> = {
   happy: 'Happy',
@@ -15,84 +16,62 @@ const MOOD_LABELS: Record<string, string> = {
   excited: 'Excited',
 }
 
+// Entries read as letters passed back and forth: yours on the right,
+// your partner's on the left.
 export default async function JournalPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: entries }, profiles] = await Promise.all([
+  const [{ data: entries }, people] = await Promise.all([
     supabase
       .from('journal_entries')
       .select('*, journal_photos(id)')
       .order('created_at', { ascending: false })
       .limit(40),
-    getProfileMap(),
+    getPeople(),
   ])
 
   return (
-    <div className="px-4 pt-8 max-w-2xl mx-auto">
-      <div className="flex items-end justify-between gap-3 mb-8">
+    <div className="px-4 pt-6 pb-12 max-w-2xl mx-auto">
+      <div className="flex items-end justify-between gap-3">
         <PageHeader eyebrow="Words for each other" title="Journal" />
-        <Link
-          href="/journal/new"
-          className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
-        >
-          <Plus size={16} />
-          New entry
-        </Link>
+        <Link href="/journal/new" className={primaryButton}><Plus size={16} /> Write</Link>
       </div>
+      <p className="font-hand text-[22px] text-stone-400 mt-2 mb-8">the long version of how your day went.</p>
 
       {!entries?.length && (
-        <div className="text-center py-24">
-          <PenLine size={40} className="mx-auto text-stone-700 mb-4" />
-          <p className="text-stone-500">Nothing written yet. Start your first entry.</p>
-        </div>
+        <EmptyState title="Nothing written yet." sub="A few lines about today — what happened, how it felt. Your partner will see it here." href="/journal/new" action="Write the first entry" />
       )}
 
-      <div className="flex flex-col gap-4">
-        {entries?.map((entry) => (
-          <Link
-            key={entry.id}
-            href={`/journal/${entry.id}`}
-            className="group bg-stone-900/80 border border-stone-800/80 rounded-2xl overflow-hidden hover:border-amber-800/50 card-glow"
-          >
-            <div className="p-5">
-              <div className="flex items-start justify-between gap-4 mb-2">
-                <p className="text-stone-500 text-sm">
-                  {new Date(entry.created_at).toLocaleDateString('en-US', {
-                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                  })}
-                  {profiles.get(entry.created_by) && (
-                    <span className="text-stone-600"> · {profiles.get(entry.created_by)}</span>
-                  )}
-                </p>
-                {entry.mood && (
-                  <span className="text-xs bg-amber-900/40 text-amber-400 px-2.5 py-0.5 rounded-full flex-shrink-0">
-                    {MOOD_LABELS[entry.mood] ?? entry.mood}
-                  </span>
-                )}
-              </div>
-              {entry.title && (
-                <h3 className="font-serif text-xl text-amber-100 group-hover:text-amber-300 transition-colors mb-2">
-                  {entry.title}
-                </h3>
-              )}
-              <p className="text-stone-400 text-sm line-clamp-3 leading-relaxed">{entry.body}</p>
-              {entry.tags?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {entry.tags.map((tag: string) => (
-                    <span key={tag} className="text-xs bg-stone-800 text-stone-400 px-2 py-0.5 rounded-full">
-                      {tag}
-                    </span>
-                  ))}
+      <div className="flex flex-col gap-6">
+        {entries?.map((entry, i) => {
+          const mine = entry.created_by === user?.id
+          const mood = entry.mood ? (MOOD_LABELS[entry.mood] ?? entry.mood) : null
+          return (
+            <Link
+              key={entry.id}
+              href={`/journal/${entry.id}`}
+              className={`group block w-[88%] animate-rise ${mine ? 'self-end' : 'self-start'}`}
+              style={{ '--i': Math.min(i, 8), rotate: `${mine ? 0.6 : -0.6}deg` } as React.CSSProperties}
+            >
+              <article className="paper rounded-[5px] px-5 pt-5 pb-4 transition-transform duration-300 group-hover:-translate-y-0.5">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <p className="text-[var(--paper-muted)] text-xs">
+                    {new Date(entry.created_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </p>
+                  {mood && <span className="text-xs text-[var(--paper-muted)]">{mood}</span>}
                 </div>
-              )}
-              {entry.journal_photos?.length > 0 && (
-                <p className="text-stone-600 text-xs mt-3 flex items-center gap-1">
-                  <Camera size={12} /> {entry.journal_photos.length} photo{entry.journal_photos.length !== 1 ? 's' : ''}
-                </p>
-              )}
-            </div>
-          </Link>
-        ))}
+                {entry.title && <h3 className="font-serif text-[23px] leading-tight text-[var(--paper-ink)] mb-1.5">{entry.title}</h3>}
+                <p className="font-serif text-[16px] text-[var(--paper-ink)]/80 line-clamp-3 leading-relaxed">{entry.body}</p>
+                <div className="flex items-center gap-2 mt-3 text-[11px] text-[var(--paper-muted)]">
+                  <PersonChip person={people.get(entry.created_by)} size={18} withName />
+                  {entry.journal_photos?.length > 0 && <span className="flex items-center gap-1"><Camera size={11} /> {entry.journal_photos.length}</span>}
+                  {entry.tags?.slice(0, 3).map((t: string) => <span key={t}>#{t}</span>)}
+                </div>
+              </article>
+            </Link>
+          )
+        })}
       </div>
     </div>
   )

@@ -119,7 +119,7 @@ export default function JarClient({ initial }: { initial: JarState }) {
                   <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--paper-muted)]">from {name(p.author)}</p>
                   <form action={async fd => { await addBucketItem(fd); toast('Saved to Someday ⭐') }}>
                     <input type="hidden" name="title" value={p.body} />
-                    <input type="hidden" name="category" value="experiences" />
+                    <input type="hidden" name="category" value="experience" />
                     <button className="text-[11px] text-[var(--paper-muted)] hover:text-amber-700 flex items-center gap-1"><Star size={11} /> Someday</button>
                   </form>
                 </div>

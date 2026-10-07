@@ -3,6 +3,7 @@ import { getProfileMap } from '@/lib/profiles'
 import { addMusicMoment, deleteMusicMoment } from './actions'
 import { Music, Plus, ExternalLink, Trash2 } from 'lucide-react'
 import PageHeader from '@/components/page-header'
+import { EmptyState } from '@/components/ui'
 
 async function fetchAlbumArt(spotifyUrl: string): Promise<string | null> {
   try {
@@ -34,43 +35,44 @@ export default async function MusicPage() {
   )
 
   return (
-    <div className="px-4 pt-8 max-w-2xl mx-auto pb-12">
-      <PageHeader eyebrow="Songs that are ours" title="Music" className="mb-8" />
+    <div className="px-4 pt-6 max-w-2xl mx-auto pb-12">
+      <PageHeader eyebrow="Songs that are ours" title="Music" />
+      <p className="font-hand text-[22px] text-stone-400 mt-2 mb-8">the soundtrack of you two.</p>
 
       {/* Add form */}
-      <form action={addMusicMoment} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-8 flex flex-col gap-3">
-        <p className="text-stone-400 text-xs uppercase tracking-widest mb-1">Add a song</p>
+      <form action={addMusicMoment} className="tile p-5 mb-8 flex flex-col gap-3">
+        <p className="text-stone-400 text-[11px] uppercase tracking-[0.22em] mb-1">Add a song</p>
         <div className="grid grid-cols-2 gap-3">
           <input
             name="song_name"
             type="text"
             required
             placeholder="Song name"
-            className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors text-sm"
+            className="bg-stone-950/60 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors text-sm"
           />
           <input
             name="artist"
             type="text"
             required
             placeholder="Artist"
-            className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors text-sm"
+            className="bg-stone-950/60 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors text-sm"
           />
         </div>
         <input
           name="spotify_url"
           type="url"
           placeholder="Spotify link (optional)"
-          className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors text-sm"
+          className="bg-stone-950/60 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors text-sm"
         />
         <input
           name="note"
           type="text"
           placeholder="Why it matters (optional)"
-          className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors text-sm"
+          className="bg-stone-950/60 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors text-sm"
         />
         <button
           type="submit"
-          className="self-end flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+          className="self-end flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 h-10 rounded-full transition-colors"
         >
           <Plus size={16} /> Add song
         </button>
@@ -78,10 +80,7 @@ export default async function MusicPage() {
 
       {/* Empty state */}
       {!moments?.length && (
-        <div className="text-center py-24">
-          <Music size={40} className="mx-auto text-stone-700 mb-4" />
-          <p className="text-stone-500">No songs yet. Add the soundtrack of your relationship.</p>
-        </div>
+        <EmptyState title="No songs yet." sub="The song from your first date, the one you both scream in the car — start the soundtrack." />
       )}
 
       {/* Song list */}
@@ -90,7 +89,7 @@ export default async function MusicPage() {
           const art = albumArts[i]
 
           return (
-            <div key={m.id} className="flex items-center gap-4 bg-stone-900/80 border border-stone-800/80 rounded-xl overflow-hidden group card-glow">
+            <div key={m.id} className="flex items-center gap-4 tile !rounded-[20px] overflow-hidden group">
               {art ? (
                 <img src={art} alt={m.song_name} className="w-16 h-16 object-cover flex-shrink-0" />
               ) : (
@@ -105,7 +104,7 @@ export default async function MusicPage() {
                     <p className="text-amber-100 font-medium truncate">{m.song_name}</p>
                     <p className="text-stone-400 text-sm">{m.artist}</p>
                     {m.note && <p className="text-stone-500 text-xs mt-1 italic">{m.note}</p>}
-                    <p className="text-stone-600 text-xs mt-1.5">{profiles.get(m.added_by)}</p>
+                    <p className="text-stone-500 text-xs mt-1.5">{profiles.get(m.added_by)}</p>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {m.spotify_url && (

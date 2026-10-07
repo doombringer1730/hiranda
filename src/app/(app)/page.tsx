@@ -4,7 +4,7 @@ import Link from 'next/link'
 import {
   PenLine, Play, MessageCircle, MessageCircleQuestion, ChevronRight, Gamepad2, Brain, Gift, CalendarPlus,
 } from 'lucide-react'
-import PresenceCards, { type PresonProfile } from './presence-cards'
+import { type PresonProfile } from './presence-cards'
 import { FlameTile } from './flame-pet'
 import { CountUp, ThinkingOfYou } from './home-tiles'
 import { GAMES, type Kind } from './games/board/engine'
@@ -66,6 +66,7 @@ export default async function HomeHub() {
     .from('couple')
     .select('id, user1_id, user2_id, together_since')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .order('user2_id', { nullsFirst: false }).limit(1)
     .maybeSingle()
 
   const partnerId = couple
@@ -207,7 +208,7 @@ export default async function HomeHub() {
     const meta = GAMES[g.kind]
     if (meta) waiting.push({ href: `/games/${meta.slug}`, icon: Gamepad2, title: `Your move in ${meta.name}`, sub: `${partnerFirst} played` })
   }
-  if (yourTurnPrompt) waiting.push({ href: '/games', icon: MessageCircleQuestion, title: `${partnerFirst} answered — your turn`, sub: `“${yourTurnPrompt.text}”` })
+  if (yourTurnPrompt && yourTurn) waiting.push({ href: `/games/questions?p=${yourTurn.prompt_id}`, icon: MessageCircleQuestion, title: `${partnerFirst} answered — your turn`, sub: `“${yourTurnPrompt.text}”` })
   if (triviaWaiting) waiting.push({ href: '/games/trivia', icon: Brain, title: `${triviaWaiting} trivia question${triviaWaiting === 1 ? '' : 's'} about ${partnerFirst}` })
   if (journalFresh && latestJournal) waiting.push({ href: `/journal/${latestJournal.id}`, icon: PenLine, title: `${partnerFirst} wrote in the journal`, sub: latestJournal.title || 'Untitled entry' })
   for (const c of (activeCoupons ?? []) as { id: string; title: string; emoji: string | null; bought_by: string }[]) {
@@ -342,13 +343,6 @@ export default async function HomeHub() {
         </div>
       </div>
 
-      {/* Presence */}
-      {couple && (
-        <div className="mt-8 animate-rise" style={{ '--i': 5 } as React.CSSProperties}>
-          <p className={`${eyebrow} px-1 mb-2`}>Right now</p>
-          <PresenceCards coupleId={couple.id} me={me} partner={partner} />
-        </div>
-      )}
     </div>
   )
 }

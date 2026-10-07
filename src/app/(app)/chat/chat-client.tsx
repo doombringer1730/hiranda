@@ -1,10 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import { ArrowUp, PartyPopper, Heart, Loader2, X } from 'lucide-react'
 import { useLive } from '@/lib/use-live'
 import { haptic, celebrate } from '@/lib/feel'
 import WhyItWorks from '@/components/why-it-works'
+import { Avatar, ProfileCard, ProfileEditor, editableFrom, usePresence, type PresonProfile } from '../presence-cards'
 import { getMessages, sendMessage, reactTo, markRead, unsend, type Message } from './actions'
 
 const REACTIONS = ['❤️', '😂', '😮', '😢', '👍', '🔥']
@@ -16,7 +18,6 @@ const CHEERS = ['Tell me everything! 🎉', 'I’m so proud of you', 'How did it
 // Small bids for connection (Gottman) — one tap to reach for each other.
 const BIDS = ['Thinking of you 💗', 'How’s your day going?', 'Miss you', 'Can’t wait to see you']
 
-type Partner = { name: string; avatar: string | null; accent: string | null }
 type Shown = Message & { pending?: boolean }
 
 const dayKey = (iso: string) => new Date(iso).toDateString()
@@ -28,7 +29,13 @@ function dayLabel(iso: string) {
 }
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 
-export default function ChatClient({ myId, partner }: { myId: string; partner: Partner }) {
+export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: partnerProfile, togetherDays }: {
+  myId: string; coupleId: string; me: PresonProfile; partner: PresonProfile; togetherDays: number | null
+}) {
+  const partner = { name: partnerProfile.display_name.split(' ')[0] }
+  const online = usePresence(coupleIdProp, myId)
+  const [viewing, setViewing] = useState<'me' | 'partner' | null>(null)
+  const [editing, setEditing] = useState(false)
   const [coupleId, setCoupleId] = useState<string | null>(null)
   const [latest, setLatest] = useState<Message[] | null>(null)
   const [older, setOlder] = useState<Message[]>([])
@@ -156,19 +163,26 @@ export default function ChatClient({ myId, partner }: { myId: string; partner: P
   const cheerFor = lastMsg && lastMsg.sender !== myId && lastMsg.kind === 'good_news' ? lastMsg.id : null
 
   return (
-    <div className="max-w-2xl mx-auto px-3 md:px-6 flex flex-col min-h-[calc(100dvh-96px-env(safe-area-inset-bottom))] md:min-h-[calc(100dvh-40px)]">
-      {/* Header */}
+    <div className="mx-auto max-w-2xl lg:max-w-5xl px-3 md:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8">
+    <div className="flex flex-col min-h-[calc(100dvh-96px-env(safe-area-inset-bottom))] md:min-h-[calc(100dvh-40px)] min-w-0">
+      {/* Header — tap a face for their profile, Discord-style */}
       <header className="sticky top-0 z-20 -mx-3 md:-mx-6 px-4 pt-[calc(env(safe-area-inset-top)+10px)] pb-3 md:pt-5 flex items-center gap-3 bg-[color-mix(in_oklab,var(--color-stone-950)_82%,transparent)] backdrop-blur-xl">
-        <span className="grid place-items-center h-10 w-10 rounded-full overflow-hidden text-sm font-semibold text-amber-50 shrink-0" style={{ background: partner.accent ?? 'var(--color-amber-800)' }}>
-          {partner.avatar
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={partner.avatar} alt="" className="h-full w-full object-cover" />
-            : partner.name.slice(0, 1).toUpperCase()}
-        </span>
-        <div className="min-w-0">
-          <h1 className="font-serif text-2xl leading-none text-amber-50">{partner.name}</h1>
-          <p className="text-stone-400 text-xs mt-1">Just the two of you</p>
-        </div>
+        <button onClick={() => { haptic(); setViewing('partner') }} className="flex items-center gap-3 min-w-0 text-left" aria-label={`${partner.name}’s profile`}>
+          <Avatar person={partnerProfile} size={42} online={online.has(partnerProfile.id)} />
+          <span className="min-w-0">
+            <span className="block font-serif text-2xl leading-none text-amber-50">{partner.name}</span>
+            <span className="block text-xs mt-1 truncate">
+              {online.has(partnerProfile.id)
+                ? <span className="text-emerald-400">online now</span>
+                : partnerProfile.status_text
+                  ? <span className="font-hand text-[17px] text-amber-200/90">{partnerProfile.status_text}</span>
+                  : <span className="text-stone-400">Just the two of you</span>}
+            </span>
+          </span>
+        </button>
+        <button onClick={() => { haptic(); setViewing('me') }} className="ml-auto lg:hidden" aria-label="Your profile">
+          <Avatar person={me} size={34} />
+        </button>
       </header>
 
       {/* Messages */}
@@ -312,6 +326,26 @@ export default function ChatClient({ myId, partner }: { myId: string; partner: P
           )}
         </div>
       </div>
+    </div>
+
+    {/* Desktop: both of you, like a member list */}
+    <aside className="hidden lg:flex flex-col gap-4 sticky top-5 self-start pt-5 max-h-[calc(100dvh-40px)] overflow-y-auto no-scrollbar">
+      <ProfileCard person={partnerProfile} online={online.has(partnerProfile.id)} isYou={false} togetherDays={togetherDays} />
+      <ProfileCard person={me} online isYou onEdit={() => setEditing(true)} />
+    </aside>
+
+    {viewing && createPortal(
+      <div role="dialog" aria-modal="true" aria-label="Profile" className="fixed inset-0 z-[70] flex items-end md:items-center justify-center">
+        <button aria-label="Close" onClick={() => setViewing(null)} className="absolute inset-0 bg-black/55 animate-fade" />
+        <div className="relative w-full md:max-w-sm px-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:pb-0 animate-sheet">
+          {viewing === 'partner'
+            ? <ProfileCard person={partnerProfile} online={online.has(partnerProfile.id)} isYou={false} togetherDays={togetherDays} />
+            : <ProfileCard person={me} online isYou onEdit={() => { setViewing(null); setEditing(true) }} />}
+        </div>
+      </div>,
+      document.body,
+    )}
+    {editing && <ProfileEditor profile={editableFrom(me)} onClose={() => setEditing(false)} />}
     </div>
   )
 }

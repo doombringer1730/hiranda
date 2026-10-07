@@ -63,6 +63,7 @@ export default async function RootLayout({
         .from('couple')
         .select('theme')
         .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+        .order('user2_id', { nullsFirst: false }).limit(1)
         .maybeSingle()
       theme = couple?.theme ?? 'coffee'
     }

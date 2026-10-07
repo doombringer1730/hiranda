@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react'
 import { addBook } from './actions'
 import Link from 'next/link'
-import { Plus, BookOpen, Loader2, X } from 'lucide-react'
+import { Plus, Loader2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/page-header'
+import { EmptyState } from '@/components/ui'
 
 type Book = { id: string; title: string; author: string | null; cover_path: string | null; coverUrl?: string }
 
@@ -123,7 +124,7 @@ export default function LibraryPage() {
         <PageHeader eyebrow="Our shelf" title="Library" />
         <button
           onClick={() => setShowForm(v => !v)}
-          className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+          className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 h-10 rounded-full transition-colors"
         >
           {showForm ? <X size={16} /> : <Plus size={16} />}
           {showForm ? 'Cancel' : 'Add book'}
@@ -131,18 +132,18 @@ export default function LibraryPage() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-8 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="tile p-5 mb-8 flex flex-col gap-4">
           <h3 className="font-serif text-lg text-amber-200">Add a book</h3>
           {error && <p className="text-red-400 text-sm bg-red-950/30 rounded-xl px-4 py-3">{error}</p>}
 
           <div className="flex flex-col gap-1">
-            <label className="text-stone-400 text-xs uppercase tracking-widest">EPUB file</label>
+            <label className="text-stone-400 text-[11px] uppercase tracking-[0.22em]">EPUB file</label>
             <input
               type="file"
               required
               accept=".epub,application/epub+zip"
               onChange={e => { const f = e.target.files?.[0]; if (f) handleEpubChange(f) }}
-              className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-amber-900/40 file:text-amber-300 file:text-sm cursor-pointer"
+              className="bg-stone-950/60 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-amber-900/40 file:text-amber-300 file:text-sm cursor-pointer"
             />
           </div>
 
@@ -166,20 +167,20 @@ export default function LibraryPage() {
                     placeholder="Title"
                     value={title}
                     onChange={e => setTitle(e.target.value)}
-                    className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+                    className="bg-stone-950/60 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
                   />
                   <input
                     type="text"
                     placeholder="Author"
                     value={author}
                     onChange={e => setAuthor(e.target.value)}
-                    className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+                    className="bg-stone-950/60 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
                   />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-stone-400 text-xs uppercase tracking-widest">
+                <label className="text-stone-400 text-[11px] uppercase tracking-[0.22em]">
                   {coverPreview ? 'Replace cover (optional)' : 'Cover image (optional)'}
                 </label>
                 <input
@@ -192,7 +193,7 @@ export default function LibraryPage() {
                       setCoverPreview(URL.createObjectURL(f))
                     }
                   }}
-                  className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-amber-900/40 file:text-amber-300 file:text-sm cursor-pointer"
+                  className="bg-stone-950/60 border border-stone-800 rounded-xl px-4 py-3 text-stone-400 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-amber-900/40 file:text-amber-300 file:text-sm cursor-pointer"
                 />
               </div>
 
@@ -209,10 +210,7 @@ export default function LibraryPage() {
       )}
 
       {books.length === 0 && !showForm && (
-        <div className="text-center py-24">
-          <BookOpen size={40} className="mx-auto text-stone-700 mb-4" />
-          <p className="text-stone-500">No books yet. Add your first one.</p>
-        </div>
+        <EmptyState title="No books yet." sub="Add a book you’re both reading — each of you keeps your own place." />
       )}
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
