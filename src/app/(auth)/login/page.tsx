@@ -4,10 +4,12 @@ import { useActionState, useState, useEffect, Suspense } from 'react'
 import { useRememberedAccount, forgetAccount } from '@/components/remember-account'
 import { login } from '../actions'
 import GoogleButton from '@/components/google-button'
+import AppleButton from '@/components/apple-button'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Heart, Lock, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Scribble } from '@/components/handmade'
+import { useIsNativeApp } from '@/lib/native'
 import { Jar, SLIP_ME, SLIP_PARTNER } from '@/components/jar'
 
 // The tour tells the same story as the ads: Sam & Riley, a few of the
@@ -244,6 +246,7 @@ function SignInForm({ next, onBack }: { next: string; onBack: () => void }) {
   const deleted = !!urlError?.includes('deleted')
   const known = useRememberedAccount()
   const last = deleted ? null : known
+  const native = useIsNativeApp()
   useEffect(() => { if (deleted) forgetAccount() }, [deleted])
 
   return (
@@ -252,9 +255,16 @@ function SignInForm({ next, onBack }: { next: string; onBack: () => void }) {
       <p className="text-stone-400 text-center text-sm mb-10">
         {last ? <>Not you? <button type="button" onClick={forgetAccount} className="underline underline-offset-2 hover:text-stone-200" style={{ minHeight: 0 }}>Use a different account</button></> : 'welcome back'}
       </p>
-      {last?.provider === 'google' && <p className="text-stone-500 text-xs text-center -mt-6 mb-4">You signed in with Google last time.</p>}
+      {last?.provider === 'google' && (
+        <p className="text-stone-500 text-xs text-center -mt-6 mb-4">
+          {native
+            ? <>You signed in with Google last time. In the app, use “Forgot password?” once to set a password.</>
+            : 'You signed in with Google last time.'}
+        </p>
+      )}
 
       <div className="flex flex-col gap-4 mb-4">
+        <AppleButton next={next || '/'} />
         <GoogleButton next={next || '/'} />
       </div>
 

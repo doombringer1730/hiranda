@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Download, Share, X } from 'lucide-react'
-import { isNativeApp } from '@/lib/native'
+import { hasPlugin, isNativeApp } from '@/lib/native'
 
 // Registers the service worker (production only — it would fight dev reloads).
 export function ServiceWorkerRegister() {
@@ -122,8 +122,15 @@ export function usePushNotifications() {
   useEffect(() => {
     let live = true
     ;(async () => {
-      // The iPhone app has no web push; native notifications come later.
-      if (isNativeApp()) { if (live) setState('native'); return }
+      // The iPhone app uses Apple's own notifications (APNs) — once the
+      // installed build includes the plugin; older builds say "coming soon".
+      if (isNativeApp()) {
+        if (!hasPlugin('PushNotifications')) { if (live) setState('native'); return }
+        const { nativePushState } = await import('@/lib/native-push')
+        const next = await nativePushState()
+        if (live) setState(next)
+        return
+      }
       const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
         && !!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
       // iPhone only allows web push for apps added to the home screen.
@@ -139,6 +146,11 @@ export function usePushNotifications() {
   async function enable() {
     setBusy(true)
     try {
+      if (isNativeApp()) {
+        const { enableNativePush } = await import('@/lib/native-push')
+        setState(await enableNativePush())
+        return
+      }
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') { setState(permission === 'denied' ? 'denied' : 'off'); return }
       const reg = await navigator.serviceWorker.ready
@@ -159,6 +171,11 @@ export function usePushNotifications() {
   async function disable() {
     setBusy(true)
     try {
+      if (isNativeApp()) {
+        const { disableNativePush } = await import('@/lib/native-push')
+        setState(await disableNativePush())
+        return
+      }
       const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription()
       if (sub) {
         const { removePushSubscription } = await import('@/app/push-actions')
@@ -181,7 +198,9 @@ export function NotificationSettings() {
     'unsupported': 'This browser doesn’t support notifications.',
     'needs-install': 'On iPhone, add Hiranda to your Home Screen first (Share → Add to Home Screen), then turn this on from the app.',
     'native': 'Notifications in the iPhone app are coming in a future update.',
-    'denied': 'Notifications are blocked. Allow them for Hiranda in your phone or browser settings.',
+    'denied': isNativeApp()
+      ? 'Notifications are off for Hiranda. Turn them on in iPhone Settings → Notifications → Hiranda.'
+      : 'Notifications are blocked. Allow them for Hiranda in your phone or browser settings.',
   }
   return (
     <div className="flex flex-col gap-4">
@@ -193,7 +212,7 @@ export function NotificationSettings() {
           <Switch on={state === 'on'} busy={busy} label="Notifications" onToggle={state === 'on' ? disable : enable} />
         )}
       </div>
-      {state === 'on' && <NotificationExtras />}
+      {state === 'on' && (isNativeApp() ? <TestButton /> : <NotificationExtras />)}
     </div>
   )
 }
@@ -214,12 +233,31 @@ function Switch({ on, busy, label, onToggle }: { on: boolean; busy?: boolean; la
   )
 }
 
+// "Send me a test" — goes to all of your devices.
+function TestButton() {
+  const [msg, setMsg] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  async function test() {
+    setBusy(true); setMsg(null)
+    const { sendTestNotification } = await import('@/app/push-actions')
+    const res = await sendTestNotification()
+    setBusy(false)
+    setMsg(res.error ?? `Sent to ${res.sent} device${res.sent === 1 ? '' : 's'} — check your notifications.`)
+  }
+  return (
+    <div className="flex items-center gap-3">
+      <button onClick={test} disabled={busy} className="rounded-xl bg-stone-800 hover:bg-stone-700 disabled:opacity-50 px-4 py-2 text-sm text-stone-200 transition-colors">
+        {busy ? 'Sending…' : 'Send me a test'}
+      </button>
+      {msg && <p className="text-stone-400 text-xs">{msg}</p>}
+    </div>
+  )
+}
+
 // Lock-screen privacy for this device, and a test send.
 function NotificationExtras() {
   const [endpoint, setEndpoint] = useState<string | null>(null)
   const [hidden, setHidden] = useState(false)
-  const [msg, setMsg] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     let live = true
@@ -241,13 +279,6 @@ function NotificationExtras() {
     await setNotificationPrivacy(endpoint, next)
   }
 
-  async function test() {
-    setBusy(true); setMsg(null)
-    const { sendTestNotification } = await import('@/app/push-actions')
-    const res = await sendTestNotification()
-    setBusy(false)
-    setMsg(res.error ?? `Sent to ${res.sent} device${res.sent === 1 ? '' : 's'} — check your notifications.`)
-  }
 
   return (
     <div className="flex flex-col gap-3 border-t border-stone-800 pt-4">
@@ -258,12 +289,7 @@ function NotificationExtras() {
         </div>
         <Switch on={hidden} label="Hide details on lock screen" onToggle={togglePrivacy} />
       </div>
-      <div className="flex items-center gap-3">
-        <button onClick={test} disabled={busy} className="rounded-xl bg-stone-800 hover:bg-stone-700 disabled:opacity-50 px-4 py-2 text-sm text-stone-200 transition-colors">
-          {busy ? 'Sending…' : 'Send me a test'}
-        </button>
-        {msg && <p className="text-stone-400 text-xs">{msg}</p>}
-      </div>
+      <TestButton />
     </div>
   )
 }
@@ -280,7 +306,9 @@ export function NotificationCard() {
     let dismissed = false
     try { dismissed = localStorage.getItem(NOTIFY_DISMISS_KEY) === '1' } catch {}
     const mobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1
-    const t = setTimeout(() => setEligible(!dismissed && (isStandalone() || !mobile)), 0)
+    // In the iPhone app, once the installed build can do native notifications.
+    const canAsk = isNativeApp() ? hasPlugin('PushNotifications') : (isStandalone() || !mobile)
+    const t = setTimeout(() => setEligible(!dismissed && canAsk), 0)
     return () => clearTimeout(t)
   }, [])
 

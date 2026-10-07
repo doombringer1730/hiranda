@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import GoogleButton from '@/components/google-button'
+import AppleButton from '@/components/apple-button'
 import { useRememberedAccount } from '@/components/remember-account'
 
 function SignupForm() {
@@ -90,6 +91,7 @@ function SignupForm() {
           </div>
         )}
         <div className="flex flex-col gap-4 mb-4">
+          <AppleButton next={afterLogin || '/'} />
           <GoogleButton next={afterLogin || '/'} />
         </div>
 

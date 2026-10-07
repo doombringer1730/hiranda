@@ -8,6 +8,7 @@ import { APP_SCHEME, hasPlugin, isNativeApp } from '@/lib/native'
 //  - marks <html data-native> so CSS can tell where it's running
 //  - keeps the status bar text readable on light and dark themes
 //  - finishes sign-ins that come back through hiranda://auth/callback
+//  - opens the right page when a notification is tapped
 export function NativeBridge() {
   useEffect(() => {
     if (!isNativeApp()) return
@@ -47,6 +48,23 @@ export function NativeBridge() {
         if (removed) remove()
       })
       cleanups.push(() => { removed = true; remove?.() })
+    }
+
+    if (hasPlugin('PushNotifications')) {
+      // Tapping a notification opens the page it's about.
+      let removed = false
+      let remove: (() => void) | undefined
+      import('@capacitor/push-notifications').then(({ PushNotifications }) =>
+        PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
+          const url = (notification.data as { url?: unknown } | undefined)?.url
+          if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) location.href = url
+        }),
+      ).then(handle => {
+        remove = () => { handle.remove() }
+        if (removed) remove()
+      })
+      cleanups.push(() => { removed = true; remove?.() })
+      import('@/lib/native-push').then(m => m.refreshNativePush()).catch(() => {})
     }
 
     return () => cleanups.forEach(fn => fn())

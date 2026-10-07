@@ -4,9 +4,8 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { archiveItem, isArchiveId, searchArchive } from '@/theater/catalog/archive'
 import { tmdbDetails } from '@/theater/catalog/tmdb'
-import { MODE_COPY } from '@/theater/catalog/providers'
-import type { SyncMode, TitleDetails, WatchOption } from '@/theater/catalog/types'
-import { PartyButton, PlayHereButton, TrailerButton, YouTubeLinkForm } from './start-buttons'
+import type { TitleDetails } from '@/theater/catalog/types'
+import { Group, PlayHereButton, ServiceGroups, TrailerButton, YouTubeLinkForm } from './start-buttons'
 
 const norm = (s: string) => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '')
 
@@ -34,8 +33,6 @@ async function load(kind: string, id: string, region: string): Promise<(TitleDet
   return { ...d, archiveId }
 }
 
-const OFFER_LABEL: Record<WatchOption['offer'], string> = { free: 'Free', ads: 'Free with ads', subscription: 'Subscription', rent: 'Rent', buy: 'Buy' }
-
 export default async function TitlePage({ params }: { params: Promise<{ kind: string; id: string }> }) {
   const { kind, id: rawId } = await params
   const id = decodeURIComponent(rawId)
@@ -43,7 +40,6 @@ export default async function TitlePage({ params }: { params: Promise<{ kind: st
   const t = await load(kind, id, region)
   if (!t) notFound()
 
-  const byMode = (mode: SyncMode) => t.options.filter(o => o.mode === mode)
   const onYouTube = t.options.some(o => o.platform === 'youtube')
   const meta = [t.year, t.runtime ? `${Math.floor(t.runtime / 60) ? `${Math.floor(t.runtime / 60)}h ` : ''}${t.runtime % 60}m` : null, ...t.genres].filter(Boolean).join(' · ')
 
@@ -98,17 +94,7 @@ export default async function TitlePage({ params }: { params: Promise<{ kind: st
             </Group>
           )}
 
-          {byMode('party').length > 0 && (
-            <Group mode="party">
-              {byMode('party').map(o => <OptionRow key={`${o.platform}-${o.offer}`} o={o} t={t} />)}
-            </Group>
-          )}
-
-          {byMode('countdown').length > 0 && (
-            <Group mode="countdown">
-              {byMode('countdown').map(o => <OptionRow key={`${o.platform}-${o.offer}`} o={o} t={t} />)}
-            </Group>
-          )}
+          <ServiceGroups options={t.options.filter(o => o.mode !== 'here')} title={t.title} poster={t.poster} />
 
           {t.kind !== 'archive' && !t.options.length && !t.archiveId && (
             <p className="text-stone-500 text-sm rounded-2xl border border-stone-800 p-4">
@@ -124,34 +110,6 @@ export default async function TitlePage({ params }: { params: Promise<{ kind: st
           )}
         </section>
       </div>
-    </div>
-  )
-}
-
-function Group({ mode, children }: { mode: SyncMode; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-stone-800 bg-stone-900/60 p-4 flex flex-col gap-4">
-      <div>
-        <p className="text-amber-200 text-sm font-medium">{MODE_COPY[mode].label}</p>
-        <p className="text-stone-500 text-xs mt-0.5">{MODE_COPY[mode].hint}</p>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function OptionRow({ o, t }: { o: WatchOption; t: TitleDetails }) {
-  return (
-    <div className="flex items-center gap-3">
-      {o.logo
-        // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={o.logo} alt="" className="h-10 w-10 rounded-xl shrink-0" />
-        : <span className="h-10 w-10 rounded-xl bg-stone-800 shrink-0" />}
-      <div className="flex-1 min-w-0">
-        <p className="text-stone-100 text-sm truncate">{o.provider}</p>
-        <p className="text-stone-500 text-xs">{OFFER_LABEL[o.offer]}</p>
-      </div>
-      <PartyButton platform={o.platform} provider={o.provider} title={t.title} poster={t.poster} url={o.url} mode={o.mode} />
     </div>
   )
 }

@@ -31,6 +31,10 @@ const config: CapacitorConfig = {
       overlaysWebView: true,
       style: 'DARK',
     },
+    // Show notifications as banners even while Hiranda is open.
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
   },
 }
 

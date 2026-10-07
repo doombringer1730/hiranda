@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from 'react'
 import { Copy, Check, Share } from 'lucide-react'
+import { hasPlugin, shareSheet } from '@/lib/native'
 
 // On phones, opens the share sheet (Messages, WhatsApp…); elsewhere copies.
 export default function CopyInviteButton({ link }: { link: string }) {
@@ -9,7 +10,7 @@ export default function CopyInviteButton({ link }: { link: string }) {
   // Decided in the browser only, so server and client render the same markup.
   const canShare = useSyncExternalStore(
     () => () => {},
-    () => 'share' in navigator && /android|iphone|ipad|ipod/i.test(navigator.userAgent),
+    () => hasPlugin('Share') || ('share' in navigator && /android|iphone|ipad|ipod/i.test(navigator.userAgent)),
     () => false,
   )
 
@@ -27,7 +28,7 @@ export default function CopyInviteButton({ link }: { link: string }) {
 
   async function share() {
     try {
-      await navigator.share({ title: 'Join me on Hiranda', text: 'Join our little place on Hiranda 💗', url: link })
+      await shareSheet({ title: 'Join me on Hiranda', text: 'Join our little place on Hiranda 💗', url: link })
     } catch {
       // cancelled — nothing to do
     }
