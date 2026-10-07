@@ -9,6 +9,7 @@ import { FlameTile } from './flame-pet'
 import { CountUp, ThinkingOfYou } from './home-tiles'
 import { GAMES, type Kind } from './games/board/engine'
 import DailyQuestion from './daily-question'
+import { WidgetSync } from '@/components/widget-sync'
 import TalkTime from './talk-time'
 import { awardMilestones } from './grow/actions'
 import { Greeting, TodayLine } from './greeting'
@@ -289,6 +290,7 @@ export default async function HomeHub() {
           {partnerId && (
             <div className="pt-2 animate-rise" style={{ '--i': 1 } as React.CSSProperties}>
               <DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} />
+              <WidgetSync since={couple?.together_since ?? null} partner={partner ? partnerFirst : null} me={firstName} />
             </div>
           )}
           {partnerId && (

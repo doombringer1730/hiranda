@@ -2,6 +2,7 @@ import webpush from 'web-push'
 import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { isQuiet, type QuietPrefs } from '@/lib/quiet'
+import { apnsConfigured, sendApns } from '@/lib/apns'
 
 export type PushMessage = {
   title: string
@@ -57,10 +58,12 @@ export async function sendTo(subs: Sub[], msg: PushMessage) {
   return { sent, gone }
 }
 
-// Fire-and-forget: sends to every device the caller's partner opted in on,
-// after the response has gone out. Never throws, never slows the action.
+// Fire-and-forget: sends to every device the caller's partner opted in on —
+// web push and the iPhone app (APNs) — after the response has gone out.
+// Never throws, never slows the action.
 export function notifyPartner(message: PushMessage | (() => Promise<PushMessage | null>)) {
-  if (!configure()) return
+  const web = configure(), native = apnsConfigured()
+  if (!web && !native) return
   after(async () => {
     try {
       const msg = typeof message === 'function' ? await message() : message
@@ -74,11 +77,23 @@ export function notifyPartner(message: PushMessage | (() => Promise<PushMessage 
           .select('dnd_until, quiet_start, quiet_end, tz').neq('user_id', user?.id ?? '').maybeSingle()
         if (isQuiet(prefs as QuietPrefs | null)) return
       }
-      const { data: subs } = await supabase.rpc('partner_push_subscriptions')
-      if (!subs?.length) return
-      const { gone } = await sendTo(subs as Sub[], msg)
-      // Devices that unsubscribed or expired — forget them.
-      for (const endpoint of gone) await supabase.rpc('prune_partner_push_subscription', { p_endpoint: endpoint })
+      await Promise.all([
+        (async () => {
+          if (!web) return
+          const { data: subs } = await supabase.rpc('partner_push_subscriptions')
+          if (!subs?.length) return
+          const { gone } = await sendTo(subs as Sub[], msg)
+          // Devices that unsubscribed or expired — forget them.
+          for (const endpoint of gone) await supabase.rpc('prune_partner_push_subscription', { p_endpoint: endpoint })
+        })(),
+        (async () => {
+          if (!native) return
+          const { data: rows } = await supabase.rpc('partner_native_push_tokens')
+          if (!rows?.length) return
+          const { gone } = await sendApns((rows as { token: string }[]).map(r => r.token), msg)
+          for (const token of gone) await supabase.rpc('prune_partner_native_push_token', { p_token: token })
+        })(),
+      ])
     } catch {
       // Notifications are best-effort.
     }

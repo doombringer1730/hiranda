@@ -4,6 +4,7 @@ import { useActionState, useState, useEffect, Suspense } from 'react'
 import { useRememberedAccount, forgetAccount } from '@/components/remember-account'
 import { login } from '../actions'
 import GoogleButton from '@/components/google-button'
+import AppleButton from '@/components/apple-button'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Heart, Lock, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -263,6 +264,7 @@ function SignInForm({ next, onBack }: { next: string; onBack: () => void }) {
       )}
 
       <div className="flex flex-col gap-4 mb-4">
+        <AppleButton next={next || '/'} />
         <GoogleButton next={next || '/'} />
       </div>
 

@@ -1,5 +1,8 @@
 # Hiranda for iPhone
 
+> Shipping to the App Store? See **APPSTORE.md** for the paid-account steps
+> (capabilities, widget, push key, Supabase Apple provider, review notes).
+
 The iPhone app is a native Capacitor shell that loads the live site
 (`https://hiranda-616i.vercel.app`, set in `capacitor.config.ts`). Web deploys
 reach the app instantly; only native changes need a rebuild in Xcode.
@@ -36,5 +39,5 @@ Redirect URLs → add `hiranda://**`. Needs an app build that includes the
 Browser plugin (after `git pull`, run `npm install && npm run ios`, then ▶).
 
 ## Known limits (for now)
-- **Notifications**: web push doesn't exist inside iOS apps. Native push (APNs)
-  needs the paid Apple Developer Program — next step after that.
+- **Notifications, Sign in with Apple and the widget** need the paid Apple
+  Developer Program — the code is in place; APPSTORE.md has the switches.
