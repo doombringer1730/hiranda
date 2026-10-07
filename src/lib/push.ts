@@ -1,6 +1,7 @@
 import webpush from 'web-push'
 import { after } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isQuiet, type QuietPrefs } from '@/lib/quiet'
 
 export type PushMessage = {
   title: string
@@ -9,6 +10,8 @@ export type PushMessage = {
   // Notifications with the same tag replace each other (e.g. one per game),
   // so a run of moves doesn't stack up a pile of alerts.
   tag?: string
+  // Urgent messages get through Do Not Disturb and stay on screen.
+  urgent?: boolean
 }
 
 let configured: boolean | null = null
@@ -63,6 +66,14 @@ export function notifyPartner(message: PushMessage | (() => Promise<PushMessage 
       const msg = typeof message === 'function' ? await message() : message
       if (!msg) return
       const supabase = await createClient()
+      // Your partner's Do Not Disturb / quiet hours: hold it back (they'll
+      // still see it in the app) unless it's urgent.
+      if (!msg.urgent) {
+        const { data: { user } } = await supabase.auth.getUser()
+        const { data: prefs } = await supabase.from('notify_prefs')
+          .select('dnd_until, quiet_start, quiet_end, tz').neq('user_id', user?.id ?? '').maybeSingle()
+        if (isQuiet(prefs as QuietPrefs | null)) return
+      }
       const { data: subs } = await supabase.rpc('partner_push_subscriptions')
       if (!subs?.length) return
       const { gone } = await sendTo(subs as Sub[], msg)

@@ -48,7 +48,7 @@ export default async function GamesPage() {
 
   // ── Match stats: how often the two of you picked the same answer ──────────
   let stats: { together: number; matches: number; comparable: number; streak: number } | null = null
-  let promptWaiting = false // your partner answered something you haven't
+  const waitingTypes = new Set<string>() // games where your partner answered something you haven't
   if (partnerId) {
     const { data: allResponses } = await supabase
       .from('prompt_responses')
@@ -71,7 +71,7 @@ export default async function GamesPage() {
     for (const rows of byPrompt.values()) {
       const mine = rows.find(r => r.user_id === user.id)
       const theirs = rows.find(r => r.user_id === partnerId)
-      if (theirs && !mine) promptWaiting = true
+      if (theirs && !mine) waitingTypes.add(rows[0].prompts.type)
       if (!mine || !theirs) continue
       together++
       // Free-text questions can't "match"; only compare option-based prompts.
@@ -92,7 +92,11 @@ export default async function GamesPage() {
 
   // Every game gets its own box colour — a shelf of games, not a list.
   const games: Tile[] = [
-    { href: '/games/questions', name: 'Quick Questions', blurb: 'Would you rather, this or that — answers unlock together.', emoji: '💬', color: '#2f8f9d', badge: promptWaiting ? 'Your turn' : null },
+    // Quick question games — each its own box. Answers unlock together.
+    { href: '/games/questions?t=question', name: 'Questions', blurb: 'Light, deeper, deepest — decks you open together.', emoji: '💭', color: '#2f8f9d', badge: waitingTypes.has('question') ? 'Your turn' : null },
+    { href: '/games/questions?t=would_you_rather', name: 'Would You Rather', blurb: 'Pick one. No fence-sitting.', emoji: '🤔', color: '#c27c2c', badge: waitingTypes.has('would_you_rather') ? 'Your turn' : null },
+    { href: '/games/questions?t=this_or_that', name: 'This or That', blurb: 'Quick-fire gut answers.', emoji: '⚖️', color: '#5a7d3a', badge: waitingTypes.has('this_or_that') ? 'Your turn' : null },
+    { href: '/games/questions?t=most_likely', name: 'Most Likely To', blurb: 'Point at each other.', emoji: '👉', color: '#b0476a', badge: waitingTypes.has('most_likely') ? 'Your turn' : null },
     { href: '/games/daring', name: 'Daring Questions', blurb: 'Deep, flirty, silly — or take the dare.', emoji: '💋', color: '#d9466f', badge: null },
     { href: '/games/trivia', name: 'Trivia About Us', blurb: 'How well do you really know each other?', emoji: '🧠', color: '#4f6fd8', badge: triviaWaiting ? `${triviaWaiting} to answer` : null },
     { href: `/games/${GAMES.uno.slug}`, name: GAMES.uno.name, blurb: GAMES.uno.blurb, emoji: GAMES.uno.emoji, color: '#e0a21a', badge: liveBadge('uno') },

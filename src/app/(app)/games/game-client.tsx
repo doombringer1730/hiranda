@@ -27,12 +27,13 @@ type Tab = { type: PromptType; label: string; shortLabel?: string; initial: Prom
 type Props = {
   tabs: Tab[]
   initialTab?: PromptType
+  deck?: number // question deck (1 Light, 2 Deeper, 3 Deepest)
   partnerName: string
   myId: string
   partnerId: string | null
 }
 
-export default function GameClient({ tabs, initialTab, partnerName, myId, partnerId }: Props) {
+export default function GameClient({ tabs, initialTab, deck, partnerName, myId, partnerId }: Props) {
   const [activeTab, setActiveTab] = useState<PromptType>(initialTab ?? tabs[0].type)
   const [states, setStates] = useState<Record<PromptType, PromptState | null>>(
     Object.fromEntries(tabs.map(t => [t.type, t.initial])) as Record<PromptType, PromptState | null>
@@ -101,7 +102,7 @@ export default function GameClient({ tabs, initialTab, partnerName, myId, partne
   async function handleNext() {
     if (!current) return
     setNextPending(true)
-    const next = await getNextPrompt(activeTab, current.prompt.id)
+    const next = await getNextPrompt(activeTab, current.prompt.id, deck)
     setStates(prev => ({ ...prev, [activeTab]: next }))
     setAnswers(prev => ({ ...prev, [activeTab]: '' }))
     setNextPending(false)
@@ -125,8 +126,8 @@ export default function GameClient({ tabs, initialTab, partnerName, myId, partne
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Tabs */}
-      <div className="flex gap-1 bg-stone-900 rounded-2xl p-1">
+      {/* Tabs (hidden when this is a single game) */}
+      {tabs.length > 1 && <div className="flex gap-1 bg-stone-900 rounded-2xl p-1">
         {tabs.map(t => (
           <button
             key={t.type}
@@ -141,7 +142,7 @@ export default function GameClient({ tabs, initialTab, partnerName, myId, partne
             <span className="sm:hidden">{t.shortLabel ?? t.label}</span>
           </button>
         ))}
-      </div>
+      </div>}
 
       {!current && (
         <p className="text-stone-500 text-sm text-center py-12">No prompts available.</p>

@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import Link from 'next/link'
 import SettingsClient from './settings-client'
 import { NotificationSettings } from '@/components/pwa'
+import QuietSettings from '@/components/quiet-settings'
 import TheaterGate from './theater-gate'
 import { logout } from '@/app/(auth)/actions'
 import { LogOut, Film } from 'lucide-react'
@@ -46,6 +47,8 @@ export default async function SettingsPage() {
           <h3 className="text-amber-200 font-medium mb-1">Notifications</h3>
           <p className="text-stone-500 text-sm mb-4">A ping when your partner answers, plays a move, or adds something. Set per device.</p>
           <NotificationSettings />
+          <div className="h-px bg-stone-800 my-5" />
+          <QuietSettings />
         </section>
 
         {/* Theme */}
@@ -104,7 +107,7 @@ export default async function SettingsPage() {
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
           <h3 className="text-amber-200 font-medium mb-1">Relationship timer</h3>
           <p className="text-stone-500 text-sm mb-4">
-            Shows a live “together” counter in the sidebar on desktop. On phones, your days together live on Home.
+            Shows your days together in the sidebar on desktop. On phones, they’re under your greeting on Home.
           </p>
           <SettingsClient
             type="timer"

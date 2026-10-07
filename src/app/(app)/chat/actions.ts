@@ -6,7 +6,7 @@ import { notifyPartner, myFirstName } from '@/lib/push'
 export type Message = {
   id: string
   sender: string
-  kind: 'text' | 'good_news'
+  kind: 'text' | 'good_news' | 'urgent'
   body: string
   reaction: string | null
   read_at: string | null
@@ -29,25 +29,26 @@ export async function getMessages(before?: string): Promise<{ coupleId: string; 
   return { coupleId: ctx.couple.id, messages: rows.slice(0, PAGE).reverse(), more: rows.length > PAGE }
 }
 
-export async function sendMessage(body: string, kind: 'text' | 'good_news' = 'text') {
+export async function sendMessage(body: string, kind: 'text' | 'good_news' | 'urgent' = 'text') {
   const text = body.trim()
   if (!text) return { error: 'Empty message' }
   if (text.length > 4000) return { error: 'That’s a bit long — try splitting it up' }
-  if (kind !== 'text' && kind !== 'good_news') return { error: 'Bad message type' }
+  if (kind !== 'text' && kind !== 'good_news' && kind !== 'urgent') return { error: 'Bad message type' }
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Chat needs both of you' }
 
   const { error } = await ctx.supabase.from('messages')
     .insert({ couple_id: ctx.couple.id, sender: ctx.user.id, kind, body: text })
-  if (error) return { error: 'Couldn’t send — try again' }
+  if (error) return { error: error.message.includes('urgent_limit') ? 'Urgent is limited to 3 a day — send it as a normal message instead.' : 'Couldn’t send — try again' }
 
   notifyPartner(async () => {
     const name = await myFirstName()
     return {
-      title: kind === 'good_news' ? `${name} has good news 🎉` : name,
+      title: kind === 'urgent' ? `🚨 Urgent from ${name}` : kind === 'good_news' ? `${name} has good news 🎉` : name,
       body: text.length > 140 ? text.slice(0, 137) + '…' : text,
       url: '/chat',
-      tag: 'chat',
+      tag: kind === 'urgent' ? 'chat-urgent' : 'chat',
+      urgent: kind === 'urgent',
     }
   })
   return { ok: true }
