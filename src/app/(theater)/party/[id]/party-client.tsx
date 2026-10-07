@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/theater/supabase/client'
+import { PLATFORM_LABELS as SERVICE_LABELS } from '@/theater/catalog/providers'
+import { CountdownStart } from '@/theater/ui/countdown'
 import Link from 'next/link'
 import { ArrowLeft, Send, ExternalLink } from 'lucide-react'
 
 const EMOTES = ['🍿', '❤️', '😂', '😱', '👏', '💀', '🔥', '🎬']
 
 const PLATFORM_LABELS: Record<string, string> = {
+  ...SERVICE_LABELS,
   netflix: 'Netflix', youtube: 'YouTube', disney: 'Disney+',
   prime: 'Prime Video', max: 'Max', hulu: 'Hulu',
   appletv: 'Apple TV+', paramount: 'Paramount+',
@@ -189,6 +192,9 @@ export default function PartyClient({
                 Open on {platformLabel ?? 'streaming site'}
               </a>
             )}
+            <div className="mt-2">
+              <CountdownStart sessionId={sessionId} userId={userId} names={profileMap} />
+            </div>
           </div>
         </div>
       </div>

@@ -1,6 +1,8 @@
 import { createClient } from '@/theater/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import WatchPlayer from './watch-player'
+import YouTubePlayer from './youtube-player'
+import { youTubeId } from '@/theater/youtube'
 import { deleteWatchSession } from '../actions'
 
 export default async function WatchSessionPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,6 +35,23 @@ export default async function WatchSessionPage({ params }: { params: Promise<{ i
     videoUrl = session.source_url ?? null
   }
   // local: videoUrl stays null — player shows file picker
+
+  // YouTube links get YouTube's own embedded player, synced the same way.
+  const ytId = sourceType === 'url' ? youTubeId(videoUrl) : null
+  if (ytId) {
+    return (
+      <YouTubePlayer
+        sessionId={id}
+        title={session.title}
+        videoId={ytId}
+        userId={user!.id}
+        profileMap={profileMap}
+        initialState={session.state ?? 'paused'}
+        initialPosition={session.playback_position_seconds ?? 0}
+        deleteAction={deleteWatchSession.bind(null, id, null)}
+      />
+    )
+  }
 
   return (
     <WatchPlayer
