@@ -13,11 +13,14 @@ type Defaults = {
   delivery: string; vid: string; pid: string; from: 'US' | 'CN'
 }
 
-export function AddForm({ defaults, categories }: { defaults: Defaults; categories: { key: string; title: string }[] }) {
+export function AddForm({ defaults, categories, sizes }: {
+  defaults: Defaults; categories: { key: string; title: string }[]; sizes: { label: string; vid: string }[]
+}) {
   const router = useRouter()
   const [pending, start] = useTransition()
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [price, setPrice] = useState(defaults.price)
+  const [withSizes, setWithSizes] = useState(sizes.length > 1)
   const profit = Number(price) - Number(defaults.cost) - Number(price) * 0.03 - 0.3
 
   return (
@@ -27,6 +30,13 @@ export function AddForm({ defaults, categories }: { defaults: Defaults; categori
       if (res.ok) router.refresh()
     })} className="flex flex-col gap-3">
       {(['vid', 'pid', 'from', 'image', 'cost', 'emoji'] as const).map(k => <input key={k} type="hidden" name={k} value={defaults[k]} />)}
+      {withSizes && <input type="hidden" name="options" value={JSON.stringify({ name: 'Size', values: sizes })} />}
+      {sizes.length > 1 && (
+        <label className="flex items-start gap-2.5 text-sm text-stone-300">
+          <input type="checkbox" checked={withSizes} onChange={e => setWithSizes(e.target.checked)} className="mt-1 accent-amber-600" />
+          <span>Let them pick a size: {sizes.map(s => s.label).join(', ')} <span className="text-stone-500">(same price for every size — check the costs match)</span></span>
+        </label>
+      )}
       <div><label className={label} htmlFor="title">Name in your store</label>
         <input id="title" name="title" defaultValue={defaults.title} maxLength={120} required className={field} /></div>
       <div><label className={label} htmlFor="blurb">A line about it</label>
@@ -87,6 +97,8 @@ export function PartnerForm({ categories }: { categories: { key: string; title: 
         <div><label className={label} htmlFor="p-cost">You pay them ($)</label>
           <input id="p-cost" name="cost" inputMode="decimal" value={cost} onChange={e => setCost(e.target.value)} className={field} placeholder="incl. their shipping" /></div>
       </div>
+      <div><label className={label} htmlFor="p-sizes">Sizes (optional)</label>
+        <input id="p-sizes" name="sizes" maxLength={200} className={field} placeholder="S, M, L, XL, 2XL" /></div>
       <div><label className={label} htmlFor="p-delivery">Delivery note</label>
         <input id="p-delivery" name="delivery" maxLength={80} className={field} defaultValue="Made to order — arrives in about 1–2 weeks" /></div>
       {price && cost && <p className={`text-xs ${profit >= 5 ? 'text-emerald-300' : 'text-amber-300'}`}>You keep about ${Number.isFinite(profit) ? profit.toFixed(2) : '—'} per sale.</p>}
@@ -99,7 +111,7 @@ export function PartnerForm({ categories }: { categories: { key: string; title: 
   )
 }
 
-type Row = { key: string; title: string; image: string | null; emoji: string; active: boolean; delivery: string | null; section: string; price: string; cost: string | null }
+type Row = { key: string; title: string; image: string | null; emoji: string; active: boolean; delivery: string | null; section: string; price: string; cost: string | null; options: string | null }
 
 export function ProductRow({ product: p }: { product: Row }) {
   const router = useRouter()
@@ -120,7 +132,7 @@ export function ProductRow({ product: p }: { product: Row }) {
           : <span className="text-3xl" aria-hidden="true">{p.emoji}</span>}
         <div className="flex-1 min-w-0">
           <p className="text-stone-100 text-sm truncate">{p.title}</p>
-          <p className="text-stone-500 text-xs truncate">{p.section}{p.cost ? ` · cost ${p.cost}` : ''}{p.delivery ? ` · ${p.delivery}` : ''}</p>
+          <p className="text-stone-500 text-xs truncate">{p.section}{p.cost ? ` · cost ${p.cost}` : ''}{p.options ? ` · sizes ${p.options}` : ''}{p.delivery ? ` · ${p.delivery}` : ''}</p>
         </div>
         <div className="flex items-center gap-1">
           <span className="text-stone-500 text-sm">$</span>

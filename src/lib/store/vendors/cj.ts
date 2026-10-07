@@ -113,7 +113,7 @@ export const cjDropshipping: Vendor = {
 // ── For the owner's supplier and catalog pages ──
 
 export type CjProduct = { pid: string; name: string; image: string | null; price: string | null; listed: number; usStock: number | null }
-export type CjVariant = { vid: string; name: string; sku: string | null; price: number | null; image: string | null }
+export type CjVariant = { vid: string; name: string; key: string; sku: string | null; price: number | null; image: string | null }
 
 /** CJ's catalog ranked by how many shops sell each product — the popular
  *  ones first. `newOnly`: listed in the last 45 days. `usOnly`: in stock in
@@ -137,7 +137,7 @@ export async function cjPopular(q: string, { newOnly = false, usOnly = false, pa
 export async function cjVariants(pid: string, country?: 'US'): Promise<CjVariant[]> {
   const d = await cj<Record<string, unknown>[]>('variants', `/product/variant/query?pid=${encodeURIComponent(pid)}${country ? `&countryCode=${country}` : ''}`)
   return (Array.isArray(d) ? d : []).map(v => ({
-    vid: String(v.vid ?? ''), name: String(v.variantNameEn ?? v.variantKey ?? ''),
+    vid: String(v.vid ?? ''), name: String(v.variantNameEn ?? v.variantKey ?? ''), key: String(v.variantKey ?? ''),
     sku: typeof v.variantSku === 'string' ? v.variantSku : null,
     price: v.variantSellPrice != null ? Number(v.variantSellPrice) : null,
     image: typeof v.variantImage === 'string' && v.variantImage.startsWith('https://') ? v.variantImage : null,

@@ -31,7 +31,13 @@ export type Product = {
   image?: string
   /** e.g. "Arrives in about 1–2 weeks". */
   delivery?: string
+  /** Something the sender picks, like a size. */
+  options?: ProductOptions
 }
+
+/** e.g. { name: 'Size', values: [{ label: 'M', vid: '…' }] } — `vid` picks the
+ *  exact CJ variant; for partners the label is passed on with the order. */
+export type ProductOptions = { name: string; values: { label: string; vid?: string }[] }
 
 export type Category = 'her' | 'him' | 'cuddly' | 'jewelry' | 'cozy' | 'gift' | 'keepsake'
 

@@ -22,7 +22,7 @@ export default async function StoreAdminPage() {
 
   const db = createAdminClient()
   const { data: orders } = await db.from('store_orders')
-    .select('id, product_key, title, note, amount_cents, status, tracking_url, created_at, recipient_id, vendor, vendor_order_id, vendor_error')
+    .select('id, product_key, title, note, amount_cents, status, tracking_url, created_at, recipient_id, vendor, vendor_order_id, vendor_error, option')
     .in('status', ['paid', 'fulfilling', 'shipped']).order('created_at', { ascending: true }).limit(100)
   const ids = [...new Set((orders ?? []).map(o => o.recipient_id))]
   const { data: addresses } = ids.length
@@ -57,7 +57,7 @@ export default async function StoreAdminPage() {
               <div className="flex items-center gap-3">
                 <ProductThumb product={item} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-stone-100 font-medium">{o.title}</p>
+                  <p className="text-stone-100 font-medium">{o.title}{o.option && <span className="ml-2 rounded-full bg-amber-900/50 px-2 py-0.5 text-xs text-amber-200">{item?.options?.name ?? 'Option'}: {o.option}</span>}</p>
                   <p className="text-stone-500 text-xs">{new Date(o.created_at).toLocaleString()} · {formatPrice(o.amount_cents)} · {o.status}</p>
                 </div>
               </div>

@@ -17,6 +17,21 @@ async function admin() {
 const clean = (v: FormDataEntryValue | null, max: number) => String(v ?? '').trim().slice(0, max)
 const cents = (v: FormDataEntryValue | null) => Math.round(Number(String(v ?? '').replace(/[^0-9.]/g, '')) * 100)
 
+/** Sizes from the forms → { name: 'Size', values } (2–20 short labels). */
+function parseOptions(raw: FormDataEntryValue | null, fromList?: FormDataEntryValue | null) {
+  let values: { label: string; vid?: string }[] = []
+  if (raw) {
+    try {
+      const o = JSON.parse(String(raw)) as { values?: { label?: unknown; vid?: unknown }[] }
+      values = (o.values ?? []).map(v => ({ label: String(v.label ?? '').slice(0, 20), vid: typeof v.vid === 'string' ? v.vid.slice(0, 80) : undefined }))
+    } catch { /* ignore */ }
+  } else if (fromList) {
+    values = String(fromList).split(',').map(x => ({ label: x.trim().slice(0, 20) }))
+  }
+  values = values.filter((v, i, a) => v.label && a.findIndex(w => w.label === v.label) === i).slice(0, 20)
+  return values.length >= 2 ? { name: 'Size', values } : null
+}
+
 function refresh() {
   revalidatePath('/store')
   revalidatePath('/store/admin/catalog')
@@ -50,6 +65,7 @@ export async function addCjProduct(form: FormData): Promise<{ ok?: true; error?:
     vendor: { name: 'cj', items: [{ vid, quantity: 1 }], from },
     delivery: delivery || null,
     source_ref: pid ? `cj:${pid}` : null,
+    options: parseOptions(form.get('options')),
     active: true, updated_at: new Date().toISOString(),
   })
   if (error) return { error: 'Couldn’t save — try again.' }
@@ -87,6 +103,7 @@ export async function addPartnerProduct(form: FormData): Promise<{ ok?: true; er
     vendor: { name: 'partner', partner, ...(url ? { url } : {}) },
     delivery: delivery || null,
     source_ref: `partner:${partner}`.slice(0, 120),
+    options: parseOptions(null, form.get('sizes')),
     active: true,
   })
   if (error) return { error: 'Couldn’t save — try again.' }

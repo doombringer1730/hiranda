@@ -67,10 +67,12 @@ async function origin() {
 }
 
 // Start a gift: record it as pending, then hand off to Stripe Checkout.
-export async function startGift(productKey: string, note: string): Promise<{ url?: string; error?: string }> {
+export async function startGift(productKey: string, note: string, option?: string): Promise<{ url?: string; error?: string }> {
   if (!storeEnabled()) return { error: 'The store opens soon.' }
   const product = await findProduct(productKey)
   if (!product) return { error: 'Unknown gift' }
+  const picked = product.options ? product.options.values.find(v => v.label === option)?.label : undefined
+  if (product.options && !picked) return { error: `Pick a ${product.options.name.toLowerCase()} first.` }
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Gifts are for your partner — invite them first.' }
   if (!stripeOpenTo(ctx.user.email)) return { error: 'The store opens soon.' }
@@ -81,13 +83,14 @@ export async function startGift(productKey: string, note: string): Promise<{ url
   const { data: order, error } = await ctx.supabase.from('store_orders').insert({
     couple_id: ctx.couple.id, sender_id: ctx.user.id, recipient_id: ctx.partnerId,
     product_key: product.key, title: product.title, note: text, amount_cents: product.priceCents,
+    option: picked ?? null,
   }).select('id').single()
   if (error || !order) return { error: 'Couldn’t start the order — try again.' }
 
   const base = await origin()
   const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
-    line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: product.priceCents, product_data: { name: product.title } } }],
+    line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: product.priceCents, product_data: { name: picked ? `${product.title} (${product.options!.name}: ${picked})` : product.title } } }],
     customer_email: ctx.user.email ?? undefined,
     metadata: { order_id: order.id, kind: 'gift' },
     payment_intent_data: { metadata: { order_id: order.id } },
