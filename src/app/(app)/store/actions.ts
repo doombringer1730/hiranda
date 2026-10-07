@@ -3,7 +3,7 @@
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { coupleContext } from '@/lib/couple'
-import { getStripe } from '@/lib/billing'
+import { getStripe, stripeOpenTo } from '@/lib/billing'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPartner, myFirstName } from '@/lib/push'
 import { productByKey, SHIP_TO } from '@/lib/store/catalog'
@@ -66,6 +66,7 @@ export async function startGift(productKey: string, note: string): Promise<{ url
   if (!product) return { error: 'Unknown gift' }
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Gifts are for your partner — invite them first.' }
+  if (!stripeOpenTo(ctx.user.email)) return { error: 'The store opens soon.' }
   const { data: hasAddress } = await ctx.supabase.rpc('partner_has_gift_address')
   if (!hasAddress) return { error: 'Your partner hasn’t added a delivery address yet.' }
 

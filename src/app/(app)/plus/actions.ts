@@ -2,7 +2,7 @@
 
 import { headers } from 'next/headers'
 import { coupleContext } from '@/lib/couple'
-import { getStripe, stripeConfigured, syncApplePlus } from '@/lib/billing'
+import { getStripe, stripeConfigured, stripeOpenTo, syncApplePlus } from '@/lib/billing'
 import { hasPlus, plusDetails } from '@/lib/plus'
 import { PLUS_TRIAL_DAYS, type PlusPlan } from '@/lib/plus-config'
 
@@ -16,6 +16,7 @@ export async function startCheckout(plan: PlusPlan): Promise<{ url?: string; err
   if (!stripeConfigured()) return { error: 'Plus isn’t available to buy yet.' }
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Plus is for a couple — invite your partner first.' }
+  if (!stripeOpenTo(ctx.user.email)) return { error: 'Plus isn’t available to buy yet.' }
   if (await hasPlus()) return { error: 'You already have Plus.' }
   const price = plan === 'yearly' ? process.env.STRIPE_PRICE_YEARLY! : process.env.STRIPE_PRICE_MONTHLY!
   const base = await origin()

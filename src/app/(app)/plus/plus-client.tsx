@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Check, Loader2, Sparkles } from 'lucide-react'
 import { PLUS_PERKS, PLUS_PRICES, PLUS_TRIAL_DAYS, type PlusPlan } from '@/lib/plus-config'
 import type { PlusDetails } from '@/lib/plus'
+import TestCardHint from '@/components/test-card-hint'
 import { hasPlugin, useIsNativeApp } from '@/lib/native'
 import { celebrate } from '@/lib/feel'
 import { primaryButton } from '@/components/ui'
@@ -14,8 +15,8 @@ type ApplePackage = { identifier: string; packageType: string; product: { priceS
 
 // The Plus page. In a browser it sells through Stripe; inside the iPhone app it
 // only ever uses Apple's in-app purchase (App Store rule 3.1.1).
-export default function PlusClient({ details, coupleId, webReady, appKey, welcome }: {
-  details: PlusDetails; coupleId: string | null; webReady: boolean; appKey: string | null; welcome: boolean
+export default function PlusClient({ details, coupleId, webReady, testMode, appKey, welcome }: {
+  details: PlusDetails; coupleId: string | null; webReady: boolean; testMode: boolean; appKey: string | null; welcome: boolean
 }) {
   const native = useIsNativeApp()
   const [plan, setPlan] = useState<PlusPlan>('yearly')
@@ -145,6 +146,7 @@ export default function PlusClient({ details, coupleId, webReady, appKey, welcom
             {PLUS_TRIAL_DAYS}-day free trial, then {price(plan)} per {PLUS_PRICES[plan].per} for your couple. Renews automatically until you cancel
             {native ? ' — payment is charged to your Apple ID, and you can cancel anytime in Settings → Apple ID → Subscriptions, at least 24 hours before it renews.' : ' — cancel anytime from this page.'}
           </p>
+          {!native && webReady && testMode && <TestCardHint />}
           {native && appleReady && (
             <button onClick={restore} disabled={pending} className="text-stone-400 hover:text-stone-200 text-sm mx-auto">Restore purchases</button>
           )}

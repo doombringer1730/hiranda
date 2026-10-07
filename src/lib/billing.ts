@@ -1,6 +1,7 @@
 import 'server-only'
 import Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isStoreAdmin } from '@/lib/store/server'
 
 // Where Plus gets recorded. Each store tells us about a couple's
 // subscription (Stripe via its webhook; Apple via RevenueCat's webhook or a
@@ -19,6 +20,12 @@ export const PLUS_ENTITLEMENT = 'plus'
 export function stripeConfigured() {
   return !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_MONTHLY && process.env.STRIPE_PRICE_YEARLY)
 }
+
+/** A Stripe test key (sk_test_…): fake cards go through, so only testers may pay. */
+export const stripeTestMode = () => !!process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')
+
+/** Can this person use Stripe checkout? In test mode, only STORE_ADMIN_EMAILS can. */
+export const stripeOpenTo = (email: string | null | undefined) => !stripeTestMode() || isStoreAdmin(email)
 
 let stripe: Stripe | null = null
 export function getStripe() {
