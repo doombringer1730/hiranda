@@ -47,11 +47,19 @@ export default async function StorePage() {
 
       {open && stripeTestMode() && <div className="mb-6"><TestCardHint /></div>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {PRODUCTS.map(p => (
-          <GiftCard key={p.key} product={p} partner={partner} canSend={open && !!partnerReady} />
-        ))}
-      </div>
+      {[
+        { title: 'Little gifts', items: PRODUCTS.filter(p => p.section !== 'keepsake') },
+        { title: 'Keepsakes with your names', items: PRODUCTS.filter(p => p.section === 'keepsake') },
+      ].filter(g => g.items.length).map((g, i) => (
+        <section key={g.title} className={i ? 'mt-10' : ''}>
+          <h2 className="text-stone-400 text-[11px] uppercase tracking-[0.22em] mb-3">{g.title}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {g.items.map(p => (
+              <GiftCard key={p.key} product={p} partner={partner} canSend={open && !!partnerReady} />
+            ))}
+          </div>
+        </section>
+      ))}
 
       {PARTNER_GIFTS.length > 0 && (
         <section className="mt-10">
@@ -82,6 +90,10 @@ export default async function StorePage() {
           <span className="text-sm text-stone-200">Gifts you’ve sent</span>
         </Link>
       </div>
+
+      <p className="mt-8 text-center text-sm text-stone-500">
+        Make something couples would love? <Link href="/sell" className="text-amber-400 hover:text-amber-300 underline underline-offset-4">Sell on Hiranda</Link>
+      </p>
     </div>
   )
 }
