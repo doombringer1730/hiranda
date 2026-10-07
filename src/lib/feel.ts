@@ -1,5 +1,8 @@
 'use client'
 
+import { Haptics, ImpactStyle } from '@capacitor/haptics'
+import { hasPlugin } from '@/lib/native'
+
 // Small "feel" helpers: haptic ticks and a confetti burst.
 
 // iOS Safari has no vibrate API, but toggling a native <input switch> fires
@@ -8,6 +11,11 @@
 let switchLabel: HTMLLabelElement | null = null
 export function haptic() {
   try {
+    // Inside the iPhone app: the real Taptic Engine.
+    if (hasPlugin('Haptics')) {
+      Haptics.impact({ style: ImpactStyle.Light }).catch(() => {})
+      return
+    }
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate(8)
       return

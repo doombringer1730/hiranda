@@ -72,5 +72,16 @@
 	<string>Hiranda uses the camera so you can snap a photo for your memories.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Hiranda uses the microphone when you record a video for your memories.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.hiranda.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>hiranda</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

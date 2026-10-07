@@ -28,9 +28,13 @@ reach the app instantly; only native changes need a rebuild in Xcode.
 
 A free Apple ID's install lasts 7 days; press ▶ again to refresh it.
 
+## Google sign-in in the app
+Google blocks sign-in inside app web views, so the app opens Google in a
+Safari sheet and Google sends you back through `hiranda://auth/callback`.
+One-time setup: Supabase Dashboard → Authentication → URL Configuration →
+Redirect URLs → add `hiranda://**`. Needs an app build that includes the
+Browser plugin (after `git pull`, run `npm install && npm run ios`, then ▶).
+
 ## Known limits (for now)
-- **Google sign-in** doesn't work inside apps (Google blocks embedded web
-  views). Use email + password; if your account was made with Google, use
-  "Forgot password?" once to set one.
 - **Notifications**: web push doesn't exist inside iOS apps. Native push (APNs)
   needs the paid Apple Developer Program — next step after that.
