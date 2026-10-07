@@ -155,6 +155,13 @@ trial. Prices, perks, free themes and free Grow units all live in
    - `STRIPE_PRICE_MONTHLY`
    - `STRIPE_PRICE_YEARLY`
 
+**Testing first:** use Stripe's *test* keys (`sk_test_…`) and test-mode prices
+and webhook. While the key is a test key, only the people in
+`STORE_ADMIN_EMAILS` can check out (Plus or gifts). Everyone else sees "coming
+soon", so nobody gets Plus with a fake card. Testers pay with card
+`4242 4242 4242 4242`. To go live, swap in the live key and recreate the
+prices and webhook in live mode, because test-mode ids don't carry over.
+
 **Both** need `SUPABASE_SERVICE_ROLE_KEY` set in Vercel, spelled exactly like
 that. The old misspelled `UPABASE_SERVICE_ROLE_KEY` doesn't count.
 

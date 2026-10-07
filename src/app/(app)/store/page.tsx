@@ -6,6 +6,8 @@ import { coupleContext } from '@/lib/couple'
 import { getPeople } from '@/lib/profiles'
 import { PARTNER_GIFTS, PRODUCTS } from '@/lib/store/catalog'
 import { isStoreAdmin, storeEnabled } from '@/lib/store/server'
+import { stripeOpenTo, stripeTestMode } from '@/lib/billing'
+import TestCardHint from '@/components/test-card-hint'
 import { AskForAddress, GiftCard } from './store-client'
 
 export const metadata = { title: 'Hiranda Store' }
@@ -19,7 +21,7 @@ export default async function StorePage() {
     ctx.supabase.from('store_addresses').select('user_id').eq('user_id', ctx.user.id).maybeSingle(),
   ])
   const partner = people.get(ctx.partnerId)?.first ?? 'your partner'
-  const open = storeEnabled()
+  const open = storeEnabled() && stripeOpenTo(ctx.user.email)
 
   return (
     <div className="px-4 pt-6 pb-12 max-w-2xl md:max-w-4xl mx-auto">
@@ -42,6 +44,8 @@ export default async function StorePage() {
       {!open && (
         <p className="mb-6 rounded-2xl border border-stone-800 bg-stone-900/60 px-4 py-3 text-sm text-stone-400">The store opens soon — have a look around.</p>
       )}
+
+      {open && stripeTestMode() && <div className="mb-6"><TestCardHint /></div>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {PRODUCTS.map(p => (
