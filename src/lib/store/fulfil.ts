@@ -2,7 +2,7 @@ import 'server-only'
 import { stripeTestMode } from '@/lib/billing'
 import { notifyUser } from '@/lib/push'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { productByKey } from './catalog'
+import { findProduct } from './products'
 import { notifyAdmins } from './server'
 import { VENDORS, VendorError, type ShipTo } from './vendors'
 import type { Vendor, VendorSpec } from './vendors/types'
@@ -22,8 +22,8 @@ const now = () => new Date().toISOString()
 const firstName = (s: string | null | undefined) => (s ?? '').trim().split(/\s+/)[0] || ''
 
 /** The supplier that makes this product, if one is set up for it. */
-export function supplierFor(productKey: string): { vendor: Vendor; spec: VendorSpec } | null {
-  const spec = productByKey(productKey)?.vendor
+export async function supplierFor(productKey: string): Promise<{ vendor: Vendor; spec: VendorSpec } | null> {
+  const spec = (await findProduct(productKey, { includeInactive: true }))?.vendor
   if (!spec) return null
   const vendor = VENDORS[spec.name]
   return vendor.ready(spec) ? { vendor, spec } : null
@@ -35,7 +35,7 @@ export async function fulfilOrder(orderId: string): Promise<{ ok?: true; manual?
     .select('id, product_key, note, sender_id, recipient_id, status, vendor, vendor_order_id')
     .eq('id', orderId).maybeSingle()
   if (!order || order.status !== 'paid' || order.vendor_order_id) return { error: 'This gift isn’t waiting to be sent.' }
-  const pick = supplierFor(order.product_key)
+  const pick = await supplierFor(order.product_key)
   if (!pick) return { manual: true }
   const { vendor, spec } = pick
 
@@ -149,7 +149,7 @@ export async function syncOrders(budgetMs = 50_000) {
   let sent = 0, checked = 0
   for (const o of unsent ?? []) {
     if (Date.now() > deadline) break
-    if (!supplierFor(o.product_key)) continue
+    if (!(await supplierFor(o.product_key))) continue
     if ((await fulfilOrder(o.id)).ok) sent++
     await pause()
   }

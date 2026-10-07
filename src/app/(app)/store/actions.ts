@@ -6,7 +6,8 @@ import { coupleContext } from '@/lib/couple'
 import { getStripe, stripeOpenTo } from '@/lib/billing'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPartner, myFirstName } from '@/lib/push'
-import { productByKey, SHIP_TO } from '@/lib/store/catalog'
+import { SHIP_TO } from '@/lib/store/catalog'
+import { findProduct } from '@/lib/store/products'
 import { isStoreAdmin, storeEnabled } from '@/lib/store/server'
 import { usStateCode } from '@/lib/store/vendors/us-states'
 
@@ -68,7 +69,7 @@ async function origin() {
 // Start a gift: record it as pending, then hand off to Stripe Checkout.
 export async function startGift(productKey: string, note: string): Promise<{ url?: string; error?: string }> {
   if (!storeEnabled()) return { error: 'The store opens soon.' }
-  const product = productByKey(productKey)
+  const product = await findProduct(productKey)
   if (!product) return { error: 'Unknown gift' }
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Gifts are for your partner — invite them first.' }

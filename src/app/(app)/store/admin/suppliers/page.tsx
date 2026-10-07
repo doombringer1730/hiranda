@@ -3,11 +3,10 @@ import { notFound } from 'next/navigation'
 import { ArrowLeft, Check, CircleAlert, Search } from 'lucide-react'
 import PageHeader from '@/components/page-header'
 import { coupleContext } from '@/lib/couple'
-import { PRODUCTS } from '@/lib/store/catalog'
 import { isStoreAdmin } from '@/lib/store/server'
 import { supplierFor } from '@/lib/store/fulfil'
+import { storeProducts } from '@/lib/store/products'
 import { VENDORS } from '@/lib/store/vendors'
-import { cjSearch, cjVariants } from '@/lib/store/vendors/cj'
 import { siteUrl } from '@/lib/store/vendors/contact'
 import { goodyProducts } from '@/lib/store/vendors/goody'
 import { ConnectWebhook } from './connect-webhook'
@@ -50,7 +49,7 @@ const SETUP: Record<string, { env: string[]; steps: string[] }> = {
       'Sign up at cjdropshipping.com (free).',
       'Apps → install “API”, then API → Add API → API Key → copy it into CJ_API_KEY.',
       'Top up your CJ wallet — orders are paid from it. CJ suspends API access after 30 days with no orders.',
-      'Search below for items in CJ’s US warehouse and send me the vids for the care package.',
+      'Then open Catalog to add popular gifts — shipped from the US or internationally.',
     ],
   },
   goody: {
@@ -79,12 +78,14 @@ async function check(name: keyof typeof VENDORS) {
   try { return { ok: true, text: await v.ping() } } catch (e) { return { ok: false, text: e instanceof Error ? e.message : 'Couldn’t reach it.' } }
 }
 
-export default async function SuppliersPage({ searchParams }: { searchParams: Promise<{ v?: string; q?: string; pid?: string }> }) {
+export default async function SuppliersPage({ searchParams }: { searchParams: Promise<{ v?: string; q?: string }> }) {
   const ctx = await coupleContext()
   if (!ctx || !isStoreAdmin(ctx.user.email)) notFound()
-  const { v, q = '', pid } = await searchParams
+  const { v, q = '' } = await searchParams
   const names = Object.keys(VENDORS) as (keyof typeof VENDORS)[]
   const status = Object.fromEntries(await Promise.all(names.map(async n => [n, await check(n)] as const)))
+  const products = await storeProducts()
+  const makers = new Map(await Promise.all(products.map(async p => [p.key, await supplierFor(p.key)] as const)))
 
   return (
     <div className="px-4 pt-6 pb-12 max-w-3xl mx-auto">
@@ -94,8 +95,8 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
       <section className="mt-6 rounded-2xl border border-stone-800 bg-stone-900/60 p-4">
         <h2 className="text-stone-400 text-[11px] uppercase tracking-[0.22em] mb-3">Who makes each gift</h2>
         <ul className="flex flex-col gap-2 text-sm">
-          {PRODUCTS.map(p => {
-            const s = supplierFor(p.key)
+          {products.map(p => {
+            const s = makers.get(p.key)
             return (
               <li key={p.key} className="flex items-center gap-2">
                 <span aria-hidden="true">{p.emoji}</span>
@@ -122,15 +123,18 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
           <p className="text-xs text-stone-500">Vercel settings: {SETUP[n].env.join(' · ')}</p>
           {VENDORS[n].connectWebhook && status[n].ok && <ConnectWebhook vendor={n} label={VENDORS[n].label} />}
           {WEBHOOK[n] && <p className="text-xs text-stone-500 break-all">Webhook URL (keep it private): <span className="font-mono text-stone-300 select-all">{WEBHOOK[n]}</span></p>}
-          {(n === 'cj' || n === 'goody') && status[n].ok && (
+          {n === 'cj' && status[n].ok && (
+            <Link href="/store/admin/catalog" className="self-start inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-amber-700 text-amber-50 text-sm">Find popular gifts →</Link>
+          )}
+          {n === 'goody' && status[n].ok && (
             <form className="flex gap-2" action="/store/admin/suppliers">
               <input type="hidden" name="v" value={n} />
-              <input name="q" defaultValue={v === n ? q : ''} placeholder={n === 'cj' ? 'Search CJ’s US warehouse (candle, socks…)' : 'Filter Goody (chocolate, cookies…)'}
+              <input name="q" defaultValue={v === n ? q : ''} placeholder="Filter Goody (chocolate, cookies…)"
                 className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-sm text-amber-50 placeholder:text-stone-600" />
               <button className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-stone-800 text-stone-200 text-sm"><Search size={14} /> Find</button>
             </form>
           )}
-          {v === n && status[n].ok && <Results vendor={n} q={q} pid={pid} />}
+          {v === n && status[n].ok && <Results vendor={n} q={q} />}
         </section>
       ))}
     </div>
@@ -138,16 +142,12 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
 }
 
 type Found =
-  | { kind: 'cj-variants'; items: Awaited<ReturnType<typeof cjVariants>> }
-  | { kind: 'cj-products'; items: Awaited<ReturnType<typeof cjSearch>> }
   | { kind: 'goody'; items: Awaited<ReturnType<typeof goodyProducts>> }
   | { kind: 'error'; message: string }
   | null
 
-async function find(vendor: string, q: string, pid?: string): Promise<Found> {
+async function find(vendor: string, q: string): Promise<Found> {
   try {
-    if (vendor === 'cj' && pid) return { kind: 'cj-variants', items: await cjVariants(pid) }
-    if (vendor === 'cj' && q.trim()) return { kind: 'cj-products', items: await cjSearch(q.trim()) }
     if (vendor === 'goody') return { kind: 'goody', items: await goodyProducts(q) }
     return null
   } catch (e) {
@@ -155,41 +155,11 @@ async function find(vendor: string, q: string, pid?: string): Promise<Found> {
   }
 }
 
-async function Results({ vendor, q, pid }: { vendor: string; q: string; pid?: string }) {
-  const found = await find(vendor, q, pid)
+async function Results({ vendor, q }: { vendor: string; q: string }) {
+  const found = await find(vendor, q)
   if (!found) return null
   if (found.kind === 'error') return <p className="text-sm text-red-300">{found.message}</p>
-  if (!found.items.length) return <p className="text-sm text-stone-500">{found.kind === 'goody' ? 'No matches.' : found.kind === 'cj-variants' ? 'No variants in stock in the US.' : 'Nothing in the US warehouse for that.'}</p>
-
-  if (found.kind === 'cj-variants') return (
-    <ul className="flex flex-col gap-2">
-      {found.items.map(x => (
-        <li key={x.vid} className="flex gap-3 items-center rounded-xl bg-stone-950/60 p-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {x.image && <img src={x.image} alt="" className="size-12 rounded-lg object-cover" />}
-          <div className="min-w-0 flex-1 text-sm">
-            <p className="text-stone-200 truncate">{x.name}</p>
-            <p className="text-stone-500 text-xs">${x.price ?? '?'} + shipping · vid <span className="font-mono text-stone-300 select-all">{x.vid}</span></p>
-          </div>
-        </li>
-      ))}
-    </ul>
-  )
-
-  if (found.kind === 'cj-products') return (
-    <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-      {found.items.map(x => (
-        <li key={x.pid}>
-          <Link href={`/store/admin/suppliers?v=cj&q=${encodeURIComponent(q)}&pid=${encodeURIComponent(x.pid)}`} className="block rounded-xl bg-stone-950/60 p-2 hover:bg-stone-800">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            {x.image && <img src={x.image} alt="" className="aspect-square w-full rounded-lg object-cover" />}
-            <p className="text-stone-200 text-xs mt-1 line-clamp-2">{x.name}</p>
-            <p className="text-stone-500 text-xs">from ${x.price ?? '?'}</p>
-          </Link>
-        </li>
-      ))}
-    </ul>
-  )
+  if (!found.items.length) return <p className="text-sm text-stone-500">No matches.</p>
 
   return (
     <ul className="flex flex-col gap-2">
