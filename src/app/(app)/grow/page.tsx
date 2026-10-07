@@ -12,6 +12,7 @@ import CalendarWidget from '../study/calendar-widget'
 import type { Assignment } from '../study/assignments-panel'
 import { awardMilestones, getReviewDeck } from './actions'
 import PathMap from './path-map'
+import { hasPlus } from '@/lib/plus'
 
 const DAY = 86_400_000
 const WEEK_GOAL = 4
@@ -188,7 +189,7 @@ export default async function GrowPage() {
           <span className="flex items-center gap-1.5 text-xs text-stone-400"><PersonChip person={me} size={16} /> you · <PersonChip person={partner} size={16} /> {partner?.first}</span>
         </div>
         <p className="text-stone-400 text-sm mb-6">Short lessons you do for real, in Hiranda. Each one counts once you’ve both done it — take your time.</p>
-        <PathMap units={PATH} doneBy={Object.fromEntries([...doneBy].map(([k, v]) => [k, [...v]]))} myId={user.id} partnerId={partnerId} myColor={me?.accent ?? '#b45309'} partnerColor={partner?.accent ?? '#e7829f'} />
+        <PathMap units={PATH} doneBy={Object.fromEntries([...doneBy].map(([k, v]) => [k, [...v]]))} myId={user.id} partnerId={partnerId} myColor={me?.accent ?? '#b45309'} partnerColor={partner?.accent ?? '#e7829f'} plus={await hasPlus()} />
       </section>
 
       {/* Passport */}

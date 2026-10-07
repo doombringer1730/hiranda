@@ -1,9 +1,12 @@
 'use server'
 
+import { hasPlus } from '@/lib/plus'
+import { isPlusUnit } from '@/lib/plus-config'
+
 import { revalidatePath } from 'next/cache'
 import { coupleContext } from '@/lib/couple'
 import { notifyPartner, myFirstName } from '@/lib/push'
-import { lessonByKey, milestoneByKey } from '@/lib/path'
+import { lessonByKey, milestoneByKey, PATH } from '@/lib/path'
 
 // ── Milestones ──
 
@@ -31,6 +34,7 @@ export async function awardMilestones(): Promise<string[]> {
 export async function completeLesson(key: string, note: string) {
   const lesson = lessonByKey(key)
   if (!lesson) return { error: 'Unknown lesson' }
+  if (isPlusUnit(PATH.indexOf(lesson.unit)) && !(await hasPlus())) return { error: 'This unit comes with Hiranda Plus.' }
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Not signed in' }
   const text = note.trim().slice(0, 1000) || null

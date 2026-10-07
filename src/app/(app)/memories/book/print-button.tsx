@@ -1,8 +1,20 @@
 'use client'
 
-import { Printer } from 'lucide-react'
+import Link from 'next/link'
+import { Printer, Sparkles } from 'lucide-react'
 
-export default function PrintButton() {
+// Printing / saving the book as a PDF is a Plus perk; the book itself is free.
+export default function PrintButton({ plus }: { plus: boolean }) {
+  if (!plus) {
+    return (
+      <Link
+        href="/plus"
+        className="flex items-center gap-2 rounded-full bg-stone-800 hover:bg-stone-700 px-4 py-2.5 text-sm font-medium text-stone-100 transition-colors"
+      >
+        <Sparkles size={15} className="text-amber-400" /> Print / Save PDF with Plus
+      </Link>
+    )
+  }
   return (
     <button
       onClick={() => window.print()}

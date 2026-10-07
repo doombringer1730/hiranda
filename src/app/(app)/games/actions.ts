@@ -1,5 +1,8 @@
 'use server'
 
+import { hasPlus } from '@/lib/plus'
+import { PLUS_DEPTH } from '@/lib/plus-config'
+
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { notifyPartner, myFirstName } from '@/lib/push'
@@ -261,6 +264,7 @@ export async function getDepthState() {
 
 export async function setDepthOptin(level: number) {
   if (![1, 2, 3].includes(level)) return { error: 'Pick a deck' }
+  if (level >= PLUS_DEPTH && !(await hasPlus())) return { error: 'The Deepest deck comes with Hiranda Plus.' }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not signed in' }

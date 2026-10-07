@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Lock, Check, Loader2 } from 'lucide-react'
 import { haptic, celebrate, toast } from '@/lib/feel'
 import { setDepthOptin } from '../actions'
+import { PLUS_DEPTH } from '@/lib/plus-config'
 
 const DECKS = [
   { n: 1, name: 'Light', blurb: 'Easy, fun, everyday.' },
@@ -15,8 +16,8 @@ const DECKS = [
 
 // Light is always open. Deeper and Deepest open only when you've BOTH opted
 // in — and either of you can step back any time, no explanation needed.
-export default function DeckPicker({ deck, mine, theirs, both, partnerName }: {
-  deck: number; mine: number; theirs: number; both: number; partnerName: string
+export default function DeckPicker({ deck, mine, theirs, both, partnerName, plus }: {
+  deck: number; mine: number; theirs: number; both: number; partnerName: string; plus: boolean
 }) {
   const router = useRouter()
   const [pending, start] = useTransition()
@@ -47,7 +48,15 @@ export default function DeckPicker({ deck, mine, theirs, both, partnerName }: {
         })}
       </div>
 
-      {deck > both ? (
+      {deck > both && deck >= PLUS_DEPTH && !plus ? (
+        <div className="paper rounded-[6px] px-5 py-5 mt-4 -rotate-[0.3deg]">
+          <p className="font-hand text-[26px] leading-tight text-[var(--paper-ink)]">{current.name} comes with Plus.</p>
+          <p className="text-sm text-[var(--paper-muted)] mt-1">{current.blurb} One plan unlocks it for both of you.</p>
+          <Link href="/plus" className="mt-4 inline-flex items-center gap-2 h-10 px-4 rounded-full bg-[var(--paper-ink)] text-[var(--paper)] text-sm font-medium">
+            See Hiranda Plus
+          </Link>
+        </div>
+      ) : deck > both ? (
         <div className="paper rounded-[6px] px-5 py-5 mt-4 -rotate-[0.3deg]">
           <p className="font-hand text-[26px] leading-tight text-[var(--paper-ink)]">{current.name} is opt-in.</p>
           <p className="text-sm text-[var(--paper-muted)] mt-1">{current.blurb} It opens when you’ve both said yes.</p>

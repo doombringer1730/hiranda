@@ -1,7 +1,9 @@
 import { notFound, redirect } from 'next/navigation'
 import { coupleContext } from '@/lib/couple'
 import { getPeople } from '@/lib/profiles'
-import { lessonByKey, ALL_LESSONS } from '@/lib/path'
+import { lessonByKey, ALL_LESSONS, PATH } from '@/lib/path'
+import { hasPlus } from '@/lib/plus'
+import { isPlusUnit } from '@/lib/plus-config'
 import LessonClient from './lesson-client'
 
 export default async function LessonPage({ params }: { params: Promise<{ key: string }> }) {
@@ -10,6 +12,7 @@ export default async function LessonPage({ params }: { params: Promise<{ key: st
   if (!lesson) notFound()
   const ctx = await coupleContext()
   if (!ctx) redirect('/')
+  if (isPlusUnit(PATH.findIndex(u => u.key === lesson.unit.key)) && !(await hasPlus())) redirect('/plus')
 
   const [{ data: rows }, people] = await Promise.all([
     ctx.supabase.from('lesson_progress').select('user_id, note, completed_at').eq('couple_id', ctx.couple.id).eq('lesson_key', key),

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import PageHeader from '@/components/page-header'
 import PrintButton from './print-button'
+import { hasPlus } from '@/lib/plus'
 
 type Memory = {
   id: string
@@ -79,7 +80,7 @@ export default async function MemoryBookPage({ searchParams }: { searchParams: P
       <div className="print:hidden">
         <div className="flex items-end justify-between gap-3 mb-5">
           <PageHeader eyebrow="Ours, in print" title="Memory Book" />
-          <PrintButton />
+          <PrintButton plus={await hasPlus()} />
         </div>
         {years.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-1 mb-3 [scrollbar-width:none]">

@@ -99,3 +99,27 @@ export function notifyPartner(message: PushMessage | (() => Promise<PushMessage 
     }
   })
 }
+
+// Server-to-person notifications where no one is signed in (payment
+// webhooks): reads the person's devices with the service role. Respects their
+// Do Not Disturb unless urgent. Best-effort, never throws.
+export async function notifyUser(userId: string, msg: PushMessage) {
+  try {
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const db = createAdminClient()
+    if (!msg.urgent) {
+      const { data: prefs } = await db.from('notify_prefs').select('dnd_until, quiet_start, quiet_end, tz').eq('user_id', userId).maybeSingle()
+      if (isQuiet(prefs as QuietPrefs | null)) return
+    }
+    const [{ data: subs }, { data: tokens }] = await Promise.all([
+      db.from('push_subscriptions').select('endpoint, p256dh, auth, private').eq('user_id', userId),
+      db.from('native_push_tokens').select('token').eq('user_id', userId),
+    ])
+    await Promise.all([
+      subs?.length ? sendTo(subs as Sub[], msg) : null,
+      tokens?.length && apnsConfigured() ? sendApns(tokens.map(t => t.token), msg) : null,
+    ])
+  } catch {
+    // best-effort
+  }
+}

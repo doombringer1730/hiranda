@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { FREE_THEMES } from '@/lib/plus-config'
 import { updateTogetherSince, toggleTimer, updateDisplayName, saveTheme, saveUsername } from './actions'
 import { Copy, Check } from 'lucide-react'
 
 type InviteProps = { type: 'invite'; inviteLink: string }
 type TimerProps = { type: 'timer'; showTimer: boolean; togetherSince: string }
 type NameProps = { type: 'name'; displayName: string }
-type ThemeProps = { type: 'theme'; currentTheme: string }
+type ThemeProps = { type: 'theme'; currentTheme: string; plus: boolean }
 type UsernameProps = { type: 'username'; username: string | null }
 type Props = InviteProps | TimerProps | NameProps | ThemeProps | UsernameProps
 
@@ -81,10 +83,13 @@ const THEMES = [
   { key: 'cloud', name: 'Cloud', bg: '#f2f0ed', accent: '#5297cf', text: '#161b1f' },
 ]
 
-function ThemeSection({ currentTheme }: ThemeProps) {
+function ThemeSection({ currentTheme, plus }: ThemeProps) {
   const [active, setActive] = useState(currentTheme)
+  const router = useRouter()
 
   async function handleSelect(key: string) {
+    // Plus themes: send free couples to the Plus page instead.
+    if (!plus && !FREE_THEMES.has(key)) { router.push('/plus'); return }
     setActive(key)
     document.documentElement.setAttribute('data-theme', key)
     await saveTheme(key)
@@ -99,12 +104,15 @@ function ThemeSection({ currentTheme }: ThemeProps) {
           className="flex flex-col items-center gap-2 group"
         >
           <div
-            className={`w-14 h-14 rounded-2xl border-2 transition-all flex items-end justify-end p-1.5 ${
+            className={`relative w-14 h-14 rounded-2xl border-2 transition-all flex items-end justify-end p-1.5 ${
               active === t.key ? 'border-amber-500 scale-105' : 'border-transparent hover:border-stone-600'
             }`}
             style={{ background: t.bg }}
           >
             <div className="w-5 h-5 rounded-lg" style={{ background: t.accent }} />
+            {!plus && !FREE_THEMES.has(t.key) && (
+              <span className="absolute -top-1.5 -right-1.5 rounded-full bg-amber-700 text-amber-50 text-[9px] font-semibold px-1.5 py-0.5">PLUS</span>
+            )}
           </div>
           <span className={`text-xs transition-colors ${active === t.key ? 'text-amber-300' : 'text-stone-500 group-hover:text-stone-400'}`}>
             {t.name}
