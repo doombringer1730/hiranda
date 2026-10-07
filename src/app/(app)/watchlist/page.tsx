@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { getProfileMap } from '@/lib/profiles'
 import { addToWatchlist, markWatched, removeFromWatchlist } from './actions'
-import { Plus, Clapperboard, Trash2, CheckCircle2, Tv, Film } from 'lucide-react'
+import { Plus, Trash2, CheckCircle2, Tv, Film } from 'lucide-react'
 import PageHeader from '@/components/page-header'
+import { EmptyState } from '@/components/ui'
 
 type Item = {
   id: string
@@ -28,22 +29,23 @@ export default async function WatchlistPage() {
   const watched = (items ?? []).filter(i => i.watched) as Item[]
 
   return (
-    <div className="px-4 pt-8 max-w-2xl mx-auto pb-12">
-      <PageHeader eyebrow="Up next on the couch" title="Watchlist" className="mb-8" />
+    <div className="px-4 pt-6 max-w-2xl mx-auto pb-12">
+      <PageHeader eyebrow="Up next on the couch" title="Watchlist" />
+      <p className="font-hand text-[22px] text-stone-400 mt-2 mb-8">what’s next on the couch?</p>
 
       {/* Add form */}
-      <form action={addToWatchlist} className="bg-stone-900/80 border border-stone-800/80 rounded-2xl p-5 mb-8 flex flex-col gap-3">
+      <form action={addToWatchlist} className="tile p-5 mb-8 flex flex-col gap-3">
         <div className="flex gap-3">
           <input
             name="title"
             type="text"
             required
-            className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+            className="flex-1 bg-stone-950/60 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
             placeholder="Movie or show title…"
           />
           <select
             name="type"
-            className="bg-stone-950 border border-stone-800 rounded-xl px-3 py-3 text-stone-400 focus:outline-none focus:border-amber-700 transition-colors"
+            className="bg-stone-950/60 border border-stone-800 rounded-xl px-3 py-3 text-stone-400 focus:outline-none focus:border-amber-700 transition-colors"
           >
             <option value="movie">Movie</option>
             <option value="show">Show</option>
@@ -53,12 +55,12 @@ export default async function WatchlistPage() {
           <input
             name="note"
             type="text"
-            className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
+            className="flex-1 bg-stone-950/60 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
             placeholder="Note (optional) — where it's streaming, why you want to watch it…"
           />
           <button
             type="submit"
-            className="bg-amber-700 hover:bg-amber-600 text-amber-50 rounded-xl px-4 py-3 transition-colors flex items-center gap-2 flex-shrink-0"
+            className="bg-amber-700 hover:bg-amber-600 text-amber-50 rounded-full px-4 h-11 transition-colors flex items-center gap-2 flex-shrink-0"
           >
             <Plus size={18} /> Add
           </button>
@@ -67,10 +69,7 @@ export default async function WatchlistPage() {
 
       {/* Empty state */}
       {!items?.length && (
-        <div className="text-center py-24">
-          <Clapperboard size={40} className="mx-auto text-stone-700 mb-4" />
-          <p className="text-stone-500">Nothing on the list yet.</p>
-        </div>
+        <EmptyState title="Nothing on the list yet." sub="Add the next thing you want to watch together — a movie night starts here." />
       )}
 
       {/* Unwatched */}
@@ -87,7 +86,7 @@ export default async function WatchlistPage() {
       {/* Watched */}
       {watched.length > 0 && (
         <div className="mt-10">
-          <p className="text-stone-600 text-xs uppercase tracking-widest mb-3">Watched ✓</p>
+          <p className="text-stone-400 text-[11px] uppercase tracking-[0.22em] mb-3">Watched ✓</p>
           <div className="flex flex-col gap-3 opacity-50">
             {watched.map(item => (
               <WatchlistRow
@@ -108,7 +107,7 @@ function WatchlistRow({ item, name, done = false }: { item: Item; name?: string;
   const Icon = item.type === 'show' ? Tv : Film
 
   return (
-    <div className="flex items-start gap-3 bg-stone-900/80 border border-stone-800/80 rounded-xl px-4 py-3.5 group card-glow">
+    <div className="flex items-start gap-3 tile !rounded-[20px] px-4 py-3.5 group">
       {!done ? (
         <form action={markWatched.bind(null, item.id)} className="flex-shrink-0 pt-0.5">
           <button
@@ -141,9 +140,9 @@ function WatchlistRow({ item, name, done = false }: { item: Item; name?: string;
           <p className="text-stone-500 text-xs mt-1 leading-relaxed">{item.note}</p>
         )}
         <div className="flex items-center gap-2 mt-1">
-          {name && <span className="text-stone-600 text-xs">{name}</span>}
+          {name && <span className="text-stone-500 text-xs">{name}</span>}
           {done && item.watched_at && (
-            <span className="text-stone-700 text-xs">
+            <span className="text-stone-500 text-xs">
               {name && '·'} watched {new Date(item.watched_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
           )}

@@ -28,7 +28,8 @@ export async function unlockTheater(passcode: string): Promise<{ error?: string 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
   const { data: couple } = await supabase.from('couple').select('theater_passcode_hash')
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`).maybeSingle()
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .order('user2_id', { nullsFirst: false }).limit(1).maybeSingle()
   const hash = couple?.theater_passcode_hash
   if (!hash) return { error: 'No passcode set yet.' }
   if (hashPasscode(passcode) !== hash) return { error: 'Wrong passcode.' }
@@ -52,6 +53,7 @@ export async function getOrCreateCouple() {
     .from('couple')
     .select('*')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .order('user2_id', { nullsFirst: false }).limit(1)
     .maybeSingle()
 
   if (existing) return existing

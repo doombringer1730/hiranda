@@ -26,13 +26,14 @@ type Tab = { type: PromptType; label: string; shortLabel?: string; initial: Prom
 
 type Props = {
   tabs: Tab[]
+  initialTab?: PromptType
   partnerName: string
   myId: string
   partnerId: string | null
 }
 
-export default function GameClient({ tabs, partnerName, myId, partnerId }: Props) {
-  const [activeTab, setActiveTab] = useState<PromptType>(tabs[0].type)
+export default function GameClient({ tabs, initialTab, partnerName, myId, partnerId }: Props) {
+  const [activeTab, setActiveTab] = useState<PromptType>(initialTab ?? tabs[0].type)
   const [states, setStates] = useState<Record<PromptType, PromptState | null>>(
     Object.fromEntries(tabs.map(t => [t.type, t.initial])) as Record<PromptType, PromptState | null>
   )

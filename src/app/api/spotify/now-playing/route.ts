@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
     .from('couple')
     .select('user1_id, user2_id')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .order('user2_id', { nullsFirst: false }).limit(1)
     .maybeSingle()
 
   const partnerId = couple

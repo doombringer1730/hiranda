@@ -15,6 +15,9 @@ export async function getCoupleMemberIds() {
     .from('couple')
     .select('user1_id, user2_id')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    // Prefer the paired space: someone who started their own space and then
+    // joined their partner's has two rows, and .maybeSingle() alone fails.
+    .order('user2_id', { nullsFirst: false }).limit(1)
     .maybeSingle()
 
   const partnerId = couple
@@ -33,6 +36,9 @@ export async function getActivePrompt(type: PromptType) {
     .from('couple')
     .select('user1_id, user2_id')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    // Prefer the paired space: someone who started their own space and then
+    // joined their partner's has two rows, and .maybeSingle() alone fails.
+    .order('user2_id', { nullsFirst: false }).limit(1)
     .maybeSingle()
 
   const partnerId = couple
@@ -126,8 +132,8 @@ export async function submitResponse(promptId: string, response: string) {
     notifyPartner(async () => {
       const me = await myFirstName()
       return partnerAnswered
-        ? { title: 'Answers revealed 👀', body: `${me} answered too — see what you both said.`, url: '/', tag: `prompt-${promptId}` }
-        : { title: `${me} answered a question`, body: 'Your turn — answers unlock when you both reply.', url: '/', tag: `prompt-${promptId}` }
+        ? { title: 'Answers revealed 👀', body: `${me} answered too — see what you both said.`, url: `/games/questions?p=${promptId}`, tag: `prompt-${promptId}` }
+        : { title: `${me} answered a question`, body: 'Your turn — answers unlock when you both reply.', url: `/games/questions?p=${promptId}`, tag: `prompt-${promptId}` }
     })
   }
 }
@@ -144,6 +150,9 @@ export async function getPromptState(promptId: string) {
     .from('couple')
     .select('user1_id, user2_id')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    // Prefer the paired space: someone who started their own space and then
+    // joined their partner's has two rows, and .maybeSingle() alone fails.
+    .order('user2_id', { nullsFirst: false }).limit(1)
     .maybeSingle()
 
   const partnerId = couple
@@ -178,6 +187,9 @@ export async function getNextPrompt(type: PromptType, excludePromptId: string) {
     .from('couple')
     .select('user1_id, user2_id')
     .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    // Prefer the paired space: someone who started their own space and then
+    // joined their partner's has two rows, and .maybeSingle() alone fails.
+    .order('user2_id', { nullsFirst: false }).limit(1)
     .maybeSingle()
 
   const partnerId = couple

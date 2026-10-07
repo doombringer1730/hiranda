@@ -44,6 +44,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
     .from('couple')
     .select('user1_id, user2_id, together_since')
     .or(`user1_id.eq.${profile.id},user2_id.eq.${profile.id}`)
+    .order('user2_id', { nullsFirst: false }).limit(1)
     .maybeSingle()
 
   const partnerId = couple
