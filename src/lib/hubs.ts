@@ -1,6 +1,6 @@
 import {
   House, Heart, ListChecks, Gamepad2, MessageCircle, Mail,
-  BookOpen, PenLine, BookHeart, CheckSquare, Star, CalendarHeart, Clapperboard, Library, Music, Film, Sprout,
+  BookOpen, PenLine, BookHeart, CheckSquare, Star, CalendarHeart, Clapperboard, Library, Music, Film, Sprout, Gift,
 } from 'lucide-react'
 
 // The app's five tabs. Each hub groups related pages; the pages keep their
@@ -19,6 +19,7 @@ export const HUBS: Hub[] = [
     { href: '/journal', label: 'Journal', icon: PenLine },
     { href: '/letters', label: 'Letters', icon: Mail },
     { href: '/memories/book', label: 'Book', title: 'Memory Book', icon: BookHeart },
+    { href: '/store', label: 'Gifts', title: 'Hiranda Store', icon: Gift },
   ] },
   { key: 'plan', label: 'Plan', icon: ListChecks, items: [
     { href: '/todos', label: 'Todos', icon: CheckSquare },

@@ -84,7 +84,7 @@ Go to appstoreconnect.apple.com → **Apps → + → New App**.
 - **Privacy Policy URL:** https://hiranda-616i.vercel.app/privacy
 - **Support URL:** https://hiranda-616i.vercel.app/support
 - **App Privacy**, which must match `ios/App/App/PrivacyInfo.xcprivacy`:
-  - **Data collected:** Email Address, Name, User ID, Photos or Videos, Other User Content, Purchase History.
+  - **Data collected:** Email Address, Name, User ID, Photos or Videos, Other User Content, Purchase History, Physical Address, Phone Number (optional, for gift delivery).
   - **Linked to the user:** yes.
   - **Used for tracking:** no.
   - **Purpose:** App Functionality.
@@ -161,7 +161,29 @@ that. The old misspelled `UPABASE_SERVICE_ROLE_KEY` doesn't count.
 Inside the app, Plus is only ever sold through Apple. The web checkout never
 appears there (App Store rule 3.1.1). Your couple has a permanent "founders" grant.
 
-## 8. Upload
+## 8. Hiranda Store (gifts)
+
+Partners can send each other gifts (`/store`). Physical goods are paid with
+Stripe, which Apple allows outside in-app purchase (rule 3.1.3(e)).
+
+1. Edit the catalog and prices in `src/lib/store/catalog.ts`. Add affiliate
+   gifts to `PARTNER_GIFTS` there, and sponsors to `src/lib/sponsors.ts`.
+2. Line up how you'll make and ship each gift: buy, print and mail them
+   yourself, or use a print/gift service.
+3. Add to Vercel:
+   - `STORE_ENABLED=1`: the store stays "opens soon" until you set this
+   - `STORE_ADMIN_EMAILS=you@example.com`: who sees `/store/admin`
+   - the same Stripe keys as Plus
+4. The Stripe webhook you set up for Plus also handles gifts
+   (`checkout.session.completed`).
+5. For each paid order you get a notification. Open **Gifts → Orders to ship**
+   to see the address and note, ship it, paste the tracking link, then tap
+   **Mark shipped**. Your partner gets notified.
+
+Before selling to the public, set up sales tax (Stripe Tax) and a business
+(for example an LLC). Stripe needs the account holder to be 18 or older.
+
+## 9. Upload
 
 1. In Xcode's device menu, choose **Any iOS Device (arm64)**.
 2. Go to **Product → Archive**, then **Distribute App → App Store Connect → Upload**.

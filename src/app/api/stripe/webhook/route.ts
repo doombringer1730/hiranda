@@ -1,7 +1,8 @@
 import type Stripe from 'stripe'
-import { getStripe, recordStripeSubscription, stripeConfigured } from '@/lib/billing'
+import { getStripe, recordStripeSubscription } from '@/lib/billing'
+import { markGiftPaid } from '@/lib/store/server'
 
-// Stripe → Hiranda Plus. Configure in Stripe → Developers → Webhooks with
+// Stripe → Hiranda Plus and Store gifts. Configure in Stripe → Developers → Webhooks with
 // this URL and the events below; put the signing secret in STRIPE_WEBHOOK_SECRET.
 const EVENTS = new Set([
   'checkout.session.completed',
@@ -12,7 +13,7 @@ const EVENTS = new Set([
 
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET
-  if (!stripeConfigured() || !secret) return new Response('Not configured', { status: 503 })
+  if (!process.env.STRIPE_SECRET_KEY || !secret) return new Response('Not configured', { status: 503 })
 
   const stripe = getStripe()
   let event: Stripe.Event
@@ -26,6 +27,10 @@ export async function POST(request: Request) {
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session
+      // A Store gift (one-time payment).
+      if (session.mode === 'payment' && session.metadata?.order_id && session.payment_status === 'paid') {
+        await markGiftPaid(session.metadata.order_id, session.id)
+      }
       if (session.subscription) {
         const id = typeof session.subscription === 'string' ? session.subscription : session.subscription.id
         await recordStripeSubscription(await stripe.subscriptions.retrieve(id))

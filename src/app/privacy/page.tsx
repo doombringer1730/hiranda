@@ -11,13 +11,15 @@ export default function PrivacyPage() {
       <p>Hiranda is a private space for two people. This page explains, in plain language, what we store, who can see it, and how to take it with you or delete it.</p>
 
       <h2>Who can see your things</h2>
-      <p><b>Only you and your partner.</b> Everything you add — memories, photos, journal entries, lists, answers — is visible only to the two people in your shared space. Access is enforced by the database itself, not just the app. We don’t sell your data, show ads, or share it with anyone for marketing.</p>
+      <p><b>Only you and your partner.</b> Everything you add — memories, photos, journal entries, lists, answers — is visible only to the two people in your shared space. Access is enforced by the database itself, not just the app. We don’t sell your data or share it with anyone for marketing. Free accounts may see one small, clearly labeled sponsored card on a few pages — sponsors never receive anything about you, and nothing tracks you across apps or sites.</p>
 
       <h2>What we store</h2>
       <ul>
         <li><b>Your account:</b> email, display name, and (if you add them) a profile photo, banner, bio and status.</li>
         <li><b>What you create:</b> memories and photos, journal entries, dates, todos, bucket list, watchlist, books, music, game moves, quiz answers, and study decks.</li>
-        <li><b>Optional connections you choose to set up:</b> Spotify (to share what you’re listening to), streaming services for Theater, and push notifications for your devices.</li>
+        <li><b>Optional connections you choose to set up:</b> Spotify (to share what you’re listening to) and push notifications for your devices.</li>
+        <li><b>Gifts (Hiranda Store):</b> if you add a delivery address, only you can see it — your partner never does. When your partner sends you a gift, the store uses it to ship, and sees the note so it can be printed on the card. We keep a record of gifts sent (what, when, status); card details are handled by Stripe, never by us.</li>
+        <li><b>Hiranda Plus:</b> whether your couple has an active subscription and when it renews. Payments are handled by Apple or Stripe; we never see your card.</li>
         <li><b>Sign-in security:</b> if you turn on two-factor login, your authenticator setup.</li>
       </ul>
 
@@ -27,7 +29,8 @@ export default function PrivacyPage() {
         <li><b>Vercel</b> — hosts the website.</li>
         <li><b>Your browser’s push service</b> (Apple, Google or Mozilla) — delivers notifications you opt into.</li>
         <li><b>Google</b> — only if you choose “Continue with Google”.</li>
-        <li><b>Spotify</b> and <b>TMDB</b> — only for features that use them; we send them the minimum needed (for example, a title to look up).</li>
+        <li><b>Spotify</b>, <b>TMDB</b>, the <b>Internet Archive</b> and <b>YouTube</b> — only for features that use them; we send them the minimum needed (for example, a title to look up).</li>
+        <li><b>Stripe</b> — payments for gifts and, on the web, Hiranda Plus. <b>Apple</b> and <b>RevenueCat</b> — Hiranda Plus bought in the iPhone app.</li>
       </ul>
 
       <h2>Your choices</h2>

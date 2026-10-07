@@ -16,6 +16,7 @@ import { Greeting, TodayLine } from './greeting'
 import { InstallCard, NotificationCard } from '@/components/pwa'
 import { Polaroid, Scribble } from '@/components/handmade'
 import SponsorCard from '@/components/sponsor-card'
+import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
 
@@ -140,6 +141,9 @@ export default async function HomeHub() {
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
+  const { data: incoming } = await supabase.rpc('incoming_gifts')
+  const gifts = ((incoming ?? []) as (IncomingGift & { sender_id: string })[])
+    .filter(g => g.status !== 'delivered').slice(0, 2)
   const me = profileMap.get(user.id) ?? { id: user.id, display_name: 'You', avatar_url: null, username: null, status_text: null, accent_color: null, banner_url: null, bio: null, activity: null, activity_at: null }
   const partner = partnerId ? profileMap.get(partnerId) ?? null : null
   const firstName = me.display_name.split(' ')[0]
@@ -261,6 +265,15 @@ export default async function HomeHub() {
         <InstallCard />
         <NotificationCard />
       </div>
+
+      {/* A gift on its way to you (Hiranda Store) */}
+      {gifts.length > 0 && (
+        <div className="mb-6 flex flex-col gap-3 animate-rise">
+          {gifts.map(g => (
+            <IncomingGiftCard key={g.id} gift={g} from={profileMap.get(g.sender_id)?.display_name.split(' ')[0] ?? partnerFirst} />
+          ))}
+        </div>
+      )}
 
       {/* Your move — only when something is waiting on you */}
       {waiting.length > 0 && (
