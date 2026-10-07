@@ -33,7 +33,7 @@ export default function CalendarWidget({ assignments, onXp }: { assignments: Ass
     if (list.every(a => a.turned_in)) return 'bg-emerald-500'
     if (list.some(a => !a.turned_in && k < todayStr)) return 'bg-red-500'
     if (list.some(a => !a.turned_in && k === todayStr)) return 'bg-amber-400'
-    return 'bg-indigo-400'
+    return 'bg-amber-400'
   }
 
   const selList = byDay.get(selected) ?? []
@@ -59,7 +59,7 @@ export default function CalendarWidget({ assignments, onXp }: { assignments: Ass
         <h2 className="text-amber-50 font-medium">{monthName}</h2>
         <div className="flex items-center gap-1">
           <button onClick={() => setMonth(new Date(y, m - 1, 1))} className="w-8 h-8 rounded-lg hover:bg-stone-800 text-stone-400 flex items-center justify-center"><ChevronLeft size={16} /></button>
-          <button onClick={() => { const t = new Date(); setMonth(new Date(t.getFullYear(), t.getMonth(), 1)); setSelected(todayStr) }} className="text-xs text-indigo-400 px-2">Today</button>
+          <button onClick={() => { const t = new Date(); setMonth(new Date(t.getFullYear(), t.getMonth(), 1)); setSelected(todayStr) }} className="text-xs text-amber-400 px-2">Today</button>
           <button onClick={() => setMonth(new Date(y, m + 1, 1))} className="w-8 h-8 rounded-lg hover:bg-stone-800 text-stone-400 flex items-center justify-center"><ChevronRight size={16} /></button>
         </div>
       </div>
@@ -80,8 +80,8 @@ export default function CalendarWidget({ assignments, onXp }: { assignments: Ass
           return (
             <button key={i} onClick={() => setSelected(k)} className="flex flex-col items-center gap-0.5 py-1">
               <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-colors ${
-                isSel ? 'bg-indigo-600 text-white font-medium'
-                : isToday ? 'text-indigo-300 ring-1 ring-indigo-500/60'
+                isSel ? 'bg-amber-600 text-white font-medium'
+                : isToday ? 'text-amber-300 ring-1 ring-amber-500/60'
                 : 'text-stone-300 hover:bg-stone-800'}`}>{day}</span>
               <span className={`w-1.5 h-1.5 rounded-full ${dot ?? 'bg-transparent'}`} />
             </button>
@@ -93,23 +93,23 @@ export default function CalendarWidget({ assignments, onXp }: { assignments: Ass
       <div className="mt-3 pt-3 border-t border-stone-800">
         <div className="flex items-center justify-between mb-2">
           <p className="text-stone-400 text-xs">{new Date(selected + 'T00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
-          <button onClick={() => setAdding(v => !v)} className="text-indigo-400 hover:text-indigo-300 text-xs inline-flex items-center gap-1"><Plus size={12} /> Add</button>
+          <button onClick={() => setAdding(v => !v)} className="text-amber-400 hover:text-amber-300 text-xs inline-flex items-center gap-1"><Plus size={12} /> Add</button>
         </div>
 
         {adding && (
           <div className="flex gap-2 mb-2">
             <input autoFocus value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') add() }}
-              placeholder="Assignment…" className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-amber-50 text-sm focus:outline-none focus:border-indigo-500" />
-            <button onClick={add} className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg px-3">Add</button>
+              placeholder="A plan…" className="flex-1 bg-stone-950 border border-stone-800 rounded-lg px-3 py-2 text-amber-50 text-sm focus:outline-none focus:border-amber-600" />
+            <button onClick={add} className="bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm rounded-lg px-3">Add</button>
           </div>
         )}
 
-        {selList.length === 0 && !adding && <p className="text-stone-600 text-xs py-2">Nothing due.</p>}
+        {selList.length === 0 && !adding && <p className="text-stone-600 text-xs py-2">Nothing planned.</p>}
         <div className="flex flex-col gap-1.5">
           {selList.map(a => (
             <div key={a.id} className="group flex items-center gap-2.5">
               <button onClick={() => turnIn(a)} aria-label="Turn in"
-                className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center border-2 transition-colors ${a.turned_in ? 'bg-emerald-600 border-emerald-600' : 'border-stone-600 hover:border-indigo-400'}`}>
+                className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center border-2 transition-colors ${a.turned_in ? 'bg-emerald-600 border-emerald-600' : 'border-stone-600 hover:border-amber-400'}`}>
                 {a.turned_in && <Check size={11} className="text-white" />}
               </button>
               <span className={`text-sm flex-1 min-w-0 truncate ${a.turned_in ? 'text-stone-500 line-through' : 'text-amber-100'}`}>{a.title}</span>

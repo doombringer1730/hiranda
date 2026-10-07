@@ -1,6 +1,6 @@
 import {
   House, Heart, ListChecks, Gamepad2, MessageCircle, Mail,
-  BookOpen, PenLine, BookHeart, CheckSquare, Star, CalendarHeart, Clapperboard, Library, Music, Film, GraduationCap,
+  BookOpen, PenLine, BookHeart, CheckSquare, Star, CalendarHeart, Clapperboard, Library, Music, Film, Sprout,
 } from 'lucide-react'
 
 // The app's five tabs. Each hub groups related pages; the pages keep their
@@ -24,7 +24,7 @@ export const HUBS: Hub[] = [
     { href: '/todos', label: 'Todos', icon: CheckSquare },
     { href: '/bucket-list', label: 'Someday', title: 'Bucket List', icon: Star },
     { href: '/dates', label: 'Dates', icon: CalendarHeart },
-    { href: '/study', label: 'Study', icon: GraduationCap },
+    { href: '/grow', label: 'Grow', icon: Sprout },
   ] },
   // Play is everything you enjoy together: games, and the shared shelf.
   { key: 'play', label: 'Play', icon: Gamepad2, items: [

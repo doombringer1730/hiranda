@@ -130,31 +130,6 @@ async function coinBalance(supabase: Awaited<ReturnType<typeof createClient>>, u
   return e - p
 }
 
-export async function buyCoupon(title: string, emoji: string, cost: number): Promise<{ error?: string }> {
-  const { supabase, user } = await requireUser()
-  const t = title.trim().slice(0, 120)
-  const c = Math.max(0, Math.min(100_000, Math.round(cost)))
-  if (!t) return { error: 'Give the coupon a title.' }
-  if (await coinBalance(supabase, user.id) < c) return { error: 'Not enough coins yet.' }
-  const { error } = await supabase.from('coupons').insert({ title: t, emoji: emoji || null, cost: c, bought_by: user.id })
-  if (error) return { error: error.message }
-  revalidatePath('/study/shop'); revalidatePath('/study')
-  return {}
-}
-
-export async function redeemCoupon(id: string, undo = false): Promise<void> {
-  const { supabase } = await requireUser()
-  await supabase.from('coupons').update({ redeemed: !undo, redeemed_at: undo ? null : new Date().toISOString() }).eq('id', id)
-  revalidatePath('/study/shop')
-}
-
-export async function deleteCoupon(id: string): Promise<void> {
-  const { supabase } = await requireUser()
-  await supabase.from('coupons').delete().eq('id', id)
-  revalidatePath('/study/shop'); revalidatePath('/study')
-}
-
-// Transient activity shown on presence cards (e.g. "quizzing"); cleared on exit.
 export async function setActivity(activity: string | null): Promise<void> {
   const { supabase, user } = await requireUser()
   await supabase.from('profiles').update({
