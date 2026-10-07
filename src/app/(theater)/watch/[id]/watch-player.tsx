@@ -420,10 +420,10 @@ export default function WatchPlayer({
         {/* Stream error — no more fallbacks */}
         {streamError && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-black/90 gap-3">
-            <p className="text-stone-300 text-sm">This stream was removed from the debrid service.</p>
-            <p className="text-stone-500 text-xs">All fallback streams exhausted.</p>
+            <p className="text-stone-300 text-sm">This video isn&rsquo;t available anymore.</p>
+            <p className="text-stone-500 text-xs">The link stopped working.</p>
             <Link href="/watch" className="text-amber-500 text-sm hover:text-amber-400 transition-colors">
-              ← Pick a new stream
+              ← Pick something else
             </Link>
           </div>
         )}

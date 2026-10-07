@@ -1,24 +1,8 @@
 'use server'
 
 import { createClient } from '@/theater/supabase/server'
-import { createAdminClient } from '@/theater/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-
-export async function getCoupleData() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const db = process.env.SUPABASE_SERVICE_ROLE_KEY ? createAdminClient() : supabase
-  const { data } = await db
-    .from('couple')
-    .select('jellyfin_url, jellyfin_api_key, real_debrid_api_key, torbox_api_key')
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-    .maybeSingle()
-
-  return data
-}
 
 export async function createWatchSession(title: string, storagePath: string) {
   const supabase = await createClient()

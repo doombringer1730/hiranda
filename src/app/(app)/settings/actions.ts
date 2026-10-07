@@ -105,45 +105,6 @@ export async function updateDisplayName(name: string) {
   revalidatePath('/settings')
 }
 
-export async function saveJellyfinSettings(jellyfinUrl: string, jellyfinApiKey: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  await supabase
-    .from('couple')
-    .update({ jellyfin_url: jellyfinUrl || null, jellyfin_api_key: jellyfinApiKey || null })
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-
-  revalidatePath('/settings')
-}
-
-export async function saveTorBoxSettings(apiKey: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  await supabase
-    .from('couple')
-    .update({ torbox_api_key: apiKey || null })
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-
-  revalidatePath('/settings')
-}
-
-export async function saveRealDebridSettings(apiKey: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-
-  await supabase
-    .from('couple')
-    .update({ real_debrid_api_key: apiKey || null })
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-
-  revalidatePath('/settings')
-}
-
 export async function saveUsername(username: string): Promise<{ error?: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

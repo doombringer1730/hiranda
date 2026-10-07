@@ -1,13 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal, getCoupleData, updateWatchSession, deleteWatchSessionSilent } from './actions'
+import { createWatchSession, createWatchSessionFromUrl, createWatchSessionLocal, updateWatchSession, deleteWatchSessionSilent } from './actions'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, Library, Search, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Play, Film, Plus, Loader2, X, Upload, Link2, HardDrive, MoreHorizontal, Trash2 } from 'lucide-react'
 import { createClient } from '@/theater/supabase/client'
-import JellyfinBrowser, { JellyfinNotConfigured } from './jellyfin-browser'
-import RealDebridBrowser, { RealDebridNotConfigured } from './real-debrid-browser'
 
 const PLATFORM_LABELS: Record<string, string> = {
   netflix: 'Netflix', youtube: 'YouTube', disney: 'Disney+',
@@ -16,7 +14,7 @@ const PLATFORM_LABELS: Record<string, string> = {
 }
 
 type WatchSession = { id: string; title: string; created_at: string; source_type: string | null; thumbnail_url: string | null; platform: string | null }
-type Tab = 'upload' | 'url' | 'local' | 'jellyfin' | 'stream'
+type Tab = 'upload' | 'url' | 'local'
 
 export default function WatchPage() {
   const [sessions, setSessions] = useState<WatchSession[]>([])
@@ -27,10 +25,6 @@ export default function WatchPage() {
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [tab, setTab] = useState<Tab>('upload')
-  const [jellyfinUrl, setJellyfinUrl] = useState('')
-  const [jellyfinApiKey, setJellyfinApiKey] = useState('')
-  const [rdApiKey, setRdApiKey] = useState('')
-  const [tbApiKey, setTbApiKey] = useState('')
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -48,13 +42,6 @@ export default function WatchPage() {
       .select('id, title, created_at, source_type, thumbnail_url, platform')
       .order('created_at', { ascending: false })
       .then(({ data }) => setSessions(data ?? []))
-
-    getCoupleData().then(data => {
-      if (data?.jellyfin_url) setJellyfinUrl(data.jellyfin_url)
-      if (data?.jellyfin_api_key) setJellyfinApiKey(data.jellyfin_api_key)
-      if (data?.real_debrid_api_key) setRdApiKey(data.real_debrid_api_key)
-      if (data?.torbox_api_key) setTbApiKey(data.torbox_api_key)
-    })
   }, [])
 
   function openEdit(s: WatchSession) {
@@ -100,7 +87,6 @@ export default function WatchPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (tab === 'jellyfin') return
     if (!title.trim()) return
     setUploading(true); setError(null)
 
@@ -160,8 +146,6 @@ export default function WatchPage() {
     { id: 'upload',   label: 'Upload',   icon: <Upload size={14} /> },
     { id: 'url',      label: 'Link / Pi', icon: <Link2 size={14} /> },
     { id: 'local',    label: 'Local',    icon: <HardDrive size={14} /> },
-    { id: 'jellyfin', label: 'Library',  icon: <Library size={14} /> },
-    { id: 'stream',   label: 'Search',   icon: <Search size={14} /> },
   ]
 
   return (
@@ -197,7 +181,7 @@ export default function WatchPage() {
 
           {error && <p className="text-red-400 text-sm bg-red-950/30 rounded-xl px-4 py-3">{error}</p>}
 
-          {tab !== 'jellyfin' && (
+          {(
             <input
               type="text"
               required
@@ -236,7 +220,7 @@ export default function WatchPage() {
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 className="bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700 transition-colors"
-                placeholder="https://… (MP4, MKV, M3U8, Jellyfin link…)"
+                placeholder="https://… (MP4, MKV, M3U8…)"
               />
               <p className="text-stone-600 text-xs px-1">Works with direct video links and HLS streams from your Raspberry Pi.</p>
             </div>
@@ -255,19 +239,7 @@ export default function WatchPage() {
             </div>
           )}
 
-          {tab === 'jellyfin' && (
-            jellyfinUrl && jellyfinApiKey
-              ? <JellyfinBrowser jellyfinUrl={jellyfinUrl} jellyfinApiKey={jellyfinApiKey} />
-              : <JellyfinNotConfigured />
-          )}
-
-          {tab === 'stream' && (
-            rdApiKey
-              ? <RealDebridBrowser rdApiKey={rdApiKey} torBoxApiKey={tbApiKey} />
-              : <RealDebridNotConfigured />
-          )}
-
-          {tab !== 'jellyfin' && tab !== 'stream' && (
+          {(
             <button
               type="submit"
               disabled={uploading || !title.trim()}
