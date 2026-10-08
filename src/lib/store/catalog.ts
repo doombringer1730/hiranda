@@ -79,6 +79,7 @@ export const PRODUCTS: Product[] = [
     title: 'A card in the mail',
     blurb: 'Write it here — we print it in handwriting on a thick A5 card and mail it.',
     emoji: '💌',
+    image: '/store/mockups/letter.jpg',
     priceCents: 900,
     ships: true,
     fineprint: 'Our print partner prints your note, so they’ll see the words.',
@@ -97,7 +98,9 @@ export const PRODUCTS: Product[] = [
     ships: true,
     category: 'keepsake',
     fineprint: 'Printed with both your first names and the year you got together.',
-    vendor: { name: 'printful', variantId: 17482, placement: 'default', art: { w: 6000, h: 7200 } },
+    // Printful's area is 7950×9450 (with wrap); same shape at 80% keeps the
+    // render light, and Printful scales it to cover.
+    vendor: { name: 'printful', variantId: 17482, placement: 'default', art: { w: 6360, h: 7560 } },
   },
   {
     key: 'mug',
