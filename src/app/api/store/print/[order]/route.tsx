@@ -1,8 +1,7 @@
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { ImageResponse } from 'next/og'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { MAX_ART, printSignatureOk } from '@/lib/store/print'
+import { Heart, INK, MUTED, Names, PAPER, loadFonts } from '@/lib/store/print-art'
 
 // Print files for gifts, fetched by print partners. Links are signed (see
 // lib/store/print.ts).
@@ -14,17 +13,6 @@ import { MAX_ART, printSignatureOk } from '@/lib/store/print'
 const W = 1843
 const H = 2575
 const SAFE = 150 // keep words well inside the trim
-
-const PAPER = '#f6efe3'
-const INK = '#3b2f2a'
-const MUTED = '#8a7a6e'
-const ROSE = '#c0596b'
-
-let fonts: Promise<{ name: string; data: Buffer; weight: 400 | 500; style: 'normal' }[]> | null = null
-const loadFonts = () => fonts ??= Promise.all([
-  readFile(join(process.cwd(), 'assets/fonts/Caveat-Medium.ttf')).then(data => ({ name: 'Caveat', data, weight: 500 as const, style: 'normal' as const })),
-  readFile(join(process.cwd(), 'assets/fonts/InstrumentSerif-Regular.ttf')).then(data => ({ name: 'Instrument Serif', data, weight: 400 as const, style: 'normal' as const })),
-])
 
 const firstName = (s: string | null | undefined) => (s ?? '').trim().split(/\s+/)[0] || ''
 
@@ -48,13 +36,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
   const from = name(order.sender_id) || 'me'
   const to = name(order.recipient_id) || 'you'
 
-  const heart = (size: number) => (
-    <svg width={size} height={size} viewBox="0 0 100 100">
-      <path d="M50 86 C 20 64, 6 46, 14 28 C 22 12, 44 14, 50 32 C 56 14, 78 12, 86 28 C 94 46, 80 64, 50 86 Z"
-        fill="none" stroke={ROSE} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-
   if (side === 'design') {
     const { data: couple } = await db.from('couple').select('together_since').eq('id', order.couple_id).maybeSingle()
     const year = couple?.together_since ? new Date(couple.together_since).getUTCFullYear() : null
@@ -67,7 +48,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: PAPER, padding: SAFE }}>
       <div style={{ fontFamily: 'Caveat', fontSize: 130, color: MUTED }}>for</div>
       <div style={{ fontFamily: 'Instrument Serif', fontSize: to.length > 9 ? 240 : 330, color: INK, lineHeight: 1, marginTop: 10, textAlign: 'center' }}>{to}</div>
-      <div style={{ display: 'flex', marginTop: 90 }}>{heart(300)}</div>
+      <div style={{ display: 'flex', marginTop: 90 }}><Heart size={300} /></div>
       <div style={{ fontFamily: 'Caveat', fontSize: 110, color: MUTED, marginTop: 120 }}>{`love, ${from}`}</div>
     </div>
   ) : (
@@ -79,7 +60,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
       <div style={{ fontFamily: 'Caveat', fontSize: 120, color: INK, marginTop: 70, alignSelf: 'flex-end' }}>{`— ${from}`}</div>
       <div style={{ flex: 1, display: 'flex' }} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18, fontFamily: 'Instrument Serif', fontSize: 48, color: MUTED }}>
-        {heart(56)}
+        <Heart size={56} />
         <span>sent with Hiranda</span>
       </div>
     </div>
@@ -91,28 +72,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     fonts: await loadFonts(),
     headers: { 'Cache-Control': 'private, no-store' },
   })
-}
-
-// "Sam & Riley · since 2023" — scales with the print area.
-function Names({ a, b, year, w, h }: { a: string; b: string; year: number | null; w: number; h: number }) {
-  const u = Math.min(w, h) / 100
-  const long = `${a}${b}`.length > 12
-  return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: PAPER }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: u * 3, fontFamily: 'Instrument Serif', fontSize: u * (long ? 11 : 14), color: INK, lineHeight: 1 }}>
-        <span>{a}</span>
-        <span style={{ fontFamily: 'Caveat', color: ROSE, fontSize: u * (long ? 9 : 11) }}>&</span>
-        <span>{b}</span>
-      </div>
-      <div style={{ display: 'flex', marginTop: u * 4 }}>
-        <svg width={u * 9} height={u * 9} viewBox="0 0 100 100">
-          <path d="M50 86 C 20 64, 6 46, 14 28 C 22 12, 44 14, 50 32 C 56 14, 78 12, 86 28 C 94 46, 80 64, 50 86 Z"
-            fill="none" stroke={ROSE} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
-      {year && <div style={{ fontFamily: 'Caveat', fontSize: u * 6, color: MUTED, marginTop: u * 3 }}>{`since ${year}`}</div>}
-    </div>
-  )
 }
 
 // Shrink long notes so all 300 characters fit on the card.

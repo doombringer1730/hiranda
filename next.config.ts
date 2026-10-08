@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   // Fonts read at runtime by the gift-card print files.
   outputFileTracingIncludes: {
     '/api/store/print/*': ['./assets/fonts/**/*'],
+    '/api/store/preview/*': ['./assets/fonts/**/*'],
   },
   async headers() {
     return [
