@@ -15,7 +15,7 @@ export default async function SponsorCard({ place }: { place: Place }) {
     return (
       <Link href="/plus" className="flex items-center gap-3 rounded-2xl border border-stone-800 bg-stone-900/50 px-4 py-3 hover:border-stone-700 transition-colors">
         <Sparkles size={16} className="text-amber-400 shrink-0" />
-        <p className="flex-1 text-stone-400 text-sm">The Deepest deck, every theme and no ads — <span className="text-amber-300">Hiranda Plus</span>, one plan for you both.</p>
+        <p className="flex-1 text-stone-400 text-sm">The Deepest deck, your own theme and no ads — <span className="text-amber-300">Hiranda Plus</span>, one plan for you both.</p>
       </Link>
     )
   }

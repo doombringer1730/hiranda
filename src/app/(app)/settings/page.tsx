@@ -47,7 +47,7 @@ export default async function SettingsPage() {
           <Sparkles size={18} className="text-amber-400 shrink-0" />
           <div className="flex-1">
             <p className="text-amber-100 font-medium">Hiranda Plus</p>
-            <p className="text-stone-400 text-sm">{plus ? 'Active for you both — thank you 💛' : 'No ads, every theme, the Deepest deck and more — one plan for both of you.'}</p>
+            <p className="text-stone-400 text-sm">{plus ? 'Active for you both — thank you 💛' : 'No ads, your own theme, the Deepest deck and more — one plan for both of you.'}</p>
           </div>
           <span className="text-stone-500 text-sm">›</span>
         </Link>

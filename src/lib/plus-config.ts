@@ -21,12 +21,9 @@ export const PLUS_PERKS = [
   { emoji: '🌙', title: 'No ads, ever', text: 'Just the two of you — no sponsored cards anywhere.' },
   { emoji: '🗝️', title: 'The Deepest deck', text: 'The questions couples remember — unlocked for both of you.' },
   { emoji: '🌱', title: 'The whole Grow path', text: 'Every unit and lesson, each one earning you coupons.' },
-  { emoji: '🎨', title: 'Every theme', text: 'Rose, Forest, Ocean, Glacier, Midnight and more.' },
+  { emoji: '🎨', title: 'Your own theme', text: 'Pick any background and accent, light or dark, for the two of you.' },
   { emoji: '📖', title: 'Your Memory Book, printed', text: 'Export the book as a PDF to print or gift.' },
 ] as const
-
-// Themes anyone can use; the rest come with Plus.
-export const FREE_THEMES = new Set(['coffee', 'cloud', 'preppy'])
 
 // Grow: units 1–2 are free; later units need Plus.
 export const FREE_GROW_UNITS = 2
