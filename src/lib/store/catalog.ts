@@ -8,6 +8,7 @@
 // Prices are in cents, USD. Keep each price above the supplier's cost plus
 // shipping plus Stripe's fee (~3%).
 // 'partner' gifts are affiliate links to other shops (no payment here).
+// 'aliexpress' gifts are bought by hand on AliExpress for each paid order.
 //
 // Nothing can be bought until STORE_ENABLED=1 and Stripe is configured.
 
@@ -54,7 +55,7 @@ export type Category = 'her' | 'him' | 'cuddly' | 'jewelry' | 'cozy' | 'gift' | 
 /** Where a gift ships from, as shoppers see it: printed or stocked in the US,
  *  or sent internationally (slower, more choice). */
 export const shipsFrom = (p: Pick<Product, 'vendor'>): 'US' | 'International' =>
-  p.vendor?.name === 'cj' && p.vendor.from === 'CN' ? 'International' : 'US'
+  (p.vendor?.name === 'cj' && p.vendor.from === 'CN') || p.vendor?.name === 'aliexpress' ? 'International' : 'US'
 
 /** The partner shop that makes it, if any — credited on the product. */
 export const madeBy = (p: Pick<Product, 'vendor'>) => p.vendor?.name === 'partner' ? p.vendor.partner : null
@@ -94,6 +95,7 @@ export const PRODUCTS: Product[] = [
     title: 'Our blanket',
     blurb: 'A soft sherpa throw (50″×60″) with your two names on it — for movie nights, together or apart.',
     emoji: '🛋️',
+    image: '/store/mockups/blanket.jpg',
     priceCents: 7900, // ≈ $36 + ~$11 shipping
     ships: true,
     category: 'keepsake',
@@ -107,6 +109,7 @@ export const PRODUCTS: Product[] = [
     title: 'Our mug',
     blurb: 'Your names on a glossy 11 oz mug, for the morning question.',
     emoji: '☕',
+    image: '/store/mockups/mug.jpg',
     priceCents: 2400, // ≈ $6 + ~$8 shipping
     ships: true,
     category: 'keepsake',
@@ -118,6 +121,7 @@ export const PRODUCTS: Product[] = [
     title: 'Our names, on the wall',
     blurb: 'A 12″×16″ matte print with your names and your year — ready for a frame.',
     emoji: '🖼️',
+    image: '/store/mockups/print.jpg',
     priceCents: 2900, // ≈ $11 + ~$7 shipping
     ships: true,
     category: 'keepsake',
@@ -129,6 +133,7 @@ export const PRODUCTS: Product[] = [
     title: 'Our names, framed',
     blurb: 'A 12″×16″ museum-matte print in a black wooden frame, ready to hang.',
     emoji: '🖼️',
+    image: '/store/mockups/framed.jpg',
     priceCents: 7900, // ≈ $32 + ~$11 shipping
     ships: true,
     category: 'keepsake',

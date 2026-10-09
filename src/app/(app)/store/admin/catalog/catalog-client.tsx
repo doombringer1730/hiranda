@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
-import { addCjProduct, addPartnerProduct, deleteProduct, setProductActive, setProductPrice } from './actions'
+import { addAliexpressProduct, addCjProduct, addPartnerProduct, deleteProduct, setProductActive, setProductPrice } from './actions'
 
 const field = 'w-full bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-sm text-amber-50 placeholder:text-stone-600'
 const label = 'block text-stone-500 text-[11px] uppercase tracking-[0.16em] mb-1'
@@ -105,6 +105,55 @@ export function PartnerForm({ categories }: { categories: { key: string; title: 
       <p className="text-stone-500 text-xs">Only use photos you have the partner’s OK to show.</p>
       <button disabled={pending} className="inline-flex items-center justify-center gap-2 h-11 rounded-full bg-amber-600 hover:bg-amber-500 text-stone-950 font-medium disabled:opacity-60">
         {pending && <Loader2 size={16} className="animate-spin" />} Add partner product
+      </button>
+      {msg && <p className={`text-sm ${msg.ok ? 'text-emerald-300' : 'text-red-300'}`} role="status">{msg.text}</p>}
+    </form>
+  )
+}
+
+export function AliexpressForm({ categories }: { categories: { key: string; title: string }[] }) {
+  const router = useRouter()
+  const [pending, start] = useTransition()
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [price, setPrice] = useState('')
+  const [cost, setCost] = useState('')
+  const profit = Number(price) - Number(cost) - Number(price) * 0.03 - 0.3
+  return (
+    <form action={form => start(async () => {
+      const res = await addAliexpressProduct(form)
+      setMsg(res.ok ? { ok: true, text: 'Added to your store ✓' } : { ok: false, text: res.error ?? 'Something went wrong' })
+      if (res.ok) router.refresh()
+    })} className="flex flex-col gap-3">
+      <div><label className={label} htmlFor="a-url">AliExpress link</label>
+        <input id="a-url" name="url" inputMode="url" required maxLength={500} className={field} placeholder="https://www.aliexpress.com/item/…" /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className={label} htmlFor="a-title">Name in your store</label>
+          <input id="a-title" name="title" required maxLength={120} className={field} /></div>
+        <div><label className={label} htmlFor="a-category">Section</label>
+          <select id="a-category" name="category" defaultValue="him" className={field}>
+            {categories.map(c => <option key={c.key} value={c.key}>{c.title}</option>)}
+          </select></div>
+      </div>
+      <div><label className={label} htmlFor="a-blurb">A line about it</label>
+        <input id="a-blurb" name="blurb" maxLength={300} className={field} /></div>
+      <div><label className={label} htmlFor="a-pick">Which one to order</label>
+        <input id="a-pick" name="pick" maxLength={80} className={field} placeholder="Color: Black · Ships from: United States" /></div>
+      <div><label className={label} htmlFor="a-image">Photo link (https)</label>
+        <input id="a-image" name="image" inputMode="url" maxLength={500} className={field} placeholder="Right-click the photo → Copy image address" /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><label className={label} htmlFor="a-price">Your price ($)</label>
+          <input id="a-price" name="price" inputMode="decimal" required value={price} onChange={e => setPrice(e.target.value)} className={field} /></div>
+        <div><label className={label} htmlFor="a-cost">It costs you ($)</label>
+          <input id="a-cost" name="cost" inputMode="decimal" value={cost} onChange={e => setCost(e.target.value)} className={field} placeholder="incl. shipping" /></div>
+      </div>
+      <div><label className={label} htmlFor="a-sizes">Sizes (optional)</label>
+        <input id="a-sizes" name="sizes" maxLength={200} className={field} placeholder="S, M, L, XL, 2XL" /></div>
+      <div><label className={label} htmlFor="a-delivery">Delivery note</label>
+        <input id="a-delivery" name="delivery" maxLength={80} className={field} defaultValue="Arrives in about 1–2 weeks" /></div>
+      {price && cost && <p className={`text-xs ${profit >= 5 ? 'text-emerald-300' : 'text-amber-300'}`}>You keep about ${Number.isFinite(profit) ? profit.toFixed(2) : '—'} per sale.</p>}
+      <p className="text-stone-500 text-xs">Each paid order waits in Orders with this link — buy it there with the recipient’s address. Pick listings with “Choice” or US shipping for faster delivery.</p>
+      <button disabled={pending} className="inline-flex items-center justify-center gap-2 h-11 rounded-full bg-amber-600 hover:bg-amber-500 text-stone-950 font-medium disabled:opacity-60">
+        {pending && <Loader2 size={16} className="animate-spin" />} Add AliExpress product
       </button>
       {msg && <p className={`text-sm ${msg.ok ? 'text-emerald-300' : 'text-red-300'}`} role="status">{msg.text}</p>}
     </form>

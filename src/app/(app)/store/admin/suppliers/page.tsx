@@ -104,6 +104,7 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
                 <span className={s ? 'text-amber-300' : 'text-stone-500'}>
                   {s ? s.vendor.label
                     : p.vendor?.name === 'partner' ? `${p.vendor.partner} (partner)`
+                    : p.vendor?.name === 'aliexpress' ? 'AliExpress (you order it)'
                     : p.vendor ? `${VENDORS[p.vendor.name].label} — product not picked yet` : 'You ship it'}
                 </span>
               </li>

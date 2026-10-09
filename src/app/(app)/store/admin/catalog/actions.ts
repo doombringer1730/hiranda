@@ -111,6 +111,45 @@ export async function addPartnerProduct(form: FormData): Promise<{ ok?: true; er
   return { ok: true }
 }
 
+// An AliExpress listing: sold in Hiranda, and you buy it there by hand for
+// each paid order (shipped to the recipient) from /store/admin.
+export async function addAliexpressProduct(form: FormData): Promise<{ ok?: true; error?: string }> {
+  if (!(await admin())) return { error: 'Not allowed' }
+  const title = clean(form.get('title'), 120)
+  const blurb = clean(form.get('blurb'), 300)
+  const category = clean(form.get('category'), 20) as Category
+  const price = cents(form.get('price'))
+  const cost = cents(form.get('cost'))
+  const pick = clean(form.get('pick'), 80)
+  const delivery = clean(form.get('delivery'), 80)
+  let image = clean(form.get('image'), 500)
+  let url = clean(form.get('url'), 500)
+
+  try { url = /(^|\.)aliexpress\.(com|us)$/.test(new URL(url).hostname) && url.startsWith('https://') ? url : '' } catch { url = '' }
+  try { if (image) image = new URL(image).protocol === 'https:' ? image : '' } catch { image = '' }
+  if (!title || !url) return { error: 'A name and the AliExpress link are needed.' }
+  if (!CATEGORIES.some(c => c.key === category)) return { error: 'Pick a section.' }
+  if (!(price >= 100 && price <= 100000)) return { error: 'Price looks off.' }
+  if (cost && price < cost + 300) return { error: `That’s barely above cost (${(cost / 100).toFixed(2)}) — Stripe’s fee would eat it.` }
+
+  const item = url.match(/item\/(\d+)/)?.[1] ?? Date.now().toString(36)
+  const base = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'gift'
+  const key = `${base}-${item.slice(-6)}`.slice(0, 60)
+  const { error } = await createAdminClient().from('store_products').upsert({
+    key, title, blurb, category, emoji: '🎁',
+    image_url: image || null,
+    price_cents: price, cost_cents: cost || null,
+    vendor: { name: 'aliexpress', url, ...(pick ? { pick } : {}) },
+    delivery: delivery || null,
+    source_ref: `aliexpress:${item}`.slice(0, 120),
+    options: parseOptions(null, form.get('sizes')),
+    active: true, updated_at: new Date().toISOString(),
+  })
+  if (error) return { error: 'Couldn’t save — try again.' }
+  refresh()
+  return { ok: true }
+}
+
 export async function setProductActive(key: string, active: boolean) {
   if (!(await admin())) return { error: 'Not allowed' }
   await createAdminClient().from('store_products').update({ active, updated_at: new Date().toISOString() }).eq('key', key)

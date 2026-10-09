@@ -10,7 +10,7 @@ import { deliveryText, suggestPrice, tidyTitle } from '@/lib/store/pricing'
 import { isStoreAdmin } from '@/lib/store/server'
 import { VENDORS } from '@/lib/store/vendors'
 import { cjPopular, cjQuote, cjVariants } from '@/lib/store/vendors/cj'
-import { AddForm, PartnerForm, ProductRow } from './catalog-client'
+import { AddForm, AliexpressForm, PartnerForm, ProductRow } from './catalog-client'
 
 export const metadata = { title: 'Catalog' }
 
@@ -62,6 +62,10 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         <details className="tile p-4">
           <summary className="cursor-pointer text-sm text-stone-200 min-h-11 flex items-center">A shop you work with (Etsy and others) — they make and ship it</summary>
           <div className="mt-3"><PartnerForm categories={CATEGORIES.map(c => ({ key: c.key, title: c.title }))} /></div>
+        </details>
+        <details className="tile p-4 mt-3">
+          <summary className="cursor-pointer text-sm text-stone-200 min-h-11 flex items-center">From AliExpress — you order each one by hand</summary>
+          <div className="mt-3"><AliexpressForm categories={CATEGORIES.map(c => ({ key: c.key, title: c.title }))} /></div>
         </details>
       </section>
 
