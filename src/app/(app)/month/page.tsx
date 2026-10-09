@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { hasPlus } from '@/lib/plus'
 import { togetherStubs, totalHours } from '@/lib/together'
+import { strengthCounts } from '@/lib/strength-counts'
+import { readStrengths, strengthsLine } from '@/lib/strengths'
 import { Polaroid, Scribble } from '@/components/handmade'
 
 export const metadata = { title: 'Our month · Hiranda' }
@@ -41,7 +43,7 @@ export default async function OurMonthPage({ searchParams }: { searchParams: Pro
     hasPlus(),
     supabase.from('memories').select('id, title, happened_at, photos(storage_path)').gte('happened_at', from).lt('happened_at', to).order('happened_at'),
     supabase.from('messages').select('id, sender, body, created_at').eq('kind', 'good_news').gte('created_at', fromTs).lt('created_at', toTs).order('created_at').limit(12),
-    supabase.from('prompt_responses').select('prompt_id, user_id, prompts!inner(text)').gte('responded_at', fromTs).lt('responded_at', toTs).limit(400),
+    supabase.from('prompt_responses').select('prompt_id, user_id, prompts!inner(text)').lt('prompts.depth', 4).gte('responded_at', fromTs).lt('responded_at', toTs).limit(400),
     supabase.from('music_moments').select('id, song_name, artist').gte('created_at', fromTs).lt('created_at', toTs).order('created_at').limit(12),
     supabase.from('letters').select('id', { count: 'exact', head: true }).gte('created_at', fromTs).lt('created_at', toTs),
     supabase.from('jar_slips').select('id', { count: 'exact', head: true }).eq('jar', 'thanks').gte('created_at', fromTs).lt('created_at', toTs),
@@ -79,6 +81,11 @@ export default async function OurMonthPage({ searchParams }: { searchParams: Pro
     (songs ?? []).length && `${songs!.length} song${songs!.length === 1 ? '' : 's'} added`,
   ].filter(Boolean) as string[]
 
+  // What you two were great at (Plus): strengths first, one idea to try next.
+  const span = inProgress ? Math.max(1, new Date().getUTCDate()) : Math.round((Date.parse(toTs) - Date.parse(fromTs)) / 86_400_000)
+  const strengths = plus ? readStrengths(await strengthCounts(supabase, fromTs, toTs), span, Number(key.slice(5))) : null
+  const greatAt = strengths ? strengthsLine(strengths.good) : null
+
   const empty = !lines.length && !(goodNews ?? []).length && !letters && !thanks && !(someday ?? []).length
 
   return (
@@ -107,12 +114,25 @@ export default async function OurMonthPage({ searchParams }: { searchParams: Pro
         <Link href="/plus" className="mt-6 block paper rounded-xl p-5">
           <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.22em] text-[var(--paper-muted)]"><Sparkles size={12} /> Hiranda Plus</p>
           <p className="font-serif text-xl mt-1">Read the whole month</p>
-          <p className="text-sm text-[var(--paper-muted)] mt-1">Plus turns every month into a keepsake: your photos, the good news you celebrated, the questions you both answered and the songs you added.</p>
+          <p className="text-sm text-[var(--paper-muted)] mt-1">Plus turns every month into a keepsake: your photos, the good news you celebrated, the questions you both answered, the songs you added, and what you two were great at.</p>
         </Link>
       ) : empty ? (
         <p className="mt-8 text-center text-stone-400 text-sm">Nothing pinned this month yet. The next memory you add will start the page.</p>
       ) : (
         <div className="mt-8 flex flex-col gap-8">
+          {strengths && (greatAt || strengths.next) && (
+            <section className="paper rounded-[8px] px-5 pt-6 pb-5 relative rotate-[0.5deg]">
+              <span className="tape -top-3 right-10 rotate-3" />
+              <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--paper-muted)]">What you’re good at</p>
+              {greatAt && <p className="font-hand text-[27px] leading-tight text-[var(--paper-ink)] mt-1">{greatAt.toLowerCase()}</p>}
+              {strengths.next && (
+                <Link href={strengths.next.href} className="mt-3 flex items-center gap-1.5 text-sm text-[var(--paper-muted)] hover:text-[var(--paper-ink)]">
+                  Worth trying {greatAt ? 'next' : 'this month'}: <span className="text-[var(--paper-ink)] underline underline-offset-4">{strengths.next.tryNext}</span>
+                </Link>
+              )}
+            </section>
+          )}
+
           {lines.length > 1 && (
             <ul className="paper paper-ruled rounded-lg px-6 py-5 font-hand text-[22px] leading-[30px] -rotate-[0.6deg]">
               {lines.map(l => <li key={l}>{l}</li>)}

@@ -1,7 +1,7 @@
 'use server'
 
 import { hasPlus } from '@/lib/plus'
-import { PLUS_DEPTH } from '@/lib/plus-config'
+import { PLUS_DEPTH, AFTER_DARK } from '@/lib/plus-config'
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -32,8 +32,14 @@ export async function getCoupleMemberIds() {
 
 // Questions come in decks (1 Light, 2 Deeper, 3 Deepest). A deck only opens
 // once you've both opted in, so the requested deck is capped at couple_depth().
+// After Dark (4) sits beside the ladder with its own opt-in; until you've both
+// said yes, asking for it falls back to Light.
 async function allowedDeck(supabase: Awaited<ReturnType<typeof createClient>>, type: PromptType, deck?: number) {
   if (type !== 'question' || !deck) return null
+  if (deck === AFTER_DARK) {
+    const [{ data: open }, plus] = await Promise.all([supabase.rpc('couple_after_dark'), hasPlus()])
+    return open === true && plus ? AFTER_DARK : 1
+  }
   const { data } = await supabase.rpc('couple_depth')
   return Math.max(1, Math.min(deck, (data as number | null) ?? 1))
 }
@@ -253,13 +259,40 @@ export async function getDepthState() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
-  const [{ data: rows }, { data: both }] = await Promise.all([
-    supabase.from('depth_optins').select('user_id, max_depth'),
+  const [{ data: rows }, { data: both }, { data: dark }] = await Promise.all([
+    supabase.from('depth_optins').select('user_id, max_depth, after_dark'),
     supabase.rpc('couple_depth'),
+    supabase.rpc('couple_after_dark'),
   ])
-  const mine = rows?.find(r => r.user_id === user.id)?.max_depth ?? 1
-  const theirs = rows?.find(r => r.user_id !== user.id)?.max_depth ?? 1
-  return { mine, theirs, both: (both as number | null) ?? 1 }
+  const me = rows?.find(r => r.user_id === user.id), them = rows?.find(r => r.user_id !== user.id)
+  return {
+    mine: me?.max_depth ?? 1, theirs: them?.max_depth ?? 1, both: (both as number | null) ?? 1,
+    dark: { mine: !!me?.after_dark, theirs: !!them?.after_dark, both: dark === true },
+  }
+}
+
+// After Dark: its own opt-in, separate from the Light → Deepest ladder. The
+// nudges to your partner never name the deck, so a lock screen stays discreet.
+export async function setAfterDark(on: boolean) {
+  if (on && !(await hasPlus())) return { error: 'After Dark comes with Hiranda Plus.' }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not signed in' }
+  const { data: couple } = await supabase.from('couple').select('id, user1_id, user2_id')
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .order('user2_id', { nullsFirst: false }).limit(1).maybeSingle()
+  if (!couple?.user2_id) return { error: 'Not paired' }
+  const { data: mine } = await supabase.from('depth_optins').select('max_depth, after_dark').eq('user_id', user.id).maybeSingle()
+  const { data: before } = await supabase.rpc('couple_after_dark')
+  const { error } = await supabase.from('depth_optins').upsert({ couple_id: couple.id, user_id: user.id, max_depth: mine?.max_depth ?? 1, after_dark: on, updated_at: new Date().toISOString() })
+  if (error) return { error: 'Couldn’t save. Try again?' }
+  const { data: after } = await supabase.rpc('couple_after_dark')
+  if (after === true && before !== true) {
+    notifyPartner(async () => ({ title: 'A new deck is open 🔓', body: `You and ${await myFirstName()} both opted in.`, url: `/games/questions?t=question&deck=${AFTER_DARK}`, tag: 'depth' }))
+  } else if (on && !mine?.after_dark) {
+    notifyPartner(async () => ({ title: `${await myFirstName()} opted in to a new question deck`, body: 'It only opens if you want it to. No pressure.', url: `/games/questions?t=question&deck=${AFTER_DARK}`, tag: 'depth' }))
+  }
+  return { ok: true, both: after === true }
 }
 
 export async function setDepthOptin(level: number) {

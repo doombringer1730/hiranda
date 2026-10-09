@@ -6,6 +6,7 @@ import { getActivePrompt, getPromptState, getDepthState } from '../actions'
 import GameClient from '../game-client'
 import DeckPicker from './deck-picker'
 import { hasPlus } from '@/lib/plus'
+import { AFTER_DARK } from '@/lib/plus-config'
 import WhyItWorks from '@/components/why-it-works'
 
 type PromptType = 'question' | 'would_you_rather' | 'this_or_that' | 'most_likely'
@@ -37,9 +38,10 @@ export default async function QuickQuestionsPage({ searchParams }: { searchParam
       const { data } = await ctx.supabase.from('prompts').select('depth').eq('id', deep.prompt.id).maybeSingle()
       fromPrompt = data?.depth ?? 1
     }
-    deck = fromPrompt ?? (Number(deckParam) >= 1 && Number(deckParam) <= 3 ? Number(deckParam) : 1)
+    deck = fromPrompt ?? (Number(deckParam) >= 1 && Number(deckParam) <= AFTER_DARK ? Number(deckParam) : 1)
   }
-  const locked = type === 'question' && !!deck && deck > (depthState?.both ?? 1)
+  const plus = await hasPlus()
+  const locked = type === 'question' && !!deck && (deck === AFTER_DARK ? !(depthState?.dark.both && plus) : deck > (depthState?.both ?? 1))
 
   const initial = locked ? null : deep ?? await getActivePrompt(type, deck)
   const { data: partner } = await ctx.supabase.from('profiles').select('display_name').eq('id', ctx.partnerId).maybeSingle()
@@ -53,7 +55,7 @@ export default async function QuickQuestionsPage({ searchParams }: { searchParam
       <h1 className="font-serif text-[44px] leading-none text-amber-50 mt-2 mb-6">{game.title}<span className="text-amber-500">.</span></h1>
 
       {type === 'question' && depthState && deck && (
-        <DeckPicker deck={deck} mine={depthState.mine} theirs={depthState.theirs} both={depthState.both} partnerName={partnerName} plus={await hasPlus()} />
+        <DeckPicker deck={deck} mine={depthState.mine} theirs={depthState.theirs} both={depthState.both} dark={depthState.dark} partnerName={partnerName} plus={plus} />
       )}
 
       {!locked && (
@@ -67,7 +69,11 @@ export default async function QuickQuestionsPage({ searchParams }: { searchParam
         />
       )}
 
-      {type === 'question' ? (
+      {type === 'question' && deck === AFTER_DARK ? (
+        <WhyItWorks className="mt-10" source="Montesi et al., 2011">
+          Couples who can talk openly about sex are more satisfied with it, and with the relationship as a whole. That’s why this deck opens only when you both say yes, and either of you can close it any time.
+        </WhyItWorks>
+      ) : type === 'question' ? (
         <WhyItWorks className="mt-10" source="Aron et al., 1997">
           Closeness grows from back-and-forth sharing that gets a little more personal each time — and only works when you both want to go there. That’s why deeper decks open only when you both opt in.
         </WhyItWorks>
