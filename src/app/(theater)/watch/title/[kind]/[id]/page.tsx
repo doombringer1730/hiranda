@@ -6,6 +6,7 @@ import { archiveItem, isArchiveId, searchArchive } from '@/theater/catalog/archi
 import { tmdbDetails } from '@/theater/catalog/tmdb'
 import type { TitleDetails } from '@/theater/catalog/types'
 import { Group, PlayHereButton, ServiceGroups, TrailerButton, YouTubeLinkForm } from './start-buttons'
+import { InkUnderline } from '../../../discover'
 
 const norm = (s: string) => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '')
 
@@ -61,8 +62,11 @@ export default async function TitlePage({ params }: { params: Promise<{ kind: st
       <div className="max-w-3xl mx-auto px-4 md:px-6 -mt-28 relative flex flex-col gap-8">
         <div className="flex gap-4 items-end">
           {t.poster && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={t.poster} alt="" className="w-28 md:w-36 aspect-[2/3] object-cover rounded-xl border border-stone-800 shadow-2xl shrink-0" />
+            <div className="polaroid !p-1.5 !pb-1.5 shrink-0 -rotate-2">
+              <span className="tape -top-3 left-1/2 -translate-x-1/2 rotate-[-4deg] !w-16" aria-hidden />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={t.poster} alt="" className="w-28 md:w-36 aspect-[2/3] object-cover rounded-[2px]" />
+            </div>
           )}
           <div className="min-w-0 pb-1">
             <h1 className="font-serif text-3xl md:text-4xl text-amber-50 leading-[1.05]">{t.title}</h1>
@@ -74,7 +78,10 @@ export default async function TitlePage({ params }: { params: Promise<{ kind: st
 
         {/* ── Watch together ── */}
         <section className="flex flex-col gap-4">
-          <h2 className="font-serif text-2xl text-amber-50">Watch together</h2>
+          <h2 className="font-serif text-2xl text-amber-50 relative self-start">
+            Watch together
+            <InkUnderline className="absolute left-0 -bottom-1.5 w-full h-2 text-amber-500/60" />
+          </h2>
 
           {(t.archiveId || t.trailerYouTubeId || onYouTube) && (
             <Group mode="here">

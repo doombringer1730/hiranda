@@ -15,7 +15,7 @@ export default function TheaterBar() {
         <Link href="/" className="flex items-center gap-1.5 text-stone-400 hover:text-amber-300 text-sm transition-colors">
           <ArrowLeft size={16} /> Hiranda
         </Link>
-        <span className="ml-auto text-stone-500 text-[11px] uppercase tracking-[0.22em]">Theater</span>
+        <span className="ml-auto font-hand text-[19px] text-amber-400/80">movie night</span>
       </div>
     </div>
   )

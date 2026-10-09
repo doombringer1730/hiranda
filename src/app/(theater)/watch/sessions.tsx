@@ -152,19 +152,23 @@ export default function Sessions() {
 
   return (
     <div className="px-4 pt-10 max-w-2xl mx-auto pb-12">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="font-serif text-2xl text-amber-50">Your sessions</h2>
+      <div className="flex items-end justify-between gap-3 mb-6">
+        <div>
+          <h2 className="font-serif text-2xl text-amber-50 leading-none">Your nights in</h2>
+          {sessions.length > 0 && <p className="font-hand text-[20px] text-stone-400 mt-1">{sessions.length} ticket stub{sessions.length === 1 ? '' : 's'} and counting.</p>}
+        </div>
         <button
           onClick={() => { setShowForm(v => !v); reset() }}
-          className="flex items-center gap-2 bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+          className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-amber-700 hover:bg-amber-600 text-amber-50 text-sm font-medium transition-colors shrink-0"
         >
           {showForm ? <X size={16} /> : <Plus size={16} />}
-          {showForm ? 'Cancel' : 'New session'}
+          {showForm ? 'Cancel' : 'New night'}
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-stone-900/80 border border-stone-800/80 rounded-2xl p-5 mb-8 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="relative bg-stone-900/80 border border-stone-800/80 rounded-2xl p-5 pt-6 mb-8 flex flex-col gap-4">
+          <span className="tape -top-3 left-8 -rotate-3" aria-hidden />
           {/* Tabs */}
           <div className="flex gap-1 bg-stone-950 rounded-xl p-1">
             {tabs.map(t => (
@@ -245,7 +249,7 @@ export default function Sessions() {
             <button
               type="submit"
               disabled={uploading || !title.trim()}
-              className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-xl px-4 py-3 transition-colors flex items-center justify-center gap-2"
+              className="bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 font-medium rounded-full px-4 py-3 transition-colors flex items-center justify-center gap-2"
             >
               {uploading
                 ? <><Loader2 size={16} className="animate-spin" /> {progress !== null ? `Uploading ${progress}%…` : 'Starting…'}</>
@@ -256,45 +260,47 @@ export default function Sessions() {
       )}
 
       {sessions.length === 0 && !showForm && (
-        <div className="text-center py-24">
-          <Film size={40} className="mx-auto text-stone-700 mb-4" />
-          <p className="text-stone-500">No sessions yet. Start one above.</p>
+        <div className="paper rounded-md p-8 text-center -rotate-[0.6deg] my-8">
+          <Film size={32} className="mx-auto text-[#b4a993] mb-3" />
+          <p className="font-hand text-[24px] leading-tight">your first movie night goes here.</p>
+          <p className="text-[var(--paper-muted)] text-sm mt-2">Pick something above, or start a night from a link or a file.</p>
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        {sessions.map((s) => {
+      <div className="flex flex-col gap-3.5">
+        {sessions.map((s, i) => {
           const isParty = s.source_type === 'party'
           const href = isParty ? `/party/${s.id}` : `/watch/${s.id}`
           const platformLabel = isParty && s.platform ? (PLATFORM_LABELS[s.platform] ?? s.platform) : null
 
           return (
-            <div key={s.id} className="relative group">
+            <div key={s.id} className="relative group" style={{ rotate: `${((i % 3) - 1) * 0.5}deg` }}>
+              {/* A ticket stub: the poster is the tear-off end. */}
               <Link href={href}
-                className="flex items-center bg-stone-900/80 border border-stone-800/80 hover:border-amber-800/50 rounded-xl overflow-hidden transition-colors card-glow"
+                className="ticket coupon-common [--stub:56px] flex items-center rounded-[12px] overflow-hidden shadow-[0_10px_24px_-14px_rgb(0_0_0/0.6)]"
               >
                 {s.thumbnail_url
                   ? <img src={s.thumbnail_url} alt={s.title} className="w-14 h-20 object-cover flex-shrink-0" />
-                  : <div className="w-14 h-20 bg-stone-800 flex items-center justify-center flex-shrink-0">
+                  : <div className="w-14 h-20 bg-[#ece6da] flex items-center justify-center flex-shrink-0">
                       {isParty
                         ? <span className="text-lg">🎬</span>
-                        : <Play size={18} className="text-amber-500" />
+                        : <Play size={18} className="text-amber-700" />
                       }
                     </div>
                 }
-                <div className="flex-1 min-w-0 py-3 pl-4 pr-10">
-                  <p className="text-amber-100 group-hover:text-amber-300 transition-colors truncate">{s.title}</p>
+                <div className="flex-1 min-w-0 py-3 pl-4 pr-10 border-l border-dashed border-[#2b2620]/25">
+                  <p className="font-serif text-[17px] leading-tight truncate">{s.title}</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-stone-500 text-xs">
+                    <p className="text-[#6e655a] text-xs">
                       {new Date(s.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                     </p>
                     {isParty && platformLabel && (
-                      <span className="text-xs bg-amber-950/50 text-amber-600 border border-amber-900/50 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-800 border border-amber-800/40 px-1.5 py-0.5 rounded-[3px]">
                         {platformLabel}
                       </span>
                     )}
                     {!isParty && s.source_type && s.source_type !== 'upload' && (
-                      <span className="text-xs bg-stone-800 text-stone-500 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] uppercase tracking-wider font-semibold text-[#6e655a] border border-[#6e655a]/40 px-1.5 py-0.5 rounded-[3px]">
                         {s.source_type === 'url' ? 'Link' : 'Local'}
                       </span>
                     )}
@@ -303,7 +309,8 @@ export default function Sessions() {
               </Link>
               <button
                 onClick={() => openEdit(s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-stone-600 hover:text-stone-300 transition-colors"
+                aria-label={`Edit ${s.title}`}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-[#6e655a] hover:text-[#2b2620] transition-colors"
               >
                 <MoreHorizontal size={16} />
               </button>
