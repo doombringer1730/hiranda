@@ -346,6 +346,18 @@ export default async function HomeHub() {
             </Link>
           )}
 
+          {/* The first week of a month: last month's keepsake is ready. */}
+          {couple && new Date().getUTCDate() <= 7 && (
+            <Link href="/month" className="tile p-4 flex items-center gap-3 animate-rise" style={{ '--i': 5 } as React.CSSProperties}>
+              <span className="grid place-items-center h-10 w-10 rounded-full bg-stone-800 text-lg" aria-hidden>📔</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-amber-50 text-sm truncate">Your {new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 15)).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })} keepsake is ready</span>
+                <span className="block text-stone-400 text-xs">Our month, in photos and good news</span>
+              </span>
+              <ChevronRight size={16} className="text-stone-600" />
+            </Link>
+          )}
+
           {/* Continue watching (Theater link only — the watch page is untouched) */}
           {watching && (
             <Link href={`/watch/${watching.id}`} className="tile p-4 flex items-center gap-3">
