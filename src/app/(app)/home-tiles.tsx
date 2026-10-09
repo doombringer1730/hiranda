@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useTransition } from 'react'
+import Link from 'next/link'
 import { Heart } from 'lucide-react'
 import { sendLove } from './love-actions'
 import { haptic } from '@/lib/feel'
@@ -86,5 +87,42 @@ export function ThinkingOfYou({ partnerName, lastFromPartner }: { partnerName: s
             : <>Tap to send {partnerName} a heart</>}
       </p>
     </div>
+  )
+}
+
+// Photo frame (Plus): your photos drift by, one every few seconds.
+export function PhotoFrame({ photos, large }: { photos: { url: string; caption: string | null; href: string }[]; large: boolean }) {
+  const [i, setI] = useState(0)
+  useEffect(() => {
+    if (photos.length < 2 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const t = setInterval(() => setI(n => (n + 1) % photos.length), 6000)
+    return () => clearInterval(t)
+  }, [photos.length])
+
+  if (!photos.length) {
+    return (
+      <Link href="/memories/new" className="tile h-full min-h-[160px] p-4 flex flex-col items-center justify-center gap-1 text-center">
+        <span className="text-2xl" aria-hidden>🖼️</span>
+        <span className="text-stone-300 text-sm">Add a memory with a photo to fill your frame</span>
+      </Link>
+    )
+  }
+  const now = photos[i % photos.length]
+  return (
+    <Link href={now.href} className={`relative block h-full overflow-hidden rounded-[24px] bg-stone-900 ring-[6px] ring-[#efe8da] ${large ? 'min-h-[320px] md:min-h-[380px]' : 'min-h-[180px]'}`}>
+      {photos.map((p, n) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={p.url}
+          src={p.url}
+          alt=""
+          className={`absolute inset-0 h-full w-full object-cover transition-[opacity,scale] duration-[1400ms] ease-out ${n === i ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.04]'}`}
+          loading={n === 0 ? 'eager' : 'lazy'}
+        />
+      ))}
+      {now.caption && (
+        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-8 font-hand text-[22px] leading-none text-amber-50 truncate">{now.caption}</span>
+      )}
+    </Link>
   )
 }
