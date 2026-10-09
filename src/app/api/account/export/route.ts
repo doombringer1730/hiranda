@@ -18,7 +18,7 @@ export async function GET() {
     'memories', 'photos', 'journal_entries', 'journal_photos', 'important_dates', 'todos', 'bucket_list',
     'watchlist', 'books', 'music_moments', 'prompt_responses', 'study_decks', 'study_cards', 'study_attempts',
     'assignments', 'coupons', 'trivia_questions', 'board_games', 'love_taps', 'talk_sessions', 'messages', 'milestones', 'lesson_progress', 'lovemap_reviews',
-    'store_addresses', 'store_orders', 'couple_plus', 'gift_sizes', 'trail_progress', 'trail_stamps', 'closeness_checkins', 'depth_optins',
+    'store_addresses', 'store_orders', 'couple_plus', 'gift_sizes', 'trail_progress', 'trail_stamps', 'closeness_checkins', 'depth_optins', 'plus_trials', 'plus_intro_seen',
   ]
   const results = await Promise.all(tables.map(t => supabase.from(t).select('*')))
   const data: Record<string, unknown> = {}

@@ -19,6 +19,7 @@ import { Polaroid, Scribble } from '@/components/handmade'
 import SponsorCard from '@/components/sponsor-card'
 import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
 import CheckinCard from './closeness/checkin-card'
+import PlusWelcome from './plus/plus-welcome'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
 
@@ -254,6 +255,9 @@ export default async function HomeHub() {
           </div>
         )}
       </header>
+
+      {/* Plus: the one-time hello for a new couple, or a note as a free week ends */}
+      {couple && partnerId && <PlusWelcome userId={user.id} partnerName={partnerFirst} />}
 
       <div className="flex flex-col gap-3 mb-3 empty:hidden">
         <InstallCard />

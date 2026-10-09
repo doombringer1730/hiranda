@@ -17,7 +17,8 @@ export async function startCheckout(plan: PlusPlan): Promise<{ url?: string; err
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Plus is for a couple — invite your partner first.' }
   if (!stripeOpenTo(ctx.user.email)) return { error: 'Plus isn’t available to buy yet.' }
-  if (await hasPlus()) return { error: 'You already have Plus.' }
+  // During the free week (no card) you can still pick a plan to keep Plus.
+  if (await hasPlus() && !(await plusDetails()).trialEnds) return { error: 'You already have Plus.' }
   const price = plan === 'yearly' ? process.env.STRIPE_PRICE_YEARLY! : process.env.STRIPE_PRICE_MONTHLY!
   const base = await origin()
   const session = await getStripe().checkout.sessions.create({

@@ -10,14 +10,17 @@ import { hasPlugin, useIsNativeApp } from '@/lib/native'
 import { celebrate } from '@/lib/feel'
 import { primaryButton } from '@/components/ui'
 import { openBillingPortal, startCheckout, syncApplePurchase } from './actions'
+import { startFreeWeek } from './intro-actions'
+import { useRouter } from 'next/navigation'
 
 type ApplePackage = { identifier: string; packageType: string; product: { priceString: string } }
 
 // The Plus page. In a browser it sells through Stripe; inside the iPhone app it
 // only ever uses Apple's in-app purchase (App Store rule 3.1.1).
-export default function PlusClient({ details, coupleId, webReady, testMode, appKey, welcome }: {
-  details: PlusDetails; coupleId: string | null; webReady: boolean; testMode: boolean; appKey: string | null; welcome: boolean
+export default function PlusClient({ details, coupleId, webReady, testMode, appKey, welcome, freeWeek }: {
+  details: PlusDetails; coupleId: string | null; webReady: boolean; testMode: boolean; appKey: string | null; welcome: boolean; freeWeek: boolean
 }) {
+  const router = useRouter()
   const native = useIsNativeApp()
   const [plan, setPlan] = useState<PlusPlan>('yearly')
   const [active, setActive] = useState(details.active)
@@ -67,6 +70,17 @@ export default function PlusClient({ details, coupleId, webReady, testMode, appK
     })
   }
 
+  // A free week, no card: once per couple, and it simply ends.
+  function tryFree() {
+    setMsg(null)
+    start(async () => {
+      const res = await startFreeWeek()
+      if (res.error) { setMsg(res.error); return }
+      celebrate()
+      router.refresh()
+    })
+  }
+
   function restore() {
     setMsg(null)
     start(async () => {
@@ -91,13 +105,16 @@ export default function PlusClient({ details, coupleId, webReady, testMode, appK
   }
 
   const canBuy = native ? appleReady && !!apple?.[plan] : webReady
+  // The free week (no card): Plus is on, and picking a plan keeps it going.
+  const onTrial = !!details.trialEnds
+  const trialEnd = details.trialEnds ? new Date(details.trialEnds).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : null
 
   return (
     <div className="max-w-xl mx-auto px-4 pt-8 pb-16 flex flex-col gap-7">
       <div className="text-center">
         <p className="inline-flex items-center gap-1.5 text-amber-400 text-[11px] uppercase tracking-[0.22em]"><Sparkles size={13} /> Hiranda Plus</p>
-        <h1 className="font-serif text-4xl text-amber-50 mt-2 leading-tight">{active ? 'You two have Plus.' : 'More of you two.'}</h1>
-        <p className="font-hand text-[22px] text-amber-400 mt-1">{active ? 'thank you for keeping the lights on 💛' : 'one plan, both of you.'}</p>
+        <h1 className="font-serif text-4xl text-amber-50 mt-2 leading-tight">{onTrial ? 'Your free week of Plus.' : active ? 'You two have Plus.' : 'More of you two.'}</h1>
+        <p className="font-hand text-[22px] text-amber-400 mt-1">{onTrial ? `on the house until ${trialEnd}.` : active ? 'thank you for keeping the lights on 💛' : 'one plan, both of you.'}</p>
       </div>
 
       <ul className="flex flex-col gap-3">
@@ -108,12 +125,12 @@ export default function PlusClient({ details, coupleId, webReady, testMode, appK
               <p className="text-amber-50 text-sm font-medium">{p.title}</p>
               <p className="text-stone-400 text-sm">{p.text}</p>
             </div>
-            {active && <Check size={16} className="ml-auto text-amber-500 shrink-0" />}
+            {active && !onTrial && <Check size={16} className="ml-auto text-amber-500 shrink-0" />}
           </li>
         ))}
       </ul>
 
-      {active ? (
+      {active && !onTrial ? (
         <div className="rounded-2xl border border-amber-800/40 bg-amber-950/20 p-5 text-center flex flex-col items-center gap-3">
           <p className="text-stone-300 text-sm">
             {details.source === 'grant' ? 'Founders’ Plus — on the house, forever.'
@@ -126,6 +143,18 @@ export default function PlusClient({ details, coupleId, webReady, testMode, appK
         </div>
       ) : (
         <div className="flex flex-col gap-4">
+          {onTrial && (
+            <p className="text-stone-300 text-sm text-center leading-relaxed">
+              Your free week ends {trialEnd}. Nothing renews and nothing is charged: if you’d like to keep Plus, pick a plan below.
+            </p>
+          )}
+          {freeWeek && (
+            <div className="rounded-2xl border border-amber-800/40 bg-amber-950/20 p-5 text-center flex flex-col items-center gap-2">
+              <p className="text-amber-50 font-medium">Try Plus free for a week</p>
+              <p className="text-stone-400 text-sm">No card. It simply ends after {PLUS_TRIAL_DAYS} days, and everything you made stays yours.</p>
+              <button onClick={tryFree} disabled={pending} className={`${primaryButton} mt-1`}>Start our free week</button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Plan">
             {(['yearly', 'monthly'] as const).map(p => (
               <button key={p} role="radio" aria-checked={plan === p} onClick={() => setPlan(p)}
@@ -139,7 +168,7 @@ export default function PlusClient({ details, coupleId, webReady, testMode, appK
 
           <button onClick={buy} disabled={pending || !canBuy} className={`${primaryButton} h-12 text-base w-full`}>
             {pending ? <Loader2 size={18} className="animate-spin" /> : null}
-            {canBuy ? `Try it free for ${PLUS_TRIAL_DAYS} days` : 'Coming soon'}
+            {!canBuy ? 'Coming soon' : onTrial ? 'Keep Plus' : `Try it free for ${PLUS_TRIAL_DAYS} days`}
           </button>
 
           <p className="text-stone-500 text-xs text-center leading-relaxed">
