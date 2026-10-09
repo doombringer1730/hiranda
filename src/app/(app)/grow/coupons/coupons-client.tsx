@@ -16,8 +16,8 @@ export type Coupon = {
 const RARITY_LABEL = { gift: 'a gift', common: 'common', rare: 'rare', legendary: 'legendary' } as const
 const short = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
-export default function CouponsClient({ myId, partnerId, partnerName, coupons, ideas }: {
-  myId: string; partnerId: string; partnerName: string; coupons: Coupon[]; ideas: { emoji: string; title: string }[]
+export default function CouponsClient({ myId, partnerId, partnerName, coupons, ideas, plus }: {
+  myId: string; partnerId: string; partnerName: string; coupons: Coupon[]; ideas: { emoji: string; title: string }[]; plus: boolean
 }) {
   const router = useRouter()
   const [peeling, setPeeling] = useState<string | null>(null)
@@ -55,7 +55,12 @@ export default function CouponsClient({ myId, partnerId, partnerName, coupons, i
 
   function done(c: Coupon) {
     haptic()
-    start(async () => { await markCouponDone(c.id); celebrate(null, { count: 24 }); router.refresh() })
+    start(async () => {
+      const res = await markCouponDone(c.id)
+      celebrate(null, { count: 24 })
+      if ('credited' in res && res.credited) toast(`Done 💛 $${(res.credited / 100).toFixed(2)} off your next Plus renewal`)
+      router.refresh()
+    })
   }
 
   // Ideas fill the coupon in; nothing is sent until you press Give.
@@ -85,7 +90,12 @@ export default function CouponsClient({ myId, partnerId, partnerName, coupons, i
       <Link href="/grow" className="inline-flex items-center gap-1.5 text-stone-400 hover:text-amber-300 text-sm mb-4"><ArrowLeft size={16} /> Grow</Link>
       <p className="text-stone-400 text-[11px] uppercase tracking-[0.3em]">Earned together, used on each other</p>
       <h1 className="font-serif text-[44px] leading-none text-amber-50 mt-2">Coupon Book<span className="text-amber-500">.</span></h1>
-      <p className="font-hand text-[22px] text-stone-400 mt-2 mb-8">write one any time. stamps in your passport add surprise ones.</p>
+      <p className="font-hand text-[22px] text-stone-400 mt-2">write one any time. stamps in your passport add surprise ones.</p>
+      {plus ? (
+        <p className="text-stone-500 text-xs mt-1 mb-8">Each coupon you finish together takes $0.50 off your next Plus renewal, up to $2.</p>
+      ) : (
+        <Link href="/plus" className="block text-stone-500 hover:text-amber-300 text-xs mt-1 mb-8">With Plus, each coupon you finish together takes $0.50 off your renewal →</Link>
+      )}
 
       {/* Make one: free, any time. The ticket previews as you write. */}
       <section className="tile p-5">
