@@ -59,7 +59,7 @@ export default async function PrintPage({ searchParams }: { searchParams: Promis
           <p className="text-sm text-[var(--paper-muted)] mt-1">
             Choose up to {cfg.max} photos in Memories{kind === 'book' ? ', in the order you want them in the book' : ''}.
           </p>
-          <Link href="/memories" className="mt-4 inline-flex items-center h-11 px-5 rounded-full bg-[var(--paper-ink)] text-[var(--paper)] text-sm font-medium">Go to Memories</Link>
+          <Link href={`/memories/print?kind=${kind}`} className="mt-4 inline-flex items-center h-11 px-5 rounded-full bg-[var(--paper-ink)] text-[var(--paper)] text-sm font-medium">Go to Memories</Link>
         </div>
       )}
     </div>

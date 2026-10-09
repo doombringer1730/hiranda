@@ -44,8 +44,8 @@ export function GiftCard({ product, origin, partner, canSend, partnerSizes }: {
         </span>
     </>
   )
-  // Prints are made from your own photos: pick them first.
-  if (product.prints) return <Link href={`/store/print?kind=${product.prints}`} className={card}>{inner}</Link>
+  // Prints are made from your own photos: pick them first, in Memories.
+  if (product.prints) return <Link href={`/memories/print?kind=${product.prints}`} className={card}>{inner}</Link>
   return (
     <>
       <button onClick={() => { haptic(); setOpen(true) }} className={card}>{inner}</button>
