@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { Minus, Plus, X, Lock, LayoutGrid, RotateCcw } from 'lucide-react'
+import { Minus, Plus, X, Lock, LayoutGrid, RotateCcw, ChevronRight } from 'lucide-react'
 import {
   WIDGETS, WIDGET_IDS, SIZE_NAMES, DEFAULT_LAYOUT, nextSize, moveItem,
   type LayoutItem, type WidgetId, type WidgetSize,
@@ -11,12 +11,26 @@ import {
 import { saveHomeLayout } from './home-actions'
 import { haptic, toast } from '@/lib/feel'
 
-// Widgets per size: on phones two columns, on wider screens four.
+// iPhone widget geometry: square cells, two across on phones and four on
+// wider screens. Small is one cell, medium two side by side, large two by two.
 const SPAN: Record<WidgetSize, string> = {
-  s: 'col-span-1',
-  m: 'col-span-2',
-  l: 'col-span-2 md:col-span-4',
+  s: 'col-span-1 row-span-1',
+  m: 'col-span-2 row-span-1',
+  l: 'col-span-2 row-span-2',
 }
+const CELLS: Record<WidgetSize, [number, number]> = { s: [1, 1], m: [2, 1], l: [2, 2] }
+const GRID_CSS = `
+  .hw-wrap { container-type: inline-size; width: 100%; }
+  .hw-grid { --cols: 2; --gap: 14px; display: grid; gap: var(--gap); grid-auto-flow: row dense;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+    grid-auto-rows: calc((100cqw - (var(--cols) - 1) * var(--gap)) / var(--cols)); }
+  @media (min-width: 768px) { .hw-grid { --cols: 4; --gap: 18px; } }
+  .hw-cell .tile { border-radius: 22px; }
+  @keyframes hw-jiggle { 0%,100% { rotate: -0.6deg } 50% { rotate: 0.6deg } }
+  .hw-jiggle { animation: hw-jiggle 0.3s ease-in-out infinite; }
+  .hw-jiggle-b { animation-delay: -0.15s; }
+  @media (prefers-reduced-motion: reduce) { .hw-jiggle { animation: none; } }
+`
 
 const HOLD_MS = 220 // touch: hold this long to pick a widget up
 const SLOP = 8 // px a finger may drift during the hold before it counts as a scroll
@@ -205,6 +219,16 @@ export default function HomeGrid({ initial, nodes, plus }: {
     window.scrollTo({ top: gridRef.current ? gridRef.current.getBoundingClientRect().top + window.scrollY - 120 : 0, behavior: 'smooth' })
   }
 
+  // One cell's side in px, for true-size previews in the gallery.
+  function unit() {
+    const g = gridRef.current
+    if (!g) return 170
+    const cs = getComputedStyle(g)
+    const cols = cs.gridTemplateColumns.split(' ').length || 2
+    const gap = parseFloat(cs.columnGap) || 14
+    return (g.clientWidth - gap * (cols - 1)) / cols
+  }
+
   const finish = useCallback(() => {
     setAdding(false)
     setEditing(false)
@@ -219,13 +243,8 @@ export default function HomeGrid({ initial, nodes, plus }: {
   useEscape(editing && !adding, finish)
 
   return (
-    <div className={editing ? 'select-none' : ''}>
-      <style>{`
-        @keyframes hw-jiggle { 0%,100% { rotate: -0.5deg } 50% { rotate: 0.5deg } }
-        .hw-jiggle { animation: hw-jiggle 0.32s ease-in-out infinite; }
-        .hw-jiggle-b { animation-delay: -0.16s; }
-        @media (prefers-reduced-motion: reduce) { .hw-jiggle { animation: none; } }
-      `}</style>
+    <div className={`w-full ${editing ? 'select-none' : ''}`}>
+      <style>{GRID_CSS}</style>
 
       {editing && (
         <div className="sticky top-[calc(env(safe-area-inset-top)+8px)] z-30 mb-4 flex items-center justify-between gap-2 rounded-full material px-2 py-2 animate-fade">
@@ -237,12 +256,13 @@ export default function HomeGrid({ initial, nodes, plus }: {
         </div>
       )}
 
+      <div className="hw-wrap">
       <div
         ref={gridRef}
         onPointerMove={onPointerMove}
         onPointerUp={drop}
         onPointerCancel={drop}
-        className="relative grid grid-cols-2 md:grid-cols-4 grid-flow-row-dense gap-3 md:gap-4"
+        className="hw-grid relative"
       >
         {shown.map((item, n) => {
           const meta = WIDGETS[item.id]
@@ -260,15 +280,15 @@ export default function HomeGrid({ initial, nodes, plus }: {
               onPointerDown={e => onPointerDown(e, item.id)}
               onKeyDown={e => onKey(e, item.id)}
               onContextMenu={editing ? e => e.preventDefault() : undefined}
-              className={`relative min-w-0 ${SPAN[item.size]} ${editing ? 'cursor-grab [-webkit-touch-callout:none] outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-[24px]' : ''} ${lifted ? 'z-20 cursor-grabbing' : ''}`}
+              className={`hw-cell relative min-w-0 min-h-0 ${SPAN[item.size]} ${editing ? 'cursor-grab [-webkit-touch-callout:none] outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-[22px]' : ''} ${lifted ? 'z-20 cursor-grabbing' : ''}`}
             >
               <div className={`h-full ${editing && !lifted ? `hw-jiggle ${n % 2 ? 'hw-jiggle-b' : ''}` : ''} ${lifted ? 'scale-[1.04] drop-shadow-2xl' : ''} transition-transform`}>
-                <div inert={editing} className={`h-full ${editing ? 'pointer-events-none' : ''}`}>
+                <div inert={editing} className={`h-full w-full overflow-hidden rounded-[22px] ${editing ? 'pointer-events-none' : ''}`}>
                   {node ?? (
-                    <div className="tile h-full min-h-[120px] p-4 flex flex-col items-center justify-center gap-1 text-center">
+                    <div className="tile h-full w-full p-4 flex flex-col items-center justify-center gap-1 text-center">
                       <span className="text-2xl" aria-hidden>{meta.emoji}</span>
                       <span className="text-amber-50 text-sm">{meta.name}</span>
-                      <span className="text-stone-500 text-[11px] leading-snug">Shows up when there’s something here</span>
+                      <span className="text-stone-500 text-[11px] leading-snug line-clamp-3">{meta.blurb} Shows up when there’s something here.</span>
                     </div>
                   )}
                 </div>
@@ -300,6 +320,7 @@ export default function HomeGrid({ initial, nodes, plus }: {
           )
         })}
       </div>
+      </div>
 
       {editing && shown.length === 0 && (
         <button onClick={() => setAdding(true)} className="w-full tile p-6 text-stone-400 text-sm flex items-center justify-center gap-2">
@@ -310,11 +331,11 @@ export default function HomeGrid({ initial, nodes, plus }: {
       {!editing && (
         <div className="mt-6 flex justify-center">
           <button
-            onClick={() => { haptic(); setEditing(true) }}
+            onClick={() => { haptic(); if (plus) setEditing(true); else setAdding(true) }}
             disabled={saving}
             className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs text-stone-400 hover:text-amber-200 hover:bg-stone-800/50 transition-colors"
           >
-            <LayoutGrid size={14} /> {saving ? 'Saving…' : 'Edit Home'}
+            {plus ? <LayoutGrid size={14} /> : <Lock size={12} />} {saving ? 'Saving…' : 'Edit Home'}
           </button>
         </div>
       )}
@@ -323,6 +344,8 @@ export default function HomeGrid({ initial, nodes, plus }: {
         <AddSheet
           layout={layout}
           plus={plus}
+          nodeFor={nodeFor}
+          unit={unit()}
           onAdd={add}
           onReset={() => { haptic(); update(DEFAULT_LAYOUT.map(i => ({ ...i }))); setAdding(false) }}
           onClose={() => setAdding(false)}
@@ -332,62 +355,114 @@ export default function HomeGrid({ initial, nodes, plus }: {
   )
 }
 
-function AddSheet({ layout, plus, onAdd, onReset, onClose }: {
+function Preview({ node, size, unit, meta }: { node: React.ReactNode; size: WidgetSize; unit: number; meta: (typeof WIDGETS)[WidgetId] }) {
+  // The widget at its real size, scaled down to fit the sheet.
+  const gap = 14
+  const [c, r] = CELLS[size]
+  const w = c * unit + (c - 1) * gap, h = r * unit + (r - 1) * gap
+  const fit = Math.min(1, 300 / w, 300 / h)
+  return (
+    <div className="mx-auto" style={{ width: w * fit, height: h * fit }}>
+      <div inert className="hw-cell origin-top-left overflow-hidden rounded-[22px] pointer-events-none" style={{ width: w, height: h, scale: String(fit) }}>
+        {node ?? (
+          <div className="tile h-full w-full p-4 flex flex-col items-center justify-center gap-1 text-center">
+            <span className="text-3xl" aria-hidden>{meta.emoji}</span>
+            <span className="text-amber-50 text-sm">{meta.name}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AddSheet({ layout, plus, nodeFor, unit, onAdd, onReset, onClose }: {
   layout: LayoutItem[]
   plus: boolean
+  nodeFor: (i: LayoutItem) => React.ReactNode
+  unit: number
   onAdd: (id: WidgetId, size: WidgetSize) => void
   onReset: () => void
   onClose: () => void
 }) {
-  useEscape(true, onClose)
+  const [open, setOpen] = useState<WidgetId | null>(null)
+  const [size, setSize] = useState<WidgetSize>('s')
+  const close = useCallback(() => { if (open) setOpen(null); else onClose() }, [open, onClose])
+  useEscape(true, close)
   const onHome = new Set(layout.map(i => i.id))
-  const choices = WIDGET_IDS.filter(id => !onHome.has(id) || (WIDGETS[id].plus && !plus))
+  const choices = WIDGET_IDS.filter(id => !plus || !onHome.has(id))
+  const pick = (id: WidgetId) => { haptic(); setOpen(id); setSize(WIDGETS[id].sizes[0]) }
+
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Add a widget" className="fixed inset-0 z-[70] flex items-end md:items-center justify-center">
+    <div role="dialog" aria-modal="true" aria-label="Widgets" className="fixed inset-0 z-[70] flex items-end md:items-center justify-center">
       <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/55 animate-fade" />
-      <div className="relative w-full md:max-w-lg max-h-[85dvh] overflow-y-auto rounded-t-[28px] md:rounded-[28px] bg-stone-900 px-5 pt-5 pb-[calc(20px+env(safe-area-inset-bottom))] animate-sheet">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="font-serif text-2xl text-amber-50">Add a widget</h2>
-          <button onClick={onClose} aria-label="Close" className="grid place-items-center h-9 w-9 rounded-full bg-stone-800 text-stone-300"><X size={16} /></button>
-        </div>
-        <p className="text-stone-400 text-sm mb-4">Your partner sees the same Home, so pick together.</p>
-
-        {choices.length === 0 && <p className="text-stone-400 text-sm py-6 text-center">Every widget is already on your Home.</p>}
-        <ul className="flex flex-col gap-2">
-          {choices.map(id => {
-            const meta = WIDGETS[id]
-            const locked = meta.plus && !plus
-            return (
-              <li key={id} className="rounded-[20px] bg-stone-800/50 p-3 flex items-center gap-3">
-                <span className="grid place-items-center h-11 w-11 shrink-0 rounded-[14px] bg-stone-800 text-xl" aria-hidden>{meta.emoji}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5 text-amber-50 text-[15px]">
-                    {meta.name}
-                    {meta.plus && <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-300">Plus</span>}
-                  </span>
-                  <span className="block text-stone-400 text-xs leading-snug">{meta.blurb}</span>
-                </span>
-                {locked ? (
-                  <Link href="/plus" className="flex items-center gap-1 rounded-full bg-stone-700 px-3 py-1.5 text-xs text-amber-100 shrink-0">
-                    <Lock size={12} /> Plus
-                  </Link>
-                ) : (
-                  <span className="flex gap-1 shrink-0">
-                    {meta.sizes.map(s => (
-                      <button key={s} onClick={() => onAdd(id, s)} aria-label={`Add ${meta.name}, ${SIZE_NAMES[s].toLowerCase()}`} className="rounded-full bg-stone-700 hover:bg-amber-600 hover:text-stone-950 px-2.5 py-1.5 text-xs text-amber-50 transition-colors">
-                        {SIZE_NAMES[s]}
-                      </button>
-                    ))}
-                  </span>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-
-        <button onClick={onReset} className="mt-5 mx-auto flex items-center gap-1.5 text-stone-500 hover:text-stone-300 text-xs">
-          <RotateCcw size={12} /> Reset to the original Home
-        </button>
+      <div className="relative w-full md:max-w-lg max-h-[88dvh] overflow-y-auto rounded-t-[28px] md:rounded-[28px] bg-stone-900 px-5 pt-5 pb-[calc(20px+env(safe-area-inset-bottom))] animate-sheet">
+        {open ? (() => {
+          const meta = WIDGETS[open]
+          const locked = !plus || (meta.plus && !plus)
+          return (
+            <div className="flex flex-col items-center text-center">
+              <div className="w-full flex items-center justify-between mb-2">
+                <button onClick={() => setOpen(null)} className="text-sm text-amber-400">Back</button>
+                <button onClick={onClose} aria-label="Close" className="grid place-items-center h-9 w-9 rounded-full bg-stone-800 text-stone-300"><X size={16} /></button>
+              </div>
+              <h2 className="text-[22px] font-semibold text-amber-50">{meta.name}</h2>
+              <p className="text-stone-400 text-sm mt-1 mb-6 max-w-xs">{meta.blurb}</p>
+              <div className="h-[300px] w-full grid place-items-center"><Preview node={nodeFor({ id: open, size })} size={size} unit={unit} meta={meta} /></div>
+              {meta.sizes.length > 1 && (
+                <div className="mt-5 flex items-center gap-1 rounded-full bg-stone-800/70 p-1">
+                  {meta.sizes.map(s => (
+                    <button key={s} onClick={() => { haptic(); setSize(s) }} aria-pressed={s === size} className={`rounded-full px-4 py-1.5 text-xs transition-colors ${s === size ? 'bg-stone-600 text-amber-50' : 'text-stone-400'}`}>{SIZE_NAMES[s]}</button>
+                  ))}
+                </div>
+              )}
+              {locked ? (
+                <Link href="/plus" className="mt-6 w-full flex items-center justify-center gap-2 rounded-full bg-amber-500 py-3.5 text-[15px] font-semibold text-stone-950">
+                  <Lock size={15} /> {plus ? 'Get Plus for this widget' : 'Customize Home with Plus'}
+                </Link>
+              ) : (
+                <button onClick={() => onAdd(open, size)} className="mt-6 w-full flex items-center justify-center gap-2 rounded-full bg-amber-500 py-3.5 text-[15px] font-semibold text-stone-950">
+                  <Plus size={17} strokeWidth={2.5} /> Add Widget
+                </button>
+              )}
+            </div>
+          )
+        })() : (
+          <>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-[22px] font-semibold text-amber-50">Widgets</h2>
+              <button onClick={onClose} aria-label="Close" className="grid place-items-center h-9 w-9 rounded-full bg-stone-800 text-stone-300"><X size={16} /></button>
+            </div>
+            <p className="text-stone-400 text-sm mb-4">
+              {plus ? 'Your partner sees the same Home, so pick together.' : 'Arrange Home your way with Plus: add, resize and drag any of these.'}
+            </p>
+            {choices.length === 0 && <p className="text-stone-400 text-sm py-6 text-center">Every widget is already on your Home.</p>}
+            <ul className="flex flex-col gap-1">
+              {choices.map(id => {
+                const meta = WIDGETS[id]
+                return (
+                  <li key={id}>
+                    <button onClick={() => pick(id)} className="w-full rounded-[16px] px-2 py-2.5 flex items-center gap-3 text-left hover:bg-stone-800/60 transition-colors">
+                      <span className="grid place-items-center h-11 w-11 shrink-0 rounded-[12px] bg-stone-800 text-xl" aria-hidden>{meta.emoji}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 text-amber-50 text-[15px] font-medium">
+                          {meta.name}
+                          {meta.plus && <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300">Plus</span>}
+                        </span>
+                        <span className="block text-stone-400 text-xs leading-snug truncate">{meta.blurb}</span>
+                      </span>
+                      <ChevronRight size={16} className="text-stone-600 shrink-0" />
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+            {plus && (
+              <button onClick={onReset} className="mt-5 mx-auto flex items-center gap-1.5 text-stone-500 hover:text-stone-300 text-xs">
+                <RotateCcw size={12} /> Reset to the original Home
+              </button>
+            )}
+          </>
+        )}
       </div>
     </div>,
     document.body,

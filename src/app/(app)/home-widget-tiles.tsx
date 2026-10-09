@@ -1,171 +1,402 @@
 import Link from 'next/link'
 import {
-  CalendarPlus, Mail, Star, Clapperboard, Music, MessageCircle, Gamepad2, BookOpen, PenLine,
-  CalendarHeart, Sprout, CheckSquare, Lock,
+  CalendarPlus, Mail, Star, Clapperboard, Music, MessageCircle, Gamepad2, PenLine,
+  CalendarHeart, Sprout, CheckSquare, Lock, Heart, Play, ChevronRight, Hourglass,
+  NotebookPen, Film, Images,
 } from 'lucide-react'
 import { CountUp } from './home-tiles'
+import type { WidgetSize } from '@/lib/home-widgets'
 
-// The smaller Home widgets. Each one fills its cell; the grid decides the size.
+// Home widgets, drawn the way iPhone widgets are: a fixed square (small),
+// two squares (medium) or four (large); a small colored label up top, one
+// big glanceable thing, and the whole widget opens its page.
 
-const eyebrow = 'text-stone-400 text-[11px] uppercase tracking-[0.22em]'
+type Size = WidgetSize
+const cls = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
 
-type Upcoming = { id: string; label: string; inDays: number }
+export const big = 'font-semibold tracking-tight leading-none text-amber-50 tabular-nums'
+export const sub = 'text-[13px] leading-snug text-stone-400'
 
-export function CountdownWidget({ dates, wide }: { dates: Upcoming[]; wide: boolean }) {
-  const [next, ...rest] = dates
+export function Shell({ href, children, className = '', pad = true }: { href?: string; children: React.ReactNode; className?: string; pad?: boolean }) {
+  const c = cls('tile !rounded-[22px] h-full w-full flex flex-col overflow-hidden', pad && 'p-4 md:p-5', className)
+  return href ? <Link href={href} className={c}>{children}</Link> : <div className={c}>{children}</div>
+}
+
+export function Label({ icon: Icon, children, className = 'text-amber-400' }: { icon?: React.ElementType; children: React.ReactNode; className?: string }) {
   return (
-    <Link href="/dates" className="tile h-full p-4 flex flex-col justify-between gap-3 min-h-[120px]">
-      <p className={eyebrow}>Countdown</p>
-      {next ? (
-        <div className={wide ? 'flex items-end justify-between gap-4' : ''}>
-          <div className="min-w-0">
-            {next.inDays === 0
-              ? <p className="font-serif text-[38px] leading-none text-amber-50">Today 🎉</p>
-              : <p className="font-serif text-[44px] leading-none text-amber-50"><CountUp value={next.inDays} /><span className="text-stone-400 text-base font-sans ml-1.5">{next.inDays === 1 ? 'day' : 'days'}</span></p>}
-            <p className="text-stone-400 text-xs mt-1 truncate">{next.label}</p>
-          </div>
-          {wide && rest.length > 0 && (
-            <ul className="min-w-0 text-right text-xs text-stone-400 flex flex-col gap-1">
-              {rest.slice(0, 2).map(d => (
-                <li key={d.id} className="truncate"><span className="text-amber-100 tabular-nums">{d.inDays}d</span> · {d.label}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      ) : (
-        <p className="text-stone-400 text-sm flex items-center gap-2"><CalendarPlus size={18} className="text-stone-500" /> Add a date</p>
-      )}
-    </Link>
+    <p className={cls('flex items-center gap-1.5 text-[13px] font-semibold leading-none shrink-0 min-w-0', className)}>
+      {Icon && <Icon size={13} strokeWidth={2.5} className="shrink-0" />}<span className="truncate">{children}</span>
+    </p>
   )
 }
 
-export function DaysWidget({ days, since, wide }: { days: number | null; since: string | null; wide: boolean }) {
-  if (days == null) {
+const fmtDay = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+// ── Calendar ──────────────────────────────────────────────────────────────
+export type Upcoming = { id: string; label: string; inDays: number; on: string } // on: YYYY-MM-DD
+
+export function CalendarWidget({ today, dates, size }: { today: string; dates: Upcoming[]; size: Size }) {
+  const d = new Date(today + 'T12:00:00')
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
+  const when = (n: number) => n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : `in ${n} days`
+  const head = (
+    <div className="shrink-0">
+      <p className="text-[12px] font-semibold tracking-wide text-rose-400">{weekday}</p>
+      <p className={cls(big, 'text-[44px] mt-0.5')}>{d.getDate()}</p>
+    </div>
+  )
+  const list = (n: number) => dates.length === 0
+    ? <p className={sub}>No dates yet. Add an anniversary or a trip.</p>
+    : (
+      <ul className="flex flex-col gap-1.5 min-w-0">
+        {dates.slice(0, n).map(x => (
+          <li key={x.id} className="flex gap-2 min-w-0">
+            <span className="w-1 shrink-0 rounded-full bg-rose-400" />
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium text-amber-50 truncate">{x.label}</span>
+              <span className="block text-[12px] text-stone-400">{when(x.inDays)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    )
+
+  if (size === 's') {
     return (
-      <Link href="/settings" className="tile h-full p-4 flex flex-col justify-between gap-3 min-h-[120px]">
-        <p className={eyebrow}>Together</p>
-        <p className="text-stone-400 text-sm">Add the day you got together</p>
-      </Link>
+      <Shell href="/dates" className="justify-between">
+        {head}
+        {dates[0]
+          ? <p className="text-[13px] leading-snug min-w-0"><span className="block text-amber-50 font-medium truncate">{dates[0].label}</span><span className="text-stone-400">{when(dates[0].inDays)}</span></p>
+          : <p className={sub}>Nothing coming up</p>}
+      </Shell>
+    )
+  }
+  if (size === 'm') {
+    return (
+      <Shell href="/dates" className="!flex-row gap-4">
+        <div className="flex flex-col justify-between w-[38%]">{head}<p className={sub}>{d.toLocaleDateString('en-US', { month: 'long' })}</p></div>
+        <div className="flex-1 min-w-0 flex flex-col justify-center">{list(3)}</div>
+      </Shell>
+    )
+  }
+  // Large: the month, with your dates marked.
+  const first = new Date(d.getFullYear(), d.getMonth(), 1)
+  const daysIn = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+  const marked = new Set(dates.filter(x => x.on.slice(0, 7) === today.slice(0, 7)).map(x => Number(x.on.slice(8, 10))))
+  const cells: (number | null)[] = [...Array<null>(first.getDay()).fill(null), ...Array.from({ length: daysIn }, (_, i) => i + 1)]
+  return (
+    <Shell href="/dates" className="gap-2">
+      <div className="flex items-baseline justify-between">
+        <p className="text-[15px] font-semibold text-rose-400">{d.toLocaleDateString('en-US', { month: 'long' }).toUpperCase()}</p>
+        <p className="text-[12px] text-stone-400">{d.getFullYear()}</p>
+      </div>
+      <div className="grid grid-cols-7 text-center text-[11px]">
+        {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => <span key={i} className="text-stone-500 font-medium">{w}</span>)}
+        {cells.map((n, i) => (
+          <span key={i} className="relative grid place-items-center h-[22px]">
+            {n && (
+              <span className={cls('grid place-items-center h-[21px] w-[21px] rounded-full tabular-nums', n === d.getDate() ? 'bg-rose-500 text-white font-semibold' : 'text-amber-50')}>{n}</span>
+            )}
+            {n && marked.has(n) && n !== d.getDate() && <span className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-rose-400" />}
+          </span>
+        ))}
+      </div>
+      <div className="mt-auto">{list(1)}</div>
+    </Shell>
+  )
+}
+
+// ── Countdown ─────────────────────────────────────────────────────────────
+export function CountdownWidget({ dates, size }: { dates: Upcoming[]; size: Size }) {
+  const [next, ...rest] = dates
+  if (!next) {
+    return (
+      <Shell href="/dates" className="justify-between">
+        <Label icon={Hourglass}>Countdown</Label>
+        <p className={cls(sub, 'flex items-center gap-2')}><CalendarPlus size={16} /> Add a date</p>
+      </Shell>
+    )
+  }
+  const number = next.inDays === 0
+    ? <p className={cls(big, 'text-[34px]')}>Today 🎉</p>
+    : <p className={cls(big, 'text-[48px]')}><CountUp value={next.inDays} /><span className="text-[15px] font-medium text-stone-400 ml-1">{next.inDays === 1 ? 'day' : 'days'}</span></p>
+  return (
+    <Shell href="/dates" className={size === 'm' ? '!flex-row gap-4' : 'justify-between'}>
+      <div className={cls('flex flex-col justify-between min-w-0', size === 'm' ? 'flex-1' : 'h-full')}>
+        <Label icon={Hourglass}>Countdown</Label>
+        <div className="min-w-0">
+          {number}
+          <p className={cls(sub, 'mt-1 truncate')}>until {next.label}</p>
+        </div>
+      </div>
+      {size === 'm' && rest.length > 0 && (
+        <ul className="flex-1 min-w-0 flex flex-col justify-end gap-2">
+          {rest.slice(0, 3).map(x => (
+            <li key={x.id} className="flex items-baseline justify-between gap-2 min-w-0">
+              <span className="text-[13px] text-amber-50 truncate">{x.label}</span>
+              <span className="text-[12px] text-stone-400 tabular-nums shrink-0">{x.inDays}d</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Shell>
+  )
+}
+
+// ── Days together ─────────────────────────────────────────────────────────
+export function DaysWidget({ days, since, size }: { days: number | null; since: string | null; size: Size }) {
+  if (days == null || !since) {
+    return (
+      <Shell href="/settings" className="justify-between">
+        <Label icon={Heart} className="text-pink-400">Together</Label>
+        <p className={sub}>Add the day you got together</p>
+      </Shell>
     )
   }
   const years = Math.floor(days / 365.25)
+  const nextYear = new Date(since + 'T12:00:00'); nextYear.setFullYear(nextYear.getFullYear() + years + 1)
   return (
-    <div className="tile h-full p-4 flex flex-col justify-between gap-3 min-h-[120px]">
-      <p className={eyebrow}>Together</p>
-      <div className={wide ? 'flex items-end justify-between gap-4' : ''}>
-        <p className="font-serif text-[44px] leading-none text-amber-50"><CountUp value={days} /><span className="text-stone-400 text-base font-sans ml-1.5">days</span></p>
-        <p className="text-stone-400 text-xs mt-1">
-          {wide && since ? <>since {new Date(since + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}{years > 0 ? ` · ${years} year${years === 1 ? '' : 's'}` : ''}</> : 'of you two 💞'}
-        </p>
+    <Shell className={cls('bg-gradient-to-br from-pink-500/20 to-transparent', size === 'm' ? '!flex-row gap-4' : 'justify-between')}>
+      <div className={cls('flex flex-col justify-between', size === 'm' ? 'flex-1' : 'h-full')}>
+        <Label icon={Heart} className="text-pink-400">Together</Label>
+        <div>
+          <p className={cls(big, 'text-[44px]')}><CountUp value={days} /></p>
+          <p className={cls(sub, 'mt-1')}>days of you two</p>
+        </div>
       </div>
-    </div>
+      {size === 'm' && (
+        <div className="flex-1 flex flex-col justify-end gap-1 text-[13px] text-stone-400">
+          <p>Since <span className="text-amber-50">{fmtDay(since)}, {since.slice(0, 4)}</span></p>
+          {years > 0 && <p>{years} year{years === 1 ? '' : 's'} and counting</p>}
+          <p>Next anniversary <span className="text-amber-50">{nextYear.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span></p>
+        </div>
+      )}
+    </Shell>
   )
 }
 
-export function LettersWidget({ waiting, sealedDays: sealed, partnerName, wide }: {
+// ── Letters ───────────────────────────────────────────────────────────────
+export function LettersWidget({ waiting, sealedDays, partnerName, size }: {
   waiting: number // letters to you that you can open now
   sealedDays: number | null // days until the next sealed one opens, if any
   partnerName: string
-  wide: boolean
+  size: Size
 }) {
+  const sealed = sealedDays != null && (
+    <p className="text-[12px] text-stone-500 flex items-center gap-1"><Lock size={11} /> Another opens in {sealedDays}d</p>
+  )
   return (
-    <Link href="/letters" className="tile h-full p-4 flex flex-col justify-between gap-3 min-h-[120px]">
-      <p className={`${eyebrow} flex items-center gap-1.5`}><Mail size={12} /> Letters</p>
-      <div className={wide ? 'flex items-end justify-between gap-4' : ''}>
+    <Shell href="/letters" className={size === 'm' ? '!flex-row gap-4' : 'justify-between'}>
+      <div className={cls('flex flex-col justify-between gap-2', size === 'm' ? 'flex-1' : 'h-full')}>
+        <Label icon={Mail} className="text-rose-400">Letters</Label>
         {waiting > 0 ? (
           <div>
-            <p className="font-serif text-[44px] leading-none text-amber-50">{waiting}<span className="ml-1.5 text-2xl">💌</span></p>
-            <p className="text-stone-400 text-xs mt-1">from {partnerName}, ready to open</p>
+            <p className={cls(big, 'text-[44px]')}>{waiting}</p>
+            <p className={cls(sub, 'mt-1')}>from {partnerName}, ready to open</p>
           </div>
-        ) : (
-          <p className="text-stone-300 text-sm leading-snug">Write {partnerName} an “open when” letter</p>
-        )}
-        {sealed != null && (
-          <p className={`text-stone-500 text-[11px] flex items-center gap-1 ${wide ? '' : 'mt-2'}`}><Lock size={11} /> one more opens in {sealed} day{sealed === 1 ? '' : 's'}</p>
-        )}
+        ) : <p className={sub}>Write {partnerName} an “open when” letter</p>}
+        {size === 's' && sealed}
       </div>
-    </Link>
-  )
-}
-
-export function BucketWidget({ dream, done, total, wide }: { dream: string | null; done: number; total: number; wide: boolean }) {
-  return (
-    <Link href="/bucket-list" className="tile h-full p-4 flex flex-col justify-between gap-3 min-h-[120px]">
-      <p className={`${eyebrow} flex items-center gap-1.5`}><Star size={12} /> Someday</p>
-      {total === 0 ? (
-        <p className="text-stone-300 text-sm leading-snug">Start your bucket list together</p>
-      ) : (
-        <div className={wide ? 'flex items-end justify-between gap-4' : ''}>
-          {dream && <p className="font-hand text-[22px] leading-[1.05] text-amber-100 line-clamp-2 min-w-0">{dream}</p>}
-          <div className={`shrink-0 ${wide ? 'w-28' : 'mt-2'}`}>
-            <div className="h-1.5 rounded-full bg-stone-800 overflow-hidden">
-              <div className="h-full rounded-full bg-amber-600" style={{ width: `${Math.round((done / total) * 100)}%` }} />
-            </div>
-            <p className="text-stone-500 text-[11px] mt-1">{done} of {total} done</p>
-          </div>
+      {size === 'm' && (
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
+          <span className="text-5xl" aria-hidden>{waiting > 0 ? '💌' : '✉️'}</span>
+          {sealed || <p className={sub}>{waiting > 0 ? 'Tap to open' : 'Seal one for later'}</p>}
         </div>
       )}
-    </Link>
+    </Shell>
   )
 }
 
-export function WatchlistWidget({ title, kind, left, wide }: { title: string | null; kind: string | null; left: number; wide: boolean }) {
+// ── Bucket list ───────────────────────────────────────────────────────────
+export function Ring({ pct, size = 44, children, color = 'stroke-emerald-400' }: { pct: number; size?: number; children?: React.ReactNode; color?: string }) {
+  const r = 42, c = 2 * Math.PI * r
   return (
-    <Link href="/watchlist" className="tile h-full p-4 flex flex-col justify-between gap-3 min-h-[120px]">
-      <p className={`${eyebrow} flex items-center gap-1.5`}><Clapperboard size={12} /> Up next</p>
-      {title ? (
-        <div className={wide ? 'flex items-end justify-between gap-4' : ''}>
-          <p className="text-amber-50 text-[17px] leading-snug line-clamp-2 min-w-0">{title}</p>
-          <p className="text-stone-500 text-[11px] mt-1 shrink-0">{kind === 'show' ? 'Show' : 'Movie'}{left > 1 ? ` · ${left - 1} more after` : ''}</p>
+    <span className="relative inline-grid place-items-center shrink-0" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
+        <circle cx="50" cy="50" r={r} fill="none" strokeWidth="12" className="stroke-stone-800" />
+        {pct > 0 && <circle cx="50" cy="50" r={r} fill="none" strokeWidth="12" strokeLinecap="round" className={color} strokeDasharray={`${c * Math.min(1, pct)} ${c}`} />}
+      </svg>
+      {children}
+    </span>
+  )
+}
+
+export function BucketWidget({ dream, done, total, size }: { dream: string | null; done: number; total: number; size: Size }) {
+  if (total === 0) {
+    return (
+      <Shell href="/bucket-list" className="justify-between">
+        <Label icon={Star} className="text-emerald-400">Someday</Label>
+        <p className={sub}>Start your bucket list together</p>
+      </Shell>
+    )
+  }
+  return (
+    <Shell href="/bucket-list" className={size === 'm' ? '!flex-row gap-4' : 'justify-between'}>
+      <div className={cls('flex flex-col justify-between min-w-0', size === 'm' ? 'flex-1' : 'h-full')}>
+        <div className="flex items-start justify-between gap-2">
+          <Label icon={Star} className="text-emerald-400">Someday</Label>
+          {size === 's' && <Ring pct={done / total} size={30} />}
         </div>
-      ) : (
-        <p className="text-stone-300 text-sm leading-snug">Add something to watch together</p>
+        {dream ? <p className="text-[17px] font-semibold leading-tight text-amber-50 line-clamp-3">{dream}</p> : <p className={sub}>You did them all 🎉</p>}
+      </div>
+      {size === 'm' && (
+        <div className="flex flex-col items-center justify-center gap-1.5">
+          <Ring pct={done / total} size={84}><span className={cls(big, 'text-xl')}>{done}</span></Ring>
+          <p className="text-[12px] text-stone-400">of {total} done</p>
+        </div>
       )}
-    </Link>
+    </Shell>
   )
 }
 
-export function SongWidget({ song, artist, note, by, wide }: { song: string | null; artist: string | null; note: string | null; by: string | null; wide: boolean }) {
+// ── Up next (watchlist) ───────────────────────────────────────────────────
+export function WatchlistWidget({ title, kind, left, size }: { title: string | null; kind: string | null; left: number; size: Size }) {
   return (
-    <Link href="/music" className="tile h-full p-4 flex flex-col justify-between gap-3 min-h-[120px]">
-      <p className={`${eyebrow} flex items-center gap-1.5`}><Music size={12} /> Our song</p>
-      {song ? (
-        <div className={wide ? 'flex items-center gap-3' : ''}>
-          {wide && <span className="grid place-items-center h-12 w-12 shrink-0 rounded-full bg-stone-800 text-xl animate-[spin_6s_linear_infinite] motion-reduce:animate-none" aria-hidden>💿</span>}
+    <Shell href="/watchlist" className={size === 'm' ? '!flex-row gap-4' : 'justify-between'}>
+      {size === 'm' && (
+        <span className="aspect-[2/3] h-full shrink-0 rounded-[12px] bg-gradient-to-br from-sky-500/50 via-indigo-500/30 to-stone-900 grid place-items-center text-3xl" aria-hidden>🎬</span>
+      )}
+      <div className="flex flex-col justify-between min-w-0 flex-1 h-full">
+        <Label icon={Clapperboard} className="text-sky-400">Up next</Label>
+        {title ? (
           <div className="min-w-0">
-            <p className="text-amber-50 text-[15px] leading-snug truncate">{song}</p>
-            <p className="text-stone-400 text-xs truncate">{artist}</p>
-            {wide && note && <p className="font-hand text-amber-200 text-lg leading-tight mt-1 line-clamp-1">“{note}”{by ? ` · ${by}` : ''}</p>}
+            <p className="text-[17px] font-semibold leading-tight text-amber-50 line-clamp-2">{title}</p>
+            <p className={cls(sub, 'mt-1')}>{kind === 'show' ? 'Show' : 'Movie'}{left > 1 ? ` · ${left - 1} more` : ''}</p>
           </div>
+        ) : <p className={sub}>Add something to watch together</p>}
+      </div>
+    </Shell>
+  )
+}
+
+// ── Our song (Music) ──────────────────────────────────────────────────────
+export function SongWidget({ song, artist, note, by, size }: { song: string | null; artist: string | null; note: string | null; by: string | null; size: Size }) {
+  if (!song) {
+    return (
+      <Shell href="/music" className="justify-between">
+        <Label icon={Music} className="text-rose-400">Our song</Label>
+        <p className={sub}>Save a song that’s yours</p>
+      </Shell>
+    )
+  }
+  return (
+    <Shell href="/music" className={size === 'm' ? '!flex-row gap-4' : 'justify-between'}>
+      <span className={cls('grid place-items-center shrink-0 rounded-[12px] bg-gradient-to-br from-rose-500 via-fuchsia-600 to-indigo-700 shadow-lg', size === 'm' ? 'h-full aspect-square' : 'h-14 w-14')} aria-hidden>
+        <Music size={size === 'm' ? 34 : 22} className="text-white/90" />
+      </span>
+      <div className={cls('flex flex-col min-w-0 flex-1', size === 'm' ? 'justify-between' : 'justify-end')}>
+        {size === 'm' && <Label icon={Music} className="text-rose-400">Our song</Label>}
+        <div className="min-w-0">
+          <p className="text-[15px] font-semibold leading-tight text-amber-50 truncate">{song}</p>
+          <p className={cls(sub, 'truncate')}>{artist}</p>
+          {size === 'm' && note && <p className="text-[12px] text-stone-500 mt-1 line-clamp-2">“{note}”{by ? ` · ${by}` : ''}</p>}
         </div>
-      ) : (
-        <p className="text-stone-300 text-sm leading-snug">Save a song that’s yours</p>
-      )}
+      </div>
+    </Shell>
+  )
+}
+
+// ── Notes (the journal) ───────────────────────────────────────────────────
+export function JournalWidget({ entry, size }: { entry: { id: string; title: string | null; body: string; by: string; ago: string } | null; size: Size }) {
+  return (
+    <Shell href={entry ? `/journal/${entry.id}` : '/journal/new'} pad={false}>
+      <div className="bg-amber-400 px-4 py-2.5 shrink-0"><Label icon={NotebookPen} className="text-stone-950">Notes</Label></div>
+      <div className="flex-1 min-h-0 px-4 py-3 flex flex-col gap-1">
+        {entry ? (
+          <>
+            <p className="text-[15px] font-semibold leading-tight text-amber-50 line-clamp-1">{entry.title || 'Untitled'}</p>
+            <p className={cls('text-[13px] leading-snug text-stone-300', size === 'm' ? 'line-clamp-3' : 'line-clamp-2')}>{entry.body}</p>
+            <p className="mt-auto text-[11px] text-stone-500">{entry.by} · {entry.ago}</p>
+          </>
+        ) : <p className={sub}>Write the first page of your journal</p>}
+      </div>
+    </Shell>
+  )
+}
+
+// ── Your move ─────────────────────────────────────────────────────────────
+export type Waiting = { href: string; icon: React.ElementType; title: string; sub?: string }
+
+export function MovesWidget({ waiting, size }: { waiting: Waiting[]; size: Size }) {
+  const show = waiting.slice(0, size === 'l' ? 5 : 2)
+  return (
+    <Shell className="gap-2">
+      <div className="flex items-center justify-between">
+        <Label icon={ChevronRight}>Your move</Label>
+        <span className="grid place-items-center min-w-5 h-5 px-1.5 rounded-full bg-amber-500 text-stone-950 text-[11px] font-bold">{waiting.length}</span>
+      </div>
+      <div className="flex-1 min-h-0 flex flex-col justify-center divide-y divide-stone-800/80">
+        {show.map((w, i) => {
+          const Icon = w.icon
+          return (
+            <Link key={i} href={w.href} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0 min-w-0">
+              <span className="grid place-items-center h-8 w-8 shrink-0 rounded-full bg-amber-500/15 text-amber-300"><Icon size={15} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-amber-50 text-[14px] font-medium truncate">{w.title}</span>
+                {w.sub && <span className="block text-stone-400 text-[12px] truncate">{w.sub}</span>}
+              </span>
+            </Link>
+          )
+        })}
+      </div>
+    </Shell>
+  )
+}
+
+// ── Continue watching ─────────────────────────────────────────────────────
+export function WatchingWidget({ id, title }: { id: string; title: string }) {
+  return (
+    <Shell href={`/watch/${id}`} className="!flex-row items-center gap-4 bg-gradient-to-r from-amber-700/25 to-transparent">
+      <span className="grid place-items-center h-14 w-14 shrink-0 rounded-full bg-amber-500 text-stone-950"><Play size={22} fill="currentColor" /></span>
+      <span className="min-w-0 flex-1">
+        <Label icon={Film}>Continue watching</Label>
+        <span className="block text-[17px] font-semibold text-amber-50 truncate mt-1.5">{title}</span>
+      </span>
+    </Shell>
+  )
+}
+
+// ── On this day (like the Photos widget) ──────────────────────────────────
+export function MemoryWidget({ href, photo, title, when, size }: { href: string; photo: string | null; title: string; when: string; size: Size }) {
+  return (
+    <Link href={href} className="relative block h-full w-full overflow-hidden rounded-[22px] bg-gradient-to-br from-amber-700/40 via-stone-800 to-stone-900">
+      {photo
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        : <span className="absolute inset-0 grid place-items-center font-serif text-6xl text-amber-100/30" aria-hidden>H.</span>}
+      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-4 pb-3.5 pt-10">
+        <span className="block text-[11px] font-semibold uppercase tracking-wider text-white/75">{when}</span>
+        <span className={cls('block font-semibold leading-tight text-white line-clamp-2', size === 'l' ? 'text-xl' : 'text-[15px]')}>{title}</span>
+      </span>
     </Link>
   )
 }
 
+// ── Shortcuts ─────────────────────────────────────────────────────────────
 const SHORTCUTS = [
-  { href: '/chat', label: 'Chat', icon: MessageCircle },
-  { href: '/games', label: 'Games', icon: Gamepad2 },
-  { href: '/memories', label: 'Memories', icon: BookOpen },
-  { href: '/letters', label: 'Letters', icon: Mail },
-  { href: '/journal', label: 'Journal', icon: PenLine },
-  { href: '/dates', label: 'Dates', icon: CalendarHeart },
-  { href: '/grow', label: 'Grow', icon: Sprout },
-  { href: '/todos', label: 'Todos', icon: CheckSquare },
+  { href: '/chat', label: 'Chat', icon: MessageCircle, color: 'from-sky-400 to-blue-600' },
+  { href: '/games', label: 'Games', icon: Gamepad2, color: 'from-violet-400 to-purple-600' },
+  { href: '/memories', label: 'Memories', icon: Images, color: 'from-amber-400 to-orange-600' },
+  { href: '/letters', label: 'Letters', icon: Mail, color: 'from-rose-400 to-pink-600' },
+  { href: '/journal', label: 'Journal', icon: PenLine, color: 'from-yellow-400 to-amber-600' },
+  { href: '/dates', label: 'Dates', icon: CalendarHeart, color: 'from-red-400 to-rose-600' },
+  { href: '/grow', label: 'Grow', icon: Sprout, color: 'from-emerald-400 to-green-600' },
+  { href: '/todos', label: 'Todos', icon: CheckSquare, color: 'from-teal-400 to-cyan-600' },
 ]
 
-export function ShortcutsWidget({ large }: { large: boolean }) {
-  const items = SHORTCUTS.slice(0, large ? 8 : 4)
+// Like the Shortcuts app: colored tiles with an icon and a name.
+export function ShortcutsWidget({ size }: { size: Size }) {
+  const items = SHORTCUTS.slice(0, size === 'l' ? 8 : 4)
   return (
-    <nav aria-label="Shortcuts" className="tile h-full p-3 grid grid-cols-4 gap-1">
-      {items.map(({ href, label, icon: Icon }) => (
-        <Link key={href} href={href} className="flex flex-col items-center gap-1.5 rounded-[18px] py-2 hover:bg-stone-800/50 transition-colors">
-          <span className="grid place-items-center h-11 w-11 rounded-[14px] bg-amber-700/20 text-amber-300"><Icon size={19} /></span>
-          <span className="text-stone-300 text-[11px]">{label}</span>
-        </Link>
-      ))}
+    <nav aria-label="Shortcuts" className={cls('tile !rounded-[22px] h-full w-full grid grid-cols-2 gap-2 p-2.5', size === 'l' && 'grid-rows-4')}>
+      {items.map(({ href, label, icon: Icon, color }) => size === 's'
+        ? <Link key={href} href={href} aria-label={label} className={cls('grid place-items-center rounded-[14px] bg-gradient-to-br text-white', color)}><Icon size={22} /></Link>
+        : (
+          <Link key={href} href={href} className={cls('flex flex-col justify-between rounded-[14px] bg-gradient-to-br p-3 text-white', color)}>
+            <Icon size={20} />
+            <span className="text-[14px] font-semibold leading-none">{label}</span>
+          </Link>
+        ))}
     </nav>
   )
 }

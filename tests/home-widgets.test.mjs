@@ -18,18 +18,19 @@ test('saved layouts drop unknown widgets and repeats, and fix bad sizes', () => 
       { id: 'question', size: 'l' },
       { id: 'rocket', size: 's' },
       { id: 'question', size: 'm' },
-      { id: 'heart', size: 'l' }, // heart has no large size
+      { id: 'heart', size: 'l' }, // heart only comes small
       null,
       { id: 'photos' },
     ]),
-    [{ id: 'question', size: 'l' }, { id: 'heart', size: 's' }, { id: 'photos', size: 'm' }],
+    [{ id: 'question', size: 'l' }, { id: 'heart', size: 's' }, { id: 'photos', size: 's' }],
   )
   assert.deepEqual(normalizeLayout([]), [])
 })
 
 test('the size button cycles through a widget’s sizes', () => {
   assert.equal(nextSize('memory', 's'), 'm')
-  assert.equal(nextSize('memory', 'm'), 's')
+  assert.equal(nextSize('memory', 'm'), 'l')
+  assert.equal(nextSize('memory', 'l'), 's')
   assert.equal(nextSize('watching', 'm'), 'm')
 })
 

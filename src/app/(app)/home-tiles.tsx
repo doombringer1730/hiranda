@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Heart } from 'lucide-react'
+import { Heart, ListChecks } from 'lucide-react'
 import { sendLove } from './love-actions'
+import { toggleTodo } from './todos/actions'
 import { haptic } from '@/lib/feel'
 
 const EASE = (t: number) => 1 - Math.pow(1 - t, 4)
@@ -101,7 +102,7 @@ export function PhotoFrame({ photos, large }: { photos: { url: string; caption: 
 
   if (!photos.length) {
     return (
-      <Link href="/memories/new" className="tile h-full min-h-[160px] p-4 flex flex-col items-center justify-center gap-1 text-center">
+      <Link href="/memories/new" className="tile h-full w-full p-4 flex flex-col items-center justify-center gap-1 text-center">
         <span className="text-2xl" aria-hidden>🖼️</span>
         <span className="text-stone-300 text-sm">Add a memory with a photo to fill your frame</span>
       </Link>
@@ -109,7 +110,7 @@ export function PhotoFrame({ photos, large }: { photos: { url: string; caption: 
   }
   const now = photos[i % photos.length]
   return (
-    <Link href={now.href} className={`relative block h-full overflow-hidden rounded-[24px] bg-stone-900 ring-[6px] ring-[#efe8da] ${large ? 'min-h-[320px] md:min-h-[380px]' : 'min-h-[180px]'}`}>
+    <Link href={now.href} className="relative block h-full w-full overflow-hidden rounded-[22px] bg-stone-900">
       {photos.map((p, n) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -121,8 +122,51 @@ export function PhotoFrame({ photos, large }: { photos: { url: string; caption: 
         />
       ))}
       {now.caption && (
-        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-8 font-hand text-[22px] leading-none text-amber-50 truncate">{now.caption}</span>
+        <span className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-4 pb-3.5 pt-10 font-semibold leading-tight text-white truncate ${large ? 'text-lg' : 'text-[14px]'}`}>{now.caption}</span>
       )}
     </Link>
+  )
+}
+
+// Reminders: your shared to-dos, ticked off right on Home.
+export function TodosWidget({ todos, size }: { todos: { id: string; text: string }[]; size: 's' | 'm' | 'l' }) {
+  const [done, setDone] = useState<Set<string>>(new Set())
+  const [, startTransition] = useTransition()
+  const open = todos.length - done.size
+  function tick(id: string) {
+    haptic()
+    const on = !done.has(id)
+    setDone(d => { const n = new Set(d); if (on) n.add(id); else n.delete(id); return n })
+    startTransition(async () => { await toggleTodo(id, on) })
+  }
+  const show = todos.slice(0, size === 'l' ? 9 : size === 'm' ? 4 : 2)
+  return (
+    <div className="tile h-full w-full p-4 md:p-5 flex flex-col gap-2">
+      <div className="flex items-start justify-between">
+        <Link href="/todos" className="flex items-center gap-1.5 text-[13px] font-semibold text-sky-400"><ListChecks size={14} strokeWidth={2.5} /> Reminders</Link>
+        <span className="text-[26px] font-semibold leading-none text-sky-400 tabular-nums">{open}</span>
+      </div>
+      {todos.length === 0 ? (
+        <Link href="/todos" className="text-[13px] text-stone-400">All done. Add one for the two of you.</Link>
+      ) : (
+        <ul className={`flex-1 min-h-0 ${size === 'm' ? 'grid grid-cols-2 gap-x-4 content-start' : 'flex flex-col'}`}>
+          {show.map(t => {
+            const checked = done.has(t.id)
+            return (
+              <li key={t.id} className="flex items-center gap-2.5 py-1.5 border-b border-stone-800/70 min-w-0">
+                <button
+                  onClick={() => tick(t.id)}
+                  aria-label={checked ? `Mark “${t.text}” not done` : `Mark “${t.text}” done`}
+                  className={`grid place-items-center h-[18px] w-[18px] shrink-0 rounded-full border-[1.5px] transition-colors ${checked ? 'border-sky-400 bg-sky-400' : 'border-stone-500'}`}
+                >
+                  {checked && <span className="h-2 w-2 rounded-full bg-stone-950" />}
+                </button>
+                <span className={`text-[13px] truncate ${checked ? 'text-stone-500 line-through' : 'text-amber-50'}`}>{t.text}</span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
   )
 }
