@@ -164,7 +164,7 @@ export default function DailyQuestion({ myId, partnerId, partnerName }: {
         </div>
       )}
       {!both && (
-        <p className={`mt-auto pt-1 ${muted} text-[11px]`}>Answers stay hidden until you both reply · feeds your streak 🔥</p>
+        <p className={`mt-auto pt-1 ${muted} text-[11px]`}>Answers stay hidden until you both reply · feeds your flame 🔥</p>
       )}
     </section>
   )

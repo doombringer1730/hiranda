@@ -1,5 +1,6 @@
 import { Flame, Heart } from 'lucide-react'
 import { CountUp } from './home-tiles'
+import type { FlameState } from '@/lib/flame'
 
 const MILESTONES = [3, 7, 30, 100, 365]
 
@@ -103,25 +104,24 @@ export function FlameWidget({ streak, fedToday, partnerMissing, days }: {
   )
 }
 
-// Square bento tile: the streak as a big number, days together underneath.
-export function FlameTile({ streak, fedToday, partnerMissing }: {
-  streak: number
-  fedToday: boolean
-  partnerMissing: boolean
-}) {
-  const next = MILESTONES.find(m => m > streak)
+// Home tile. Flame 2.0 (src/lib/flame.ts): it counts days you showed up for
+// each other, forgives busy days, and never says anything was broken.
+export function FlameTile({ flame, partnerMissing }: { flame: FlameState; partnerMissing: boolean }) {
+  const { days, fedToday, resting, cozyLeft, cozyUsed } = flame
+  const next = MILESTONES.find(m => m > days)
+  const restedRecently = cozyUsed.length > 0 && !fedToday
   return (
     <section className="tile px-4 py-3.5 flex items-center gap-4">
-      <div className="shrink-0 -my-1"><FlamePet streak={streak} size={38} /></div>
+      <div className={`shrink-0 -my-1 transition-opacity ${restedRecently ? 'opacity-70' : ''}`}><FlamePet streak={days} size={38} /></div>
       <div className="min-w-0 flex-1">
         <p className="font-serif text-2xl leading-none text-amber-50">
-          <CountUp value={streak} /> <span className="text-stone-300 text-lg">{streak === 1 ? 'day' : 'days'} lit{fedToday ? ' 🔥' : ''}</span>
+          <CountUp value={days} /> <span className="text-stone-300 text-lg">{days === 1 ? 'day' : 'days'} lit{fedToday ? ' 🔥' : ''}</span>
         </p>
         <p className="text-stone-400 text-xs mt-1 truncate">
           {partnerMissing ? 'Invite your partner to light it'
-            : fedToday ? (next ? `Fed today · ${next - streak} to the ${next}-day mark` : 'Fed today')
-            : streak > 0 ? 'Anything you two do today adds to it'
-            : 'We were on a break 🦞 — anything together relights it'}
+            : resting ? 'Resting. Anything you do together relights it'
+            : fedToday ? (next ? `Lit today · ${next - days} to the ${next}-day mark` : 'Lit today')
+            : `Busy day? It keeps. ${cozyLeft} cozy day${cozyLeft === 1 ? '' : 's'} left this month`}
         </p>
       </div>
       {!fedToday && !partnerMissing && <Flame size={16} className="shrink-0 text-amber-400/70" />}
