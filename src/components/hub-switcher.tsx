@@ -2,15 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { hubsFor, hubFor } from '@/lib/hubs'
+import { HUBS, hubFor } from '@/lib/hubs'
 import { haptic } from '@/lib/feel'
 
 // The segmented control at the top of a hub (Us, Plan, Shelf, Play), shown
 // only on a hub's top-level pages — detail pages get their own back links.
 // Never rendered on /watch or /party.
-export default function HubSwitcher({ theaterUnlocked = false }: { theaterUnlocked?: boolean }) {
+export default function HubSwitcher() {
   const pathname = usePathname()
-  const hubs = hubsFor(theaterUnlocked)
+  const hubs = HUBS
   const hub = hubFor(pathname, hubs)
   if (!hub || hub.items.length < 2) return null
   if (/^\/(watch|party)(\/|$)/.test(pathname)) return null
