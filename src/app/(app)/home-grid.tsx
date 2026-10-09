@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { Minus, Plus, X, Lock, LayoutGrid, RotateCcw, ChevronRight } from 'lucide-react'
+import { Minus, Plus, X, Lock, LayoutGrid, RotateCcw, ChevronRight, Layers, Check } from 'lucide-react'
 import {
-  WIDGETS, WIDGET_IDS, SIZE_NAMES, DEFAULT_LAYOUT, nextSize, moveItem,
-  type LayoutItem, type WidgetId, type WidgetSize,
+  WIDGETS, WIDGET_IDS, SIZE_NAMES, DEFAULT_LAYOUT, TINTS, nextSize, moveItem, idsOf, sizesOf,
+  type LayoutItem, type WidgetId, type WidgetSize, type Tint,
 } from '@/lib/home-widgets'
 import { saveHomeLayout } from './home-actions'
 import { haptic, toast } from '@/lib/feel'
@@ -30,7 +30,22 @@ const GRID_CSS = `
   .hw-jiggle { animation: hw-jiggle 0.3s ease-in-out infinite; }
   .hw-jiggle-b { animation-delay: -0.15s; }
   @media (prefers-reduced-motion: reduce) { .hw-jiggle { animation: none; } }
+  .hw-stack { scrollbar-width: none; }
+  .hw-stack::-webkit-scrollbar { display: none; }
+  /* Tinted widgets: one color washed over the widget, like iOS. Mixed with
+     the theme's own surface so it suits whichever theme you use. */
+  .hw-tinted .tile { background: linear-gradient(160deg,
+      color-mix(in oklab, var(--tint) 38%, var(--color-stone-900)),
+      color-mix(in oklab, var(--tint) 12%, var(--color-stone-900))) !important; }
+  .hw-tint-mono > * { filter: grayscale(1); }
 `
+
+// The swatch color for each tint.
+const TINT_COLOR: Record<Tint, string> = {
+  rose: '#e8738f', peach: '#f0a072', butter: '#e9c869', sage: '#8fbf8a', sky: '#72a8e0', lilac: '#a993dc', mono: '#9a948c',
+}
+const TINT_NAMES: Record<Tint, string> = { rose: 'Rose', peach: 'Peach', butter: 'Butter', sage: 'Sage', sky: 'Sky', lilac: 'Lilac', mono: 'Mono' }
+const tintStyle = (t?: Tint) => t ? ({ '--tint': TINT_COLOR[t] }) as React.CSSProperties : undefined
 
 const HOLD_MS = 220 // touch: hold this long to pick a widget up
 const SLOP = 8 // px a finger may drift during the hold before it counts as a scroll
@@ -62,6 +77,7 @@ export default function HomeGrid({ initial, nodes, plus }: {
   const [layout, setLayout] = useState(initial)
   const [editing, setEditing] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [options, setOptions] = useState<WidgetId | null>(null) // the widget whose options sheet is open
   const [dirty, setDirty] = useState(false)
   const [dragId, setDragId] = useState<WidgetId | null>(null)
   const [saving, startSaving] = useTransition()
@@ -72,7 +88,7 @@ export default function HomeGrid({ initial, nodes, plus }: {
   const lastPos = useRef(new Map<string, { x: number; y: number }>())
   const raf = useRef(0)
 
-  const nodeFor = (i: LayoutItem) => nodes[`${i.id}:${i.size}`] ?? nodes[i.id] ?? null
+  const nodeFor = (i: { id: WidgetId; size: WidgetSize }) => nodes[`${i.id}:${i.size}`] ?? nodes[i.id] ?? null
   // A Plus widget stays in the saved layout if Plus lapses; it just hides.
   const shown = layout.filter(i => plus || !WIDGETS[i.id].plus)
 
@@ -174,10 +190,12 @@ export default function HomeGrid({ initial, nodes, plus }: {
     if (d) { d.x = e.clientX; d.y = e.clientY }
   }
 
-  function drop() {
+  function drop(e?: React.PointerEvent) {
     const p = pending.current
     if (p?.timer) clearTimeout(p.timer)
     pending.current = null
+    // A tap (not a drag) in edit mode opens that widget's options.
+    if (p && e?.type === 'pointerup' && p.pointerId === e.pointerId) { haptic(); setOptions(p.id); return }
     const d = drag.current
     if (!d) return
     drag.current = null
@@ -211,10 +229,18 @@ export default function HomeGrid({ initial, nodes, plus }: {
   }
 
   const remove = (id: WidgetId) => { haptic(); update(layout.filter(i => i.id !== id)) }
-  const resize = (id: WidgetId) => { haptic(); update(layout.map(i => i.id === id ? { ...i, size: nextSize(i.id, i.size) } : i)) }
+  const resize = (id: WidgetId) => { haptic(); update(layout.map(i => i.id === id ? { ...i, size: nextSize(i.id, i.size, i.stack) } : i)) }
+  // Swap one spot for its new self (and any widget split off it). Widgets that
+  // joined its stack leave their own spots.
+  const change = (id: WidgetId, next: LayoutItem | null, extra: LayoutItem[] = []) => {
+    haptic()
+    const joined = new Set(next?.stack ?? [])
+    update(layout.flatMap(i => i.id === id ? [...(next ? [next] : []), ...extra] : joined.has(i.id) ? [] : [i]))
+    setOptions(next?.id ?? null)
+  }
   const add = (id: WidgetId, size: WidgetSize) => {
     haptic()
-    update([{ id, size }, ...layout.filter(i => i.id !== id)])
+    update([{ id, size }, ...layout.filter(i => i.id !== id).map(i => i.stack?.includes(id) ? { ...i, stack: i.stack.filter(s => s !== id) } : i)])
     setAdding(false)
     window.scrollTo({ top: gridRef.current ? gridRef.current.getBoundingClientRect().top + window.scrollY - 120 : 0, behavior: 'smooth' })
   }
@@ -240,7 +266,7 @@ export default function HomeGrid({ initial, nodes, plus }: {
       else setDirty(false)
     })
   }, [dirty, layout])
-  useEscape(editing && !adding, finish)
+  useEscape(editing && !adding && !options, finish)
 
   return (
     <div className={`w-full ${editing ? 'select-none' : ''}`}>
@@ -261,13 +287,15 @@ export default function HomeGrid({ initial, nodes, plus }: {
         ref={gridRef}
         onPointerMove={onPointerMove}
         onPointerUp={drop}
-        onPointerCancel={drop}
+        onPointerCancel={() => drop()}
         className="hw-grid relative"
       >
         {shown.map((item, n) => {
           const meta = WIDGETS[item.id]
-          const node = nodeFor(item)
-          if (!node && !editing) return null
+          const members = idsOf(item).map(id => ({ id, node: nodeFor({ id, size: item.size }) }))
+          const visible = editing ? members : members.filter(m => m.node)
+          if (!visible.length) return null
+          const stacked = item.stack?.length ? visible : null
           const lifted = dragId === item.id
           return (
             <div
@@ -276,21 +304,17 @@ export default function HomeGrid({ initial, nodes, plus }: {
               tabIndex={editing ? 0 : undefined}
               role={editing ? 'button' : undefined}
               aria-roledescription={editing ? 'movable widget' : undefined}
-              aria-label={editing ? `${meta.name}, ${SIZE_NAMES[item.size].toLowerCase()}. Position ${n + 1} of ${shown.length}. Arrow keys move it.` : undefined}
+              aria-label={editing ? `${item.stack?.length ? `Stack of ${idsOf(item).map(id => WIDGETS[id].name).join(', ')}` : meta.name}, ${SIZE_NAMES[item.size].toLowerCase()}. Position ${n + 1} of ${shown.length}. Arrow keys move it; tap for options.` : undefined}
               onPointerDown={e => onPointerDown(e, item.id)}
               onKeyDown={e => onKey(e, item.id)}
               onContextMenu={editing ? e => e.preventDefault() : undefined}
               className={`hw-cell relative min-w-0 min-h-0 ${SPAN[item.size]} ${editing ? 'cursor-grab [-webkit-touch-callout:none] outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-[22px]' : ''} ${lifted ? 'z-20 cursor-grabbing' : ''}`}
             >
               <div className={`h-full ${editing && !lifted ? `hw-jiggle ${n % 2 ? 'hw-jiggle-b' : ''}` : ''} ${lifted ? 'scale-[1.04] drop-shadow-2xl' : ''} transition-transform`}>
-                <div inert={editing} className={`h-full w-full overflow-hidden rounded-[22px] ${editing ? 'pointer-events-none' : ''}`}>
-                  {node ?? (
-                    <div className="tile h-full w-full p-4 flex flex-col items-center justify-center gap-1 text-center">
-                      <span className="text-2xl" aria-hidden>{meta.emoji}</span>
-                      <span className="text-amber-50 text-sm">{meta.name}</span>
-                      <span className="text-stone-500 text-[11px] leading-snug line-clamp-3">{meta.blurb} Shows up when there’s something here.</span>
-                    </div>
-                  )}
+                <div inert={editing} style={tintStyle(item.tint)} className={`h-full w-full overflow-hidden rounded-[22px] ${item.tint ? `hw-tinted hw-tint-${item.tint}` : ''} ${editing ? 'pointer-events-none' : ''}`}>
+                  {stacked
+                    ? <Stack members={stacked} editing={editing} />
+                    : visible[0].node ?? <Placeholder id={item.id} />}
                 </div>
               </div>
 
@@ -304,11 +328,11 @@ export default function HomeGrid({ initial, nodes, plus }: {
                   >
                     <Minus size={15} strokeWidth={3} />
                   </button>
-                  {meta.sizes.length > 1 && (
+                  {sizesOf(item).length > 1 && (
                     <button
                       data-nodrag
                       onClick={() => resize(item.id)}
-                      aria-label={`${meta.name} is ${SIZE_NAMES[item.size].toLowerCase()}. Make it ${SIZE_NAMES[nextSize(item.id, item.size)].toLowerCase()}`}
+                      aria-label={`${meta.name} is ${SIZE_NAMES[item.size].toLowerCase()}. Make it ${SIZE_NAMES[nextSize(item.id, item.size, item.stack)].toLowerCase()}`}
                       className="absolute -right-1.5 -bottom-1.5 z-10 flex items-center gap-1 rounded-full bg-stone-700 px-2.5 h-7 text-[11px] font-medium text-amber-50 shadow-lg ring-1 ring-black/30"
                     >
                       <LayoutGrid size={12} /> {SIZE_NAMES[item.size]}
@@ -339,6 +363,18 @@ export default function HomeGrid({ initial, nodes, plus }: {
           </button>
         </div>
       )}
+
+      {options && (() => {
+        const item = layout.find(i => i.id === options)
+        return item ? (
+          <OptionsSheet
+            item={item}
+            layout={layout}
+            onChange={(next, extra) => change(item.id, next, extra)}
+            onClose={() => setOptions(null)}
+          />
+        ) : null
+      })()}
 
       {adding && (
         <AddSheet
@@ -378,7 +414,7 @@ function Preview({ node, size, unit, meta }: { node: React.ReactNode; size: Widg
 function AddSheet({ layout, plus, nodeFor, unit, onAdd, onReset, onClose }: {
   layout: LayoutItem[]
   plus: boolean
-  nodeFor: (i: LayoutItem) => React.ReactNode
+  nodeFor: (i: { id: WidgetId; size: WidgetSize }) => React.ReactNode
   unit: number
   onAdd: (id: WidgetId, size: WidgetSize) => void
   onReset: () => void
@@ -388,7 +424,7 @@ function AddSheet({ layout, plus, nodeFor, unit, onAdd, onReset, onClose }: {
   const [size, setSize] = useState<WidgetSize>('s')
   const close = useCallback(() => { if (open) setOpen(null); else onClose() }, [open, onClose])
   useEscape(true, close)
-  const onHome = new Set(layout.map(i => i.id))
+  const onHome = new Set(layout.flatMap(idsOf))
   const choices = WIDGET_IDS.filter(id => !plus || !onHome.has(id))
   const pick = (id: WidgetId) => { haptic(); setOpen(id); setSize(WIDGETS[id].sizes[0]) }
 
@@ -463,6 +499,149 @@ function AddSheet({ layout, plus, nodeFor, unit, onAdd, onReset, onClose }: {
             )}
           </>
         )}
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+function Placeholder({ id }: { id: WidgetId }) {
+  const meta = WIDGETS[id]
+  return (
+    <div className="tile h-full w-full p-4 flex flex-col items-center justify-center gap-1 text-center">
+      <span className="text-2xl" aria-hidden>{meta.emoji}</span>
+      <span className="text-amber-50 text-sm">{meta.name}</span>
+      <span className="text-stone-500 text-[11px] leading-snug line-clamp-3">{meta.blurb} Shows up when there’s something here.</span>
+    </div>
+  )
+}
+
+// A Smart Stack: widgets sharing one spot. Swipe sideways through them; it
+// opens on Your move when something is waiting on you.
+function Stack({ members, editing }: { members: { id: WidgetId; node: React.ReactNode }[]; editing: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [at, setAt] = useState(0)
+  useEffect(() => {
+    const el = ref.current
+    const start = members.findIndex(m => m.id === 'moves' && m.node)
+    if (el && start > 0) el.scrollLeft = start * el.clientWidth
+    // Only when it first appears.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  return (
+    <div className="relative h-full w-full">
+      <div
+        ref={ref}
+        onScroll={e => setAt(Math.round(e.currentTarget.scrollLeft / Math.max(1, e.currentTarget.clientWidth)))}
+        className="hw-stack h-full w-full flex overflow-x-auto snap-x snap-mandatory overscroll-x-contain"
+      >
+        {members.map(m => (
+          <div key={m.id} className="h-full w-full shrink-0 snap-center snap-always">
+            {m.node ?? <Placeholder id={m.id} />}
+          </div>
+        ))}
+      </div>
+      <div className="pointer-events-none absolute bottom-1.5 inset-x-0 flex justify-center gap-1" aria-hidden>
+        {members.map((m, i) => (
+          <span key={m.id} className={`h-1.5 rounded-full transition-all ${i === at ? 'w-3 bg-amber-50/90' : 'w-1.5 bg-amber-50/35'}`} />
+        ))}
+      </div>
+      {editing && (
+        <span className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px] text-amber-50"><Layers size={10} /> {members.length}</span>
+      )}
+    </div>
+  )
+}
+
+// Tap a widget while editing: its size, its color, and stacking it with others.
+function OptionsSheet({ item, layout, onChange, onClose }: {
+  item: LayoutItem
+  layout: LayoutItem[]
+  onChange: (next: LayoutItem | null, extra?: LayoutItem[]) => void
+  onClose: () => void
+}) {
+  useEscape(true, onClose)
+  const ids = idsOf(item)
+  const sizes = sizesOf(item)
+  // Others on Home that could join this stack (same size, and not a stack themselves).
+  const joinable = layout.filter(i => i.id !== item.id && !i.stack?.length && i.size === item.size && WIDGETS[i.id].sizes.includes(item.size))
+  const set = (patch: Partial<LayoutItem>) => onChange({ ...item, ...patch })
+  const join = (other: LayoutItem) => {
+    if (ids.length >= 10) return
+    // The other widget leaves its own spot and joins this one.
+    onChange({ ...item, stack: [...(item.stack ?? []), other.id] })
+  }
+  const takeOut = (id: WidgetId) => {
+    const rest = ids.filter(x => x !== id)
+    const [top, ...more] = rest
+    onChange({ ...item, id: top, stack: more.length ? more : undefined }, [{ id, size: item.size }])
+  }
+
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label={`${WIDGETS[item.id].name} options`} className="fixed inset-0 z-[70] flex items-end md:items-center justify-center">
+      <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/55 animate-fade" />
+      <div className="relative w-full md:max-w-md max-h-[88dvh] overflow-y-auto rounded-t-[28px] md:rounded-[28px] bg-stone-900 px-5 pt-5 pb-[calc(20px+env(safe-area-inset-bottom))] animate-sheet">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[20px] font-semibold text-amber-50 truncate">
+            {ids.length > 1 ? 'Smart Stack' : <>{WIDGETS[item.id].emoji} {WIDGETS[item.id].name}</>}
+          </h2>
+          <button onClick={onClose} className="rounded-full bg-amber-500 px-4 py-1.5 text-sm font-semibold text-stone-950">Done</button>
+        </div>
+
+        {sizes.length > 1 && (
+          <section className="mb-5">
+            <p className="text-stone-400 text-xs uppercase tracking-[0.16em] mb-2">Size</p>
+            <div className="flex items-center gap-1 rounded-full bg-stone-800/70 p-1 w-fit">
+              {sizes.map(s => (
+                <button key={s} onClick={() => set({ size: s })} aria-pressed={s === item.size} className={`rounded-full px-4 py-1.5 text-xs transition-colors ${s === item.size ? 'bg-stone-600 text-amber-50' : 'text-stone-400'}`}>{SIZE_NAMES[s]}</button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="mb-5">
+          <p className="text-stone-400 text-xs uppercase tracking-[0.16em] mb-2">Color</p>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button onClick={() => set({ tint: undefined })} aria-pressed={!item.tint} aria-label="No color"
+              className={`grid place-items-center h-9 w-9 rounded-full bg-stone-800 ring-offset-2 ring-offset-stone-900 ${!item.tint ? 'ring-2 ring-amber-400' : ''}`}>
+              {!item.tint && <Check size={14} className="text-amber-50" />}
+            </button>
+            {TINTS.map(t => (
+              <button key={t} onClick={() => set({ tint: t })} aria-pressed={item.tint === t} aria-label={TINT_NAMES[t]}
+                style={{ background: TINT_COLOR[t] }}
+                className={`grid place-items-center h-9 w-9 rounded-full ring-offset-2 ring-offset-stone-900 ${item.tint === t ? 'ring-2 ring-amber-400' : ''}`}>
+                {item.tint === t && <Check size={14} className="text-stone-950" />}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <p className="text-stone-400 text-xs uppercase tracking-[0.16em] mb-1">Smart Stack</p>
+          <p className="text-stone-500 text-xs mb-2">Stack widgets in one spot and swipe between them.</p>
+          {ids.length > 1 && (
+            <ul className="mb-3 flex flex-col gap-1">
+              {ids.map(id => (
+                <li key={id} className="flex items-center gap-3 rounded-[14px] bg-stone-800/50 px-3 py-2">
+                  <span aria-hidden>{WIDGETS[id].emoji}</span>
+                  <span className="flex-1 text-sm text-amber-50">{WIDGETS[id].name}</span>
+                  <button onClick={() => takeOut(id)} className="text-xs text-amber-400">Take out</button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {joinable.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {joinable.map(o => (
+                <button key={o.id} onClick={() => join(o)} className="flex items-center gap-1.5 rounded-full bg-stone-800 px-3 py-1.5 text-xs text-amber-50">
+                  <Plus size={12} /> {WIDGETS[o.id].emoji} {WIDGETS[o.id].name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-stone-500 text-xs">Other {SIZE_NAMES[item.size].toLowerCase()} widgets on your Home can join this one.</p>
+          )}
+        </section>
       </div>
     </div>,
     document.body,

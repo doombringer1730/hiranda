@@ -9,9 +9,14 @@ export type WidgetSize = 's' | 'm' | 'l'
 export type WidgetId =
   | 'moves' | 'question' | 'talk' | 'memory' | 'countdown' | 'heart' | 'flame' | 'watching'
   | 'clocks' | 'calendar' | 'todos' | 'journal' | 'days' | 'letters' | 'bucket' | 'watchlist' | 'song'
-  | 'shortcuts' | 'photos'
+  | 'shortcuts' | 'photos' | 'partner' | 'note' | 'weather' | 'week' | 'jar' | 'grow'
 
-export type LayoutItem = { id: WidgetId; size: WidgetSize }
+// A tint washes a widget in one color, like tinted widgets on iOS.
+export const TINTS = ['rose', 'peach', 'butter', 'sage', 'sky', 'lilac', 'mono'] as const
+export type Tint = (typeof TINTS)[number]
+
+// `stack`: more widgets sharing this spot (a Smart Stack); swipe between them.
+export type LayoutItem = { id: WidgetId; size: WidgetSize; tint?: Tint; stack?: WidgetId[] }
 
 export type WidgetMeta = {
   name: string
@@ -23,6 +28,12 @@ export type WidgetMeta = {
 
 // In the order the widget gallery lists them.
 export const WIDGETS: Record<WidgetId, WidgetMeta> = {
+  partner:   { name: 'Partner', emoji: '🫶', blurb: 'Their photo, their status, and what they’re up to now.', sizes: ['s', 'm'] },
+  note:      { name: 'Sticky note', emoji: '🗒️', blurb: 'A note you both can write on, right on Home.', sizes: ['s', 'm', 'l'] },
+  weather:   { name: 'Weather', emoji: '⛅', blurb: 'The weather where each of you is.', sizes: ['s', 'm'] },
+  week:      { name: 'This week', emoji: '🌿', blurb: 'The days this week you showed up for each other.', sizes: ['s', 'm'] },
+  jar:       { name: 'Date jar', emoji: '🫙', blurb: 'What’s waiting in your jar, and what you last drew.', sizes: ['s', 'm'] },
+  grow:      { name: 'Grow', emoji: '🌱', blurb: 'Your next lesson together, and how far you’ve come.', sizes: ['s', 'm'] },
   moves:     { name: 'Your move', emoji: '👉', blurb: 'Messages, games and answers waiting on you.', sizes: ['m', 'l'] },
   question:  { name: 'Daily question', emoji: '💬', blurb: 'Today’s question for the two of you.', sizes: ['l'] },
   talk:      { name: 'Talk time', emoji: '⏱️', blurb: 'Start a timed talk together.', sizes: ['l'] },
@@ -32,7 +43,7 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
   journal:   { name: 'Notes', emoji: '📝', blurb: 'The latest page from your journal.', sizes: ['s', 'm'] },
   memory:    { name: 'On this day', emoji: '📸', blurb: 'A memory from this date, or one from the archive.', sizes: ['s', 'm', 'l'] },
   countdown: { name: 'Countdown', emoji: '⏳', blurb: 'Days until your next important date.', sizes: ['s', 'm'] },
-  heart:     { name: 'Thinking of you', emoji: '💗', blurb: 'One tap sends a heart.', sizes: ['s'] },
+  heart:     { name: 'Thinking of you', emoji: '💗', blurb: 'One tap sends a heart.', sizes: ['s', 'm'] },
   flame:     { name: 'Flame', emoji: '🔥', blurb: 'How many days you’ve kept it lit.', sizes: ['s', 'm'] },
   watching:  { name: 'Continue watching', emoji: '🍿', blurb: 'Jump back into your movie night.', sizes: ['m'] },
   days:      { name: 'Days together', emoji: '💞', blurb: 'Every day since you got together.', sizes: ['s', 'm'] },
@@ -63,26 +74,42 @@ export const DEFAULT_LAYOUT: readonly LayoutItem[] = [
   { id: 'watching', size: 'm' },
 ]
 
-/** Clean up a saved layout: known widgets only, each once, at a size it has. */
+/** Clean up a saved layout: known widgets only, each once (stacks
+ * included), at a size it has, with a known tint. */
 export function normalizeLayout(raw: unknown): LayoutItem[] {
   if (!Array.isArray(raw)) return DEFAULT_LAYOUT.map(i => ({ ...i }))
   const seen = new Set<WidgetId>()
+  const known = (id: unknown): id is WidgetId => typeof id === 'string' && id in WIDGETS && !seen.has(id as WidgetId)
   const out: LayoutItem[] = []
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue
-    const { id, size } = item as { id?: unknown; size?: unknown }
-    if (typeof id !== 'string' || !(id in WIDGETS) || seen.has(id as WidgetId)) continue
-    const meta = WIDGETS[id as WidgetId]
-    seen.add(id as WidgetId)
-    out.push({ id: id as WidgetId, size: meta.sizes.includes(size as WidgetSize) ? size as WidgetSize : meta.sizes[0] })
+    const { id, size, tint, stack } = item as { id?: unknown; size?: unknown; tint?: unknown; stack?: unknown }
+    if (!known(id)) continue
+    seen.add(id)
+    const next: LayoutItem = { id, size: WIDGETS[id].sizes.includes(size as WidgetSize) ? size as WidgetSize : WIDGETS[id].sizes[0] }
+    if (TINTS.includes(tint as Tint)) next.tint = tint as Tint
+    if (Array.isArray(stack)) {
+      const more = stack.filter((s): s is WidgetId => known(s) && WIDGETS[s].sizes.includes(next.size)).slice(0, 9)
+      for (const s of more) seen.add(s)
+      if (more.length) next.stack = more
+    }
+    out.push(next)
   }
   return out
 }
 
+/** Every widget in a spot: the top one, then the rest of its stack. */
+export const idsOf = (i: LayoutItem): WidgetId[] => [i.id, ...(i.stack ?? [])]
+
+/** Sizes every widget in a spot shares (a stack resizes as one). */
+export function sizesOf(i: LayoutItem): WidgetSize[] {
+  return WIDGETS[i.id].sizes.filter(s => (i.stack ?? []).every(o => WIDGETS[o].sizes.includes(s)))
+}
+
 /** The next size up, wrapping back to the smallest (the size button cycles). */
-export function nextSize(id: WidgetId, size: WidgetSize): WidgetSize {
-  const sizes = WIDGETS[id].sizes
-  return sizes[(sizes.indexOf(size) + 1) % sizes.length]
+export function nextSize(id: WidgetId, size: WidgetSize, stack: WidgetId[] = []): WidgetSize {
+  const sizes = sizesOf({ id, size, stack })
+  return sizes[(sizes.indexOf(size) + 1) % sizes.length] ?? size
 }
 
 /** Move the widget at `from` so it sits at `to`. */

@@ -40,3 +40,17 @@ test('moving a widget keeps everything else in order', () => {
   assert.deepEqual(moveItem(['a', 'b'], 1, 9), ['a', 'b'])
   assert.deepEqual(moveItem(['a', 'b'], 0, -1), ['a', 'b'])
 })
+
+test('stacks keep each widget once, only at a size they all have, and tints are checked', () => {
+  assert.deepEqual(
+    normalizeLayout([
+      { id: 'calendar', size: 's', tint: 'rose', stack: ['countdown', 'question', 'calendar', 'nope', 'days'] },
+      { id: 'days', size: 's' }, // already in the stack
+      { id: 'song', size: 's', tint: 'neon' },
+    ]),
+    [
+      { id: 'calendar', size: 's', tint: 'rose', stack: ['countdown', 'days'] },
+      { id: 'song', size: 's' },
+    ],
+  )
+})

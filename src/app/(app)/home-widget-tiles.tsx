@@ -7,14 +7,16 @@ import {
 import { CountUp } from './home-tiles'
 import type { WidgetSize } from '@/lib/home-widgets'
 
-// Home widgets, drawn the way iPhone widgets are: a fixed square (small),
-// two squares (medium) or four (large); a small colored label up top, one
-// big glanceable thing, and the whole widget opens its page.
+// Home widgets, shaped like iPhone widgets (a fixed square, two squares, or
+// two by two; a small colored label up top, one big glanceable thing; the
+// whole widget opens its page) but dressed in Hiranda's "warm craft": serif
+// numerals, your own words in handwriting, paper and prints for keepsakes.
+// See marketing/research/engagement-and-relationship-research.md.
 
 type Size = WidgetSize
 const cls = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
 
-export const big = 'font-semibold tracking-tight leading-none text-amber-50 tabular-nums'
+export const big = 'font-serif leading-none text-amber-50 tabular-nums'
 export const sub = 'text-[13px] leading-snug text-stone-400'
 
 export function Shell({ href, children, className = '', pad = true }: { href?: string; children: React.ReactNode; className?: string; pad?: boolean }) {
@@ -237,7 +239,7 @@ export function BucketWidget({ dream, done, total, size }: { dream: string | nul
           <Label icon={Star} className="text-emerald-400">Someday</Label>
           {size === 's' && <Ring pct={done / total} size={30} />}
         </div>
-        {dream ? <p className="text-[17px] font-semibold leading-tight text-amber-50 line-clamp-3">{dream}</p> : <p className={sub}>You did them all 🎉</p>}
+        {dream ? <p className="font-hand text-[24px] leading-[1.05] text-amber-100 line-clamp-3">{dream}</p> : <p className={sub}>You did them all 🎉</p>}
       </div>
       {size === 'm' && (
         <div className="flex flex-col items-center justify-center gap-1.5">
@@ -289,7 +291,7 @@ export function SongWidget({ song, artist, note, by, size }: { song: string | nu
         <div className="min-w-0">
           <p className="text-[15px] font-semibold leading-tight text-amber-50 truncate">{song}</p>
           <p className={cls(sub, 'truncate')}>{artist}</p>
-          {size === 'm' && note && <p className="text-[12px] text-stone-500 mt-1 line-clamp-2">“{note}”{by ? ` · ${by}` : ''}</p>}
+          {size === 'm' && note && <p className="font-hand text-[19px] leading-tight text-amber-200 mt-1 line-clamp-2">“{note}”{by ? ` · ${by}` : ''}</p>}
         </div>
       </div>
     </Shell>
@@ -299,18 +301,16 @@ export function SongWidget({ song, artist, note, by, size }: { song: string | nu
 // ── Notes (the journal) ───────────────────────────────────────────────────
 export function JournalWidget({ entry, size }: { entry: { id: string; title: string | null; body: string; by: string; ago: string } | null; size: Size }) {
   return (
-    <Shell href={entry ? `/journal/${entry.id}` : '/journal/new'} pad={false}>
-      <div className="bg-amber-400 px-4 py-2.5 shrink-0"><Label icon={NotebookPen} className="text-stone-950">Notes</Label></div>
-      <div className="flex-1 min-h-0 px-4 py-3 flex flex-col gap-1">
-        {entry ? (
-          <>
-            <p className="text-[15px] font-semibold leading-tight text-amber-50 line-clamp-1">{entry.title || 'Untitled'}</p>
-            <p className={cls('text-[13px] leading-snug text-stone-300', size === 'm' ? 'line-clamp-3' : 'line-clamp-2')}>{entry.body}</p>
-            <p className="mt-auto text-[11px] text-stone-500">{entry.by} · {entry.ago}</p>
-          </>
-        ) : <p className={sub}>Write the first page of your journal</p>}
-      </div>
-    </Shell>
+    <Link href={entry ? `/journal/${entry.id}` : '/journal/new'} className="paper paper-ruled h-full w-full rounded-[22px] overflow-hidden px-4 pt-3.5 pb-3 flex flex-col gap-1">
+      <p className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.14em] opacity-60"><NotebookPen size={12} strokeWidth={2.5} /> Journal</p>
+      {entry ? (
+        <>
+          <p className="font-hand text-[24px] leading-none line-clamp-1 mt-0.5">{entry.title || 'Untitled'}</p>
+          <p className={cls('font-serif text-[14px] leading-[1.45] opacity-80', size === 'm' ? 'line-clamp-3' : 'line-clamp-2')}>{entry.body}</p>
+          <p className="mt-auto text-[11px] opacity-55">{entry.by} · {entry.ago}</p>
+        </>
+      ) : <p className="font-hand text-[22px] leading-tight mt-1">Write the first page together</p>}
+    </Link>
   )
 }
 
@@ -358,15 +358,18 @@ export function WatchingWidget({ id, title }: { id: string; title: string }) {
 
 // ── On this day (like the Photos widget) ──────────────────────────────────
 export function MemoryWidget({ href, photo, title, when, size }: { href: string; photo: string | null; title: string; when: string; size: Size }) {
+  // A print: your photo with a cream border and a handwritten caption.
   return (
-    <Link href={href} className="relative block h-full w-full overflow-hidden rounded-[22px] bg-gradient-to-br from-amber-700/40 via-stone-800 to-stone-900">
-      {photo
-        // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        : <span className="absolute inset-0 grid place-items-center font-serif text-6xl text-amber-100/30" aria-hidden>H.</span>}
-      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-4 pb-3.5 pt-10">
-        <span className="block text-[11px] font-semibold uppercase tracking-wider text-white/75">{when}</span>
-        <span className={cls('block font-semibold leading-tight text-white line-clamp-2', size === 'l' ? 'text-xl' : 'text-[15px]')}>{title}</span>
+    <Link href={href} className="block h-full w-full rounded-[22px] bg-[#efe8da] p-2 shadow-[0_12px_32px_-16px_var(--drop)]">
+      <span className="relative block h-full w-full overflow-hidden rounded-[15px] bg-gradient-to-br from-amber-700/50 via-stone-700 to-stone-800">
+        {photo
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          : <span className="absolute inset-0 grid place-items-center font-serif text-6xl text-amber-100/30" aria-hidden>H.</span>}
+        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-3 pb-2.5 pt-10">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">{when}</span>
+          <span className={cls('block font-hand leading-[1.05] text-white line-clamp-2', size === 'l' ? 'text-[30px]' : 'text-[22px]')}>{title}</span>
+        </span>
       </span>
     </Link>
   )

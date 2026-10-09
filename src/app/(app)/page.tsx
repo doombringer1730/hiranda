@@ -21,13 +21,18 @@ import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
 import CheckinCard from './closeness/checkin-card'
 import PlusWelcome from './plus/plus-welcome'
 import HomeGrid from './home-grid'
+import ClassicHome from './home-classic'
 import { ClocksWidget, TimeZoneSync } from './home-clocks'
 import {
   CountdownWidget, DaysWidget, LettersWidget, BucketWidget, WatchlistWidget, SongWidget, ShortcutsWidget,
-  CalendarWidget, JournalWidget, MovesWidget, WatchingWidget, MemoryWidget, Shell, Label, Ring, big,
+  CalendarWidget, JournalWidget, MovesWidget, WatchingWidget, MemoryWidget, Shell, Label, Ring, big, type Waiting,
 } from './home-widget-tiles'
 import { normalizeLayout, DEFAULT_LAYOUT } from '@/lib/home-widgets'
 import { hasPlus } from '@/lib/plus'
+import { NoteWidget } from './home-tiles'
+import { PartnerWidget, WeatherWidget, WeekWidget, JarWidget, GrowWidget } from './home-more-tiles'
+import { weatherFor, cityOf } from '@/lib/weather'
+import { ALL_LESSONS } from '@/lib/path'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
 
@@ -82,8 +87,10 @@ export default async function HomeHub() {
     : null
 
   // New passport stamps (and their coupons) appear as soon as they're earned.
-  if (partnerId) await awardMilestones()
+  // Plus decides which Home you get: the widgets you arrange, or the classic one.
+  const [plus] = await Promise.all([hasPlus(), partnerId ? awardMilestones() : null])
 
+  const none = Promise.resolve({ data: [] as never[] })
   const since = new Date(Date.now() - FLAME_LOOKBACK_DAYS * 86_400_000).toISOString()
 
   const [
@@ -105,7 +112,6 @@ export default async function HomeHub() {
     { data: talkDays },
     { count: unreadChat },
     { data: savedLayout },
-    plus,
     { data: lettersForMe },
     { data: bucket },
     { data: upNext, count: watchlistLeft },
@@ -113,6 +119,10 @@ export default async function HomeHub() {
     { data: zones },
     { data: lastPage },
     { data: openTodos },
+    { data: homeNote },
+    { data: jarSlips },
+    { data: lessons },
+    { count: heartsThisWeek },
   ] = await Promise.all([
     supabase.from('profiles').select(PROFILE_FIELDS).in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
     partnerId
@@ -152,21 +162,30 @@ export default async function HomeHub() {
     partnerId
       ? supabase.from('messages').select('id', { count: 'exact', head: true }).eq('sender', partnerId).is('read_at', null)
       : Promise.resolve({ count: 0 }),
+    // Everything below is only for the widget Home (Plus).
     // The Home screen layout, shared by you both (none yet: the default).
-    couple
+    plus && couple
       ? supabase.from('home_layouts').select('layout').eq('couple_id', couple.id).maybeSingle()
       : Promise.resolve({ data: null }),
-    hasPlus(),
     // For the Letters, Bucket list, Up next and Our song widgets
-    supabase.from('letters').select('unlock_at').eq('recipient', user.id).is('opened_at', null).limit(50),
-    supabase.from('bucket_list').select('id, title, completed').limit(500),
-    supabase.from('watchlist').select('title, type', { count: 'exact' }).eq('watched', false).order('created_at', { ascending: true }).limit(1),
-    supabase.from('music_moments').select('song_name, artist, note, added_by').order('created_at', { ascending: false }).limit(1),
+    plus ? supabase.from('letters').select('unlock_at').eq('recipient', user.id).is('opened_at', null).limit(50) : none,
+    plus ? supabase.from('bucket_list').select('id, title, completed').limit(500) : none,
+    plus
+      ? supabase.from('watchlist').select('title, type', { count: 'exact' }).eq('watched', false).order('created_at', { ascending: true }).limit(1)
+      : Promise.resolve({ data: [] as never[], count: 0 }),
+    plus ? supabase.from('music_moments').select('song_name, artist, note, added_by').order('created_at', { ascending: false }).limit(1) : none,
     // For the Clocks widget (fails quietly until migration 040 adds the column)
-    supabase.from('profiles').select('id, time_zone').in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
+    plus ? supabase.from('profiles').select('id, time_zone').in('id', [user.id, ...(partnerId ? [partnerId] : [])]) : Promise.resolve({ data: null }),
     // For the Notes and Reminders widgets
-    supabase.from('journal_entries').select('id, title, body, created_by, created_at').order('created_at', { ascending: false }).limit(1),
-    supabase.from('todos').select('id, text').eq('completed', false).order('created_at', { ascending: true }).limit(9),
+    plus ? supabase.from('journal_entries').select('id, title, body, created_by, created_at').order('created_at', { ascending: false }).limit(1) : none,
+    plus ? supabase.from('todos').select('id, text').eq('completed', false).order('created_at', { ascending: true }).limit(9) : none,
+    // For the Sticky note, Date jar, Grow and Thinking of you widgets
+    plus && couple ? supabase.from('home_notes').select('body, updated_by, updated_at').eq('couple_id', couple.id).maybeSingle() : Promise.resolve({ data: null }),
+    plus && partnerId ? supabase.rpc('jar_slips_for', { p_jar: 'ours' }) : none,
+    plus && couple ? supabase.from('lesson_progress').select('user_id, lesson_key').eq('couple_id', couple.id) : none,
+    plus && partnerId
+      ? supabase.from('love_taps').select('id', { count: 'exact', head: true }).in('from_user', [user.id, partnerId]).gte('created_at', new Date(Date.now() - 7 * 86_400_000).toISOString())
+      : Promise.resolve({ count: 0 }),
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
@@ -243,7 +262,6 @@ export default async function HomeHub() {
   }
 
   // ── Your move: everything currently waiting on you ──
-  type Waiting = { href: string; icon: React.ElementType; title: string; sub?: string }
   const waiting: Waiting[] = []
   if (unreadChat) waiting.push({ href: '/chat', icon: MessageCircle, title: `${unreadChat} new message${unreadChat === 1 ? '' : 's'} from ${partnerFirst}` })
   for (const g of (myMoves ?? []) as { id: string; kind: Kind }[]) {
@@ -318,6 +336,35 @@ export default async function HomeHub() {
   const todos = (openTodos ?? []) as { id: string; text: string }[]
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
+  // Partner: their face, their status, and what they're up to right now.
+  const partnerCard = partner ? {
+    name: partnerFirst, avatar: partner.avatar_url, accent: partner.accent_color, status: partner.status_text,
+    live: partner.activity && partner.activity_at && Date.now() - new Date(partner.activity_at).getTime() < 10 * 60_000 ? partner.activity : null,
+  } : null
+
+  // Weather where each of you is (your time zone's city).
+  const [myWeather, partnerWeather] = plus
+    ? await Promise.all([myTz ? weatherFor(myTz, myTz) : null, partnerTz ? weatherFor(partnerTz, myTz) : null])
+    : [null, null]
+  const place = (who: string, tz: string | null, w: typeof myWeather) => tz ? { who, w, city: cityOf(tz) } : null
+
+  // This week: the last seven days, lit when you both showed up.
+  const week = Array.from({ length: 7 }, (_, n) => {
+    const d = new Date(today); d.setDate(d.getDate() - 6 + n)
+    return { label: d.toLocaleDateString('en-US', { weekday: 'narrow' }), lit: fedDays.has(dayKey(d)), today: n === 6 }
+  })
+
+  // Date jar: ideas waiting, and the last one you drew.
+  const slips = (jarSlips ?? []) as { body: string | null; drawn_at: string | null }[]
+  const jarWaiting = slips.filter(x => !x.drawn_at).length
+  const lastDrawn = slips.filter(x => x.drawn_at).sort((a, b) => b.drawn_at!.localeCompare(a.drawn_at!))[0]?.body ?? null
+
+  // Grow: your next lesson, and how many you've done together.
+  const doneBy = new Map<string, Set<string>>()
+  for (const l of (lessons ?? []) as { user_id: string; lesson_key: string }[]) doneBy.set(l.lesson_key, (doneBy.get(l.lesson_key) ?? new Set()).add(l.user_id))
+  const lessonsTogether = ALL_LESSONS.filter(l => doneBy.get(l.key)?.size === 2).length
+  const nextLesson = ALL_LESSONS.find(l => !doneBy.get(l.key)?.has(user.id))
+
   const memory = (size: 's' | 'm' | 'l') => (
     <MemoryWidget href={pick ? `/memories/${pick.id}` : '/memories/new'} photo={pickPhoto} title={pick?.title ?? 'Add your first memory'} when={pickLabel ?? 'On this day'} size={size} />
   )
@@ -347,7 +394,24 @@ export default async function HomeHub() {
     ...sized('journal', size => <JournalWidget entry={journalEntry} size={size} />),
     ...sized('memory', memory),
     ...sized('countdown', size => <CountdownWidget dates={upcoming} size={size} />),
-    heart: partnerId ? <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} /> : null,
+    'heart:s': partnerId ? <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} /> : null,
+    'heart:m': partnerId ? <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} week={heartsThisWeek ?? 0} /> : null,
+    ...sized('partner', size => partnerCard ? <PartnerWidget p={partnerCard} size={size} /> : null),
+    ...sized('note', size => couple ? (
+      <NoteWidget
+        coupleId={couple.id} myId={user.id} partnerName={partnerFirst} size={size}
+        initial={homeNote?.body ? { body: homeNote.body, by: homeNote.updated_by === user.id ? 'You' : partnerFirst, ago: ago(homeNote.updated_at) } : null}
+      />
+    ) : null),
+    ...sized('weather', size => <WeatherWidget me={place(firstName, myTz, myWeather)} partner={place(partnerFirst, partnerTz, partnerWeather)} size={size} />),
+    ...sized('week', size => partnerId ? <WeekWidget days={week} size={size} /> : null),
+    ...sized('jar', size => partnerId ? <JarWidget waiting={jarWaiting} last={lastDrawn} size={size} /> : null),
+    ...sized('grow', size => couple ? (
+      <GrowWidget
+        next={nextLesson ? { key: nextLesson.key, title: nextLesson.title, emoji: nextLesson.unit.emoji, unit: nextLesson.unit.title } : null}
+        together={lessonsTogether} total={ALL_LESSONS.length} size={size}
+      />
+    ) : null),
     'flame:s': couple ? (
       <Shell href="/grow" className="items-center justify-between text-center">
         <Ring pct={flamePct} size={92} color="stroke-amber-500"><FlamePet streak={flame.days} size={44} mood={flameMood} /></Ring>
@@ -423,8 +487,17 @@ export default async function HomeHub() {
         </div>
       )}
 
+      {!plus && (
+        <ClassicHome
+          myId={user.id} partnerId={partnerId} partnerFirst={partnerFirst} firstName={firstName}
+          hasPartnerProfile={!!partner} togetherSince={couple?.together_since ?? null} hasCouple={!!couple}
+          waiting={waiting} pick={pick} pickPhoto={pickPhoto} pickLabel={pickLabel} upcoming={upcoming[0]}
+          lastLove={lastLove} flame={flame} watching={watching}
+        />
+      )}
+
       {/* Timely notes that come and go on their own */}
-      {couple && (new Date().getUTCDate() <= 7 || partnerId) && (
+      {plus && couple && (new Date().getUTCDate() <= 7 || partnerId) && (
         <div className="mb-6 flex flex-col gap-3 empty:hidden">
           {/* The first week of a month: last month's keepsake is ready. */}
           {new Date().getUTCDate() <= 7 && (
@@ -442,13 +515,17 @@ export default async function HomeHub() {
         </div>
       )}
 
-      {zones && <TimeZoneSync saved={myTz} />}
-      {partnerId && <WidgetSync since={couple?.together_since ?? null} partner={partner ? partnerFirst : null} me={firstName} />}
+      {plus && (
+        <>
+          {zones && <TimeZoneSync saved={myTz} />}
+          {partnerId && <WidgetSync since={couple?.together_since ?? null} partner={partner ? partnerFirst : null} me={firstName} />}
 
-      {/* Your widgets: added, removed, resized and arranged by the two of you. */}
-      <div className="animate-rise" style={rise(1)}>
-        <HomeGrid initial={layout} nodes={nodes} plus={plus} />
-      </div>
+          {/* Your widgets: added, removed, resized and arranged by the two of you. */}
+          <div className="animate-rise" style={rise(1)}>
+            <HomeGrid initial={layout} nodes={nodes} plus={plus} />
+          </div>
+        </>
+      )}
 
       <div className="mt-8"><SponsorCard place="home" /></div>
     </div>

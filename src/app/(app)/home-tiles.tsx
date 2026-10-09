@@ -6,6 +6,8 @@ import { Heart, ListChecks } from 'lucide-react'
 import { sendLove } from './love-actions'
 import { toggleTodo } from './todos/actions'
 import { haptic } from '@/lib/feel'
+import { useLive } from '@/lib/use-live'
+import { saveHomeNote, getHomeNote } from './home-actions'
 
 const EASE = (t: number) => 1 - Math.pow(1 - t, 4)
 
@@ -58,7 +60,11 @@ function burst(from: Element) {
   }
 }
 
-export function ThinkingOfYou({ partnerName, lastFromPartner }: { partnerName: string; lastFromPartner: string | null }) {
+export function ThinkingOfYou({ partnerName, lastFromPartner, week }: {
+  partnerName: string
+  lastFromPartner: string | null
+  week?: number // medium size: hearts between you this week (together, never a score)
+}) {
   const [sentAt, setSentAt] = useState<number | null>(null)
   const [lobster, setLobster] = useState(false)
   const [, startTransition] = useTransition()
@@ -71,6 +77,32 @@ export function ThinkingOfYou({ partnerName, lastFromPartner }: { partnerName: s
     startTransition(async () => { await sendLove() })
   }
 
+  const note = sentAt
+    ? lobster ? <>Sent — you’re their lobster 🦞</> : <>Sent to {partnerName} 💗</>
+    : lastFromPartner
+      ? <>{partnerName} thought of you · {ago(lastFromPartner)}</>
+      : <>Tap to send {partnerName} a heart</>
+
+  if (week != null) {
+    const shown = week + (sentAt ? 1 : 0)
+    return (
+      <div className="tile h-full p-4 md:p-5 flex items-center gap-4 bg-gradient-to-br from-pink-500/15 to-transparent">
+        <button
+          onClick={send}
+          aria-label={`Send ${partnerName} a heart`}
+          className="grid place-items-center h-20 w-20 shrink-0 rounded-full bg-pink-500/15 text-pink-400 hover:bg-pink-500/25 transition-colors"
+        >
+          <Heart key={sentAt ?? 0} size={36} fill="currentColor" className={sentAt ? 'animate-pop' : ''} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="font-serif text-[40px] leading-none text-amber-50 tabular-nums">{shown}</p>
+          <p className="text-[13px] text-stone-400 mt-1">{shown === 1 ? 'heart' : 'hearts'} between you this week</p>
+          <p className="text-[12px] text-stone-500 mt-2 leading-snug">{note}</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="tile h-full p-4 flex flex-col items-center justify-center gap-2 text-center">
       <button
@@ -80,13 +112,7 @@ export function ThinkingOfYou({ partnerName, lastFromPartner }: { partnerName: s
       >
         <Heart key={sentAt ?? 0} size={26} fill="currentColor" className={sentAt ? 'animate-pop' : ''} />
       </button>
-      <p className="text-stone-400 text-xs leading-snug">
-        {sentAt
-          ? lobster ? <>Sent — you’re their lobster 🦞</> : <>Sent to {partnerName} 💗</>
-          : lastFromPartner
-            ? <>{partnerName} thought of you · {ago(lastFromPartner)}</>
-            : <>Tap to send {partnerName} a heart</>}
-      </p>
+      <p className="text-stone-400 text-xs leading-snug">{note}</p>
     </div>
   )
 }
@@ -110,7 +136,7 @@ export function PhotoFrame({ photos, large }: { photos: { url: string; caption: 
   }
   const now = photos[i % photos.length]
   return (
-    <Link href={now.href} className="relative block h-full w-full overflow-hidden rounded-[22px] bg-stone-900">
+    <Link href={now.href} className="relative block h-full w-full overflow-hidden rounded-[22px] bg-stone-900 ring-[6px] ring-inset ring-[#efe8da]">
       {photos.map((p, n) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -122,7 +148,7 @@ export function PhotoFrame({ photos, large }: { photos: { url: string; caption: 
         />
       ))}
       {now.caption && (
-        <span className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-4 pb-3.5 pt-10 font-semibold leading-tight text-white truncate ${large ? 'text-lg' : 'text-[14px]'}`}>{now.caption}</span>
+        <span className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 to-transparent px-4 pb-3.5 pt-10 font-hand leading-none text-white truncate ${large ? 'text-[30px]' : 'text-[22px]'}`}>{now.caption}</span>
       )}
     </Link>
   )
@@ -166,6 +192,67 @@ export function TodosWidget({ todos, size }: { todos: { id: string; text: string
             )
           })}
         </ul>
+      )}
+    </div>
+  )
+}
+
+// Sticky note: one short note you both can write on, right on Home. Tap to
+// write; it saves when you're done and shows up on their phone.
+type Note = { body: string; by: string; ago: string } | null
+
+export function NoteWidget({ initial, coupleId, myId, partnerName, size }: {
+  initial: Note
+  coupleId: string
+  myId: string
+  partnerName: string
+  size: 's' | 'm' | 'l'
+}) {
+  const [note, setNote] = useState<Note>(initial)
+  const [draft, setDraft] = useState<string | null>(null) // writing when not null
+  const [, startTransition] = useTransition()
+  const editing = draft !== null
+
+  useLive({ table: 'home_notes', filter: `couple_id=eq.${coupleId}`, enabled: !editing, fallbackMs: 60_000 }, () => {
+    void getHomeNote().then(n => {
+      if (n) setNote({ body: n.body, by: n.updated_by === myId ? 'You' : partnerName, ago: 'just now' })
+    })
+  })
+
+  function done() {
+    if (draft === null) return
+    const body = draft.trim().slice(0, 280)
+    setDraft(null)
+    if (body === (note?.body ?? '')) return
+    setNote({ body, by: 'You', ago: 'just now' })
+    startTransition(async () => { await saveHomeNote(body) })
+  }
+
+  const text = size === 's' ? 'text-[20px]' : size === 'm' ? 'text-[24px]' : 'text-[28px]'
+  return (
+    <div className="h-full w-full rounded-[22px] bg-[#f3e2a0] text-[#3b3122] p-4 flex flex-col shadow-[inset_0_-14px_24px_-18px_rgb(120_90_20/0.45)] overflow-hidden">
+      {editing ? (
+        <>
+          <textarea
+            autoFocus
+            value={draft}
+            maxLength={280}
+            onChange={e => setDraft(e.target.value)}
+            onBlur={done}
+            onKeyDown={e => { if (e.key === 'Escape') setDraft(null) }}
+            aria-label="Sticky note"
+            placeholder="Write something for both of you…"
+            className={`font-hand ${text} leading-[1.05] flex-1 min-h-0 w-full resize-none bg-transparent outline-none placeholder:text-[#3b3122]/40`}
+          />
+          <p className="text-[11px] text-[#3b3122]/60 mt-1 tabular-nums">{draft.length}/280 · tap outside to save</p>
+        </>
+      ) : (
+        <button onClick={() => setDraft(note?.body ?? '')} className="flex-1 min-h-0 w-full flex flex-col text-left" aria-label="Write on the sticky note">
+          {note?.body
+            ? <p className={`font-hand ${text} leading-[1.05] flex-1 min-h-0 overflow-hidden whitespace-pre-wrap break-words`}>{note.body}</p>
+            : <p className={`font-hand ${text} leading-[1.05] flex-1 text-[#3b3122]/50`}>Leave {partnerName} a note…</p>}
+          {note?.body && <p className="text-[11px] text-[#3b3122]/60 mt-1 truncate w-full">{note.by}, {note.ago}</p>}
+        </button>
       )}
     </div>
   )

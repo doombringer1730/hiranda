@@ -37,3 +37,30 @@ export async function setMyTimeZone(tz: string) {
   if (!user) return
   await supabase.from('profiles').update({ time_zone: tz }).eq('id', user.id)
 }
+
+// The Sticky note on Home: one short note you both can rewrite.
+export async function saveHomeNote(body: string) {
+  if (typeof body !== 'string') return { error: 'Nothing to save' }
+  const text = body.trim().slice(0, 280)
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not signed in' }
+  const { data: couple } = await supabase
+    .from('couple').select('id')
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .order('user2_id', { nullsFirst: false }).limit(1)
+    .maybeSingle()
+  if (!couple) return { error: 'No space yet' }
+  const { error } = await supabase.from('home_notes').upsert({
+    couple_id: couple.id, body: text, updated_by: user.id, updated_at: new Date().toISOString(),
+  })
+  if (error) return { error: 'Could not save the note' }
+  return { ok: true }
+}
+
+// The latest note, for the other phone when it changes.
+export async function getHomeNote() {
+  const supabase = await createClient()
+  const { data } = await supabase.from('home_notes').select('body, updated_by, updated_at').maybeSingle()
+  return data as { body: string; updated_by: string | null; updated_at: string } | null
+}
