@@ -145,6 +145,7 @@ export const PRODUCTS: Product[] = [
     title: 'Our names on canvas',
     blurb: 'A gallery-wrapped 11″×14″ canvas for the wall you share — or will.',
     emoji: '🖼️',
+    image: '/store/mockups/canvas.jpg',
     priceCents: 5900, // ≈ $17 + ~$10 shipping
     ships: true,
     category: 'keepsake',
@@ -156,6 +157,7 @@ export const PRODUCTS: Product[] = [
     title: 'Our pillow',
     blurb: 'A soft 18″×18″ premium pillow with your names, stuffing included.',
     emoji: '🛏️',
+    image: '/store/mockups/pillow.jpg',
     priceCents: 5900, // ≈ $19 + ~$11 shipping
     ships: true,
     category: 'keepsake',
@@ -167,6 +169,7 @@ export const PRODUCTS: Product[] = [
     title: 'Our heart ornament',
     blurb: 'A glossy ceramic heart with your names, to hang somewhere you’ll see it.',
     emoji: '🤍',
+    image: '/store/mockups/ornament.jpg',
     priceCents: 2900, // ≈ $8 + ~$6 shipping
     ships: true,
     category: 'keepsake',
