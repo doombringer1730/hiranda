@@ -7,7 +7,7 @@ import { Settings, LogOut } from 'lucide-react'
 import { SidebarTimer } from './couple-timer'
 import SpotifyStatus from './spotify-status'
 import { logout } from '@/app/(auth)/actions'
-import { hubsFor, hubFor, itemFor, type Hub } from '@/lib/hubs'
+import { HUBS, hubFor, itemFor, type Hub } from '@/lib/hubs'
 import { haptic } from '@/lib/feel'
 import { useLive } from '@/lib/use-live'
 import { unreadCount } from '@/app/(app)/chat/actions'
@@ -45,11 +45,11 @@ function Badge({ n, className = '' }: { n: number; className?: string }) {
   )
 }
 
-export default function Nav({ theaterUnlocked = false }: { theaterUnlocked?: boolean }) {
+export default function Nav() {
   const pathname = usePathname()
   const unread = useUnread(pathname)
   const router = useRouter()
-  const hubs = hubsFor(theaterUnlocked)
+  const hubs = HUBS
   const active = hubFor(pathname, hubs)
   const activeIndex = active ? hubs.indexOf(active) : -1
 

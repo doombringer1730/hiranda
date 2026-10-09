@@ -3,6 +3,7 @@
 import { hasPlus } from '@/lib/plus'
 import { isPlusUnit } from '@/lib/plus-config'
 
+import { creditFinishedCoupon } from '@/lib/coupon-credit'
 import { revalidatePath } from 'next/cache'
 import { coupleContext } from '@/lib/couple'
 import { notifyPartner, myFirstName } from '@/lib/push'
@@ -92,10 +93,12 @@ export async function spendCoupon(id: string) {
 export async function markCouponDone(id: string) {
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Not signed in' }
-  await ctx.supabase.from('coupons').update({ done_at: new Date().toISOString() })
-    .eq('id', id).eq('bought_by', ctx.partnerId).eq('redeemed', true)
+  const { data: done } = await ctx.supabase.from('coupons').update({ done_at: new Date().toISOString() })
+    .eq('id', id).eq('bought_by', ctx.partnerId).eq('redeemed', true).is('done_at', null).select('id')
+  // A finished coupon takes a little off your next Plus renewal (Stripe only).
+  const credited = done?.length ? await creditFinishedCoupon(ctx.couple.id, id) : 0
   revalidatePath('/grow/coupons')
-  return { ok: true }
+  return { ok: true, credited }
 }
 
 export async function giveCoupon(title: string, emoji: string) {

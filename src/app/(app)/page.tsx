@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { type PresonProfile } from './presence-cards'
 import { FlameTile } from './flame-pet'
+import { flameState } from '@/lib/flame'
 import { CountUp, ThinkingOfYou } from './home-tiles'
 import { GAMES, type Kind } from './games/board/engine'
 import DailyQuestion from './daily-question'
@@ -39,16 +40,9 @@ function daysUntil(dateStr: string, recurring: boolean): number | null {
   return Math.round((next.getTime() - today.getTime()) / 86_400_000)
 }
 
-// Shared streak: consecutive days (ending today, or yesterday as grace) with
-// any couple activity — a journal entry, memory, or answered prompt.
 const dayKey = (d: Date) => d.toISOString().slice(0, 10)
-function computeStreak(days: Set<string>): number {
-  const d = new Date()
-  if (!days.has(dayKey(d))) d.setUTCDate(d.getUTCDate() - 1) // grace: today not logged yet
-  let n = 0
-  while (days.has(dayKey(d))) { n++; d.setUTCDate(d.getUTCDate() - 1) }
-  return n
-}
+// How far back the flame looks (each query stays well under the row cap).
+const FLAME_LOOKBACK_DAYS = 100
 
 function HomeAvatar({ p }: { p: PresonProfile }) {
   return (
@@ -80,7 +74,7 @@ export default async function HomeHub() {
   // New passport stamps (and their coupons) appear as soon as they're earned.
   if (partnerId) await awardMilestones()
 
-  const since = new Date(Date.now() - 45 * 86_400_000).toISOString()
+  const since = new Date(Date.now() - FLAME_LOOKBACK_DAYS * 86_400_000).toISOString()
 
   const [
     { data: profiles },
@@ -190,8 +184,7 @@ export default async function HomeHub() {
       if (t.completed || over) fedDays.add(t.started_at.slice(0, 10))
     }
   }
-  const streak = computeStreak(fedDays)
-  const fedToday = fedDays.has(dayKey(new Date()))
+  const flame = flameState(fedDays, new Date(), FLAME_LOOKBACK_DAYS)
 
   // ── On this day: a memory from this date in an earlier year, otherwise one
   // from the archive (stable for the day). ──
@@ -349,7 +342,19 @@ export default async function HomeHub() {
 
           {couple && (
             <Link href="/grow" className="block animate-rise" style={{ '--i': 4 } as React.CSSProperties}>
-              <FlameTile streak={streak} fedToday={fedToday} partnerMissing={!partnerId} />
+              <FlameTile flame={flame} partnerMissing={!partnerId} />
+            </Link>
+          )}
+
+          {/* The first week of a month: last month's keepsake is ready. */}
+          {couple && new Date().getUTCDate() <= 7 && (
+            <Link href="/month" className="tile p-4 flex items-center gap-3 animate-rise" style={{ '--i': 5 } as React.CSSProperties}>
+              <span className="grid place-items-center h-10 w-10 rounded-full bg-stone-800 text-lg" aria-hidden>📔</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-amber-50 text-sm truncate">Your {new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 15)).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })} keepsake is ready</span>
+                <span className="block text-stone-400 text-xs">Our month, in photos and good news</span>
+              </span>
+              <ChevronRight size={16} className="text-stone-600" />
             </Link>
           )}
 
