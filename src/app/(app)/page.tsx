@@ -18,6 +18,7 @@ import { InstallCard, NotificationCard } from '@/components/pwa'
 import { Polaroid, Scribble } from '@/components/handmade'
 import SponsorCard from '@/components/sponsor-card'
 import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
+import CheckinCard from './closeness/checkin-card'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
 
@@ -99,7 +100,7 @@ export default async function HomeHub() {
     partnerId
       ? supabase.from('prompt_responses')
           .select('prompt_id, responded_at, prompts!inner(text, type)')
-          .eq('user_id', partnerId).order('responded_at', { ascending: false }).limit(20)
+          .eq('user_id', partnerId).lt('prompts.depth', 4) // never After Dark on Home.order('responded_at', { ascending: false }).limit(20)
       : Promise.resolve({ data: [] as never[] }),
     supabase.from('prompt_responses').select('prompt_id').eq('user_id', user.id),
     partnerId
@@ -352,11 +353,14 @@ export default async function HomeHub() {
               <span className="grid place-items-center h-10 w-10 rounded-full bg-stone-800 text-lg" aria-hidden>📔</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-amber-50 text-sm truncate">Your {new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 15)).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })} keepsake is ready</span>
-                <span className="block text-stone-400 text-xs">Our month, in photos and good news</span>
+                <span className="block text-stone-400 text-xs">Our month, and what you two were great at</span>
               </span>
               <ChevronRight size={16} className="text-stone-600" />
             </Link>
           )}
+
+          {/* About once a month: a private closeness check-in. */}
+          {couple && partnerId && <div className="animate-rise" style={{ '--i': 5 } as React.CSSProperties}><CheckinCard partnerName={partnerFirst} /></div>}
 
           {/* Continue watching (Theater link only — the watch page is untouched) */}
           {watching && (

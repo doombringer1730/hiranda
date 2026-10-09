@@ -136,7 +136,7 @@ export async function getReviewDeck(): Promise<{ partnerName: string; cards: Rev
   const ctx = await coupleContext()
   if (!ctx) return null
   const [{ data: theirs }, { data: mine }, { data: boxes }, { data: partner }] = await Promise.all([
-    ctx.supabase.from('prompt_responses').select('prompt_id, response, prompts!inner(id, type, text, option_a, option_b)').eq('user_id', ctx.partnerId),
+    ctx.supabase.from('prompt_responses').select('prompt_id, response, prompts!inner(id, type, text, option_a, option_b)').eq('user_id', ctx.partnerId).lt('prompts.depth', 4),
     ctx.supabase.from('prompt_responses').select('prompt_id').eq('user_id', ctx.user.id),
     ctx.supabase.from('lovemap_reviews').select('prompt_id, due_on').eq('user_id', ctx.user.id),
     ctx.supabase.from('profiles').select('display_name').eq('id', ctx.partnerId).maybeSingle(),
