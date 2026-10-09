@@ -2,7 +2,8 @@ import 'server-only'
 import { stripeTestMode } from '@/lib/billing'
 import { printFileUrl } from '../print'
 import { fetchJson, storeContactEmail } from './contact'
-import { VendorError, type Vendor, type VendorState } from './types'
+import { bookPages } from '../prints'
+import { VendorError, type ArtSize, type Vendor, type VendorOrder, type VendorState } from './types'
 
 // Gelato — print on demand (cards, prints, photo books), printed near the
 // recipient. Docs: https://dashboard.gelato.com/docs/
@@ -16,6 +17,37 @@ const headers = () => ({ 'X-API-KEY': key(), 'Content-Type': 'application/json' 
 function fail(what: string, r: { status: number; body: Record<string, unknown> | null; text: string }): never {
   const msg = (r.body?.message as string) || r.text.slice(0, 200) || `HTTP ${r.status}`
   throw new VendorError(`Gelato ${what}: ${msg}`)
+}
+
+// The gift card: both sides. Polaroids: one item per photo. The book: one
+// item, a single PDF (cover, then inner pages).
+function items(order: VendorOrder, productUid: string, art?: ArtSize) {
+  if (order.prints?.kind === 'polaroids') {
+    return Array.from({ length: order.prints.count }, (_, i) => ({
+      itemReferenceId: `${order.id}-${i}`,
+      productUid,
+      quantity: 1,
+      files: [{ type: 'default', url: printFileUrl(order.id, `photo-${i}`, art) }],
+    }))
+  }
+  if (order.prints?.kind === 'book') {
+    return [{
+      itemReferenceId: order.id,
+      productUid,
+      quantity: 1,
+      pageCount: bookPages(order.prints.count),
+      files: [{ type: 'default', url: printFileUrl(order.id, 'book', art) }],
+    }]
+  }
+  return [{
+    itemReferenceId: order.id,
+    productUid,
+    quantity: 1,
+    files: [
+      { type: 'default', url: printFileUrl(order.id, 'front') },
+      { type: 'back', url: printFileUrl(order.id, 'back') },
+    ],
+  }]
 }
 
 export const gelato: Vendor = {
@@ -37,15 +69,7 @@ export const gelato: Vendor = {
         orderReferenceId: order.id,
         customerReferenceId: 'hiranda',
         currency: 'USD',
-        items: [{
-          itemReferenceId: order.id,
-          productUid: spec.productUid,
-          quantity: 1,
-          files: [
-            { type: 'default', url: printFileUrl(order.id, 'front') },
-            { type: 'back', url: printFileUrl(order.id, 'back') },
-          ],
-        }],
+        items: items(order, spec.productUid, spec.art),
         shippingAddress: {
           firstName: to.firstName.slice(0, 25),
           lastName: to.lastName.slice(0, 25),

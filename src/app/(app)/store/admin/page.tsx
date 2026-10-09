@@ -10,7 +10,11 @@ import ProductThumb from '@/components/product-thumb'
 import { isStoreAdmin } from '@/lib/store/server'
 import { supplierFor } from '@/lib/store/fulfil'
 import { VENDORS } from '@/lib/store/vendors'
+import { printFileUrl } from '@/lib/store/print'
+import type { Product } from '@/lib/store/catalog'
 import OrderActions from './order-actions'
+
+const artOf = (p: Product) => p.vendor?.name === 'gelato' ? p.vendor.art : undefined
 
 export const metadata = { title: 'Store orders' }
 
@@ -22,7 +26,7 @@ export default async function StoreAdminPage() {
 
   const db = createAdminClient()
   const { data: orders } = await db.from('store_orders')
-    .select('id, product_key, title, note, amount_cents, status, tracking_url, created_at, recipient_id, vendor, vendor_order_id, vendor_error, option')
+    .select('id, product_key, title, note, amount_cents, status, tracking_url, created_at, recipient_id, vendor, vendor_order_id, vendor_error, option, photos')
     .in('status', ['paid', 'fulfilling', 'shipped']).order('created_at', { ascending: true }).limit(100)
   const ids = [...new Set((orders ?? []).map(o => o.recipient_id))]
   const { data: addresses } = ids.length
@@ -77,6 +81,16 @@ export default async function StoreAdminPage() {
                 <p className="text-xs text-stone-400">
                   From AliExpress — order it there{ali.pick && <> (pick <span className="text-stone-200">{ali.pick}</span>)</>}, shipped to the address below, then add the tracking link.
                   {' '}<a href={ali.url} target="_blank" rel="noopener noreferrer" className="text-amber-400 underline underline-offset-2">Order on AliExpress ↗</a>
+                </p>
+              )}
+              {item?.prints && !o.vendor_order_id && (
+                <p className="text-xs text-stone-400">
+                  Print files{item.vendor?.name === 'gelato' && !item.vendor.productUid ? ' — no Gelato product picked yet, so order these by hand' : ''}:{' '}
+                  {item.prints === 'book'
+                    ? <a href={printFileUrl(o.id, 'book', artOf(item))} target="_blank" rel="noopener noreferrer" className="text-amber-400 underline underline-offset-2">the book (PDF) ↗</a>
+                    : ((o.photos as string[] | null) ?? []).map((_, i) => (
+                      <a key={i} href={printFileUrl(o.id, `photo-${i}`, artOf(item))} target="_blank" rel="noopener noreferrer" className="mr-2 text-amber-400 underline underline-offset-2">{i + 1}</a>
+                    ))}
                 </p>
               )}
               {o.vendor_error &&<p className="rounded-xl border border-red-900/50 bg-red-950/30 px-3 py-2 text-xs text-red-300">{o.vendor_error}</p>}
