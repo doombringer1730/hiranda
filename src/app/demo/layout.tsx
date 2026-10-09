@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: 'Hiranda demo — look around Sam & Riley’s space',
   description: 'Try Hiranda without signing up: answer the daily question, open a letter, pull from the date jar. A private little place for the two of you.',
   robots: { index: true, follow: true },
+  alternates: { canonical: '/demo' },
   openGraph: {
     title: 'Look around a Hiranda space',
     description: 'A private little place for the two of you. Try the demo, no account needed.',
