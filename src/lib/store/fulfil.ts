@@ -24,7 +24,7 @@ const firstName = (s: string | null | undefined) => (s ?? '').trim().split(/\s+/
 /** The supplier that makes this product, if one is set up for it. */
 export async function supplierFor(productKey: string): Promise<{ vendor: Vendor; spec: VendorSpec } | null> {
   const spec = (await findProduct(productKey, { includeInactive: true }))?.vendor
-  if (!spec || spec.name === 'partner') return null // shipped by hand / by a partner
+  if (!spec || spec.name === 'partner' || spec.name === 'aliexpress') return null // shipped by hand / by a partner
   const vendor = VENDORS[spec.name]
   return vendor.ready(spec) ? { vendor, spec } : null
 }

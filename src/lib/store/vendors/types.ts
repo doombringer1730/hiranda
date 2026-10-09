@@ -16,6 +16,9 @@ export type VendorSpec =
   // A partner shop (e.g. on Etsy) makes and ships it: paid orders show up in
   // /store/admin with a link to place the order with them.
   | { name: 'partner'; partner: string; url?: string }
+  // Bought by hand on AliExpress: paid orders show up in /store/admin with
+  // the listing to order it from (and which color/size to pick).
+  | { name: 'aliexpress'; url: string; pick?: string }
 
 export type ArtSize = { w: number; h: number }
 

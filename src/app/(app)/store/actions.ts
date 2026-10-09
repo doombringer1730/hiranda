@@ -77,6 +77,14 @@ export async function startGift(productKey: string, note: string, option?: strin
   const { data: hasAddress } = await ctx.supabase.rpc('partner_has_gift_address')
   if (!hasAddress) return { error: 'Your partner hasn’t added a delivery address yet.' }
 
+  // Keepsakes print both first names — don't let one come out as "me" / "you".
+  if (product.vendor?.name === 'printful' || product.vendor?.name === 'printify') {
+    const { data: people } = await createAdminClient().from('profiles').select('id, display_name').in('id', [ctx.user.id, ctx.partnerId])
+    const named = (id: string) => !!people?.find(p => p.id === id)?.display_name?.trim()
+    if (!named(ctx.user.id)) return { error: 'Add your name in Settings first — it’s printed on this one.' }
+    if (!named(ctx.partnerId)) return { error: 'Your partner hasn’t set their name yet — it’s printed on this one.' }
+  }
+
   // A size: your partner's saved one if they have it (private — you never
   // see it), otherwise the one you picked.
   let picked: string | undefined

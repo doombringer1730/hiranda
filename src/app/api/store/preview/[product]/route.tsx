@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ prod
   const scale = Math.min(1, MAX_SIDE / Math.max(art.w, art.h))
   const w = Math.round(art.w * scale)
   const h = Math.round(art.h * scale)
-  return new ImageResponse(<Names a={a} b={b} year={y ? Number(y) : null} w={w} h={h} />, {
+  return new ImageResponse(<Names a={a} b={b} year={y ? Number(y) : null} w={w} h={h} product={key} />, {
     width: w, height: h, fonts: await loadFonts(),
     headers: { 'Cache-Control': 'public, max-age=86400, s-maxage=31536000, immutable' },
   })
