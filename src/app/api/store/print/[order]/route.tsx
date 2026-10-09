@@ -29,7 +29,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
 
   const db = createAdminClient()
   const { data: order } = await db.from('store_orders')
-    .select('note, sender_id, recipient_id, status, couple_id').eq('id', orderId).maybeSingle()
+    .select('note, sender_id, recipient_id, status, couple_id, product_key').eq('id', orderId).maybeSingle()
   if (!order || !['paid', 'fulfilling', 'shipped'].includes(order.status)) return new Response('Not found', { status: 404 })
   const { data: people } = await db.from('profiles').select('id, display_name').in('id', [order.sender_id, order.recipient_id])
   const name = (id: string) => firstName(people?.find(p => p.id === id)?.display_name)
@@ -39,7 +39,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
   if (side === 'design') {
     const { data: couple } = await db.from('couple').select('together_since').eq('id', order.couple_id).maybeSingle()
     const year = couple?.together_since ? new Date(couple.together_since).getUTCFullYear() : null
-    return new ImageResponse(<Names a={from} b={to} year={year} w={w} h={h} />, {
+    return new ImageResponse(<Names a={from} b={to} year={year} w={w} h={h} product={order.product_key} />, {
       width: w, height: h, fonts: await loadFonts(), headers: { 'Cache-Control': 'private, no-store' },
     })
   }

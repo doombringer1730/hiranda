@@ -25,12 +25,31 @@ export function Heart({ size }: { size: number }) {
   )
 }
 
+/** Per-product looks. The mug is white, with the names twice — on each side,
+ *  so whoever holds it sees them while drinking, left- or right-handed (the
+ *  wrap's middle faces away from the handle, its quarters face the sides). */
+export const DESIGNS: Record<string, { bg?: string; sides?: boolean }> = {
+  mug: { bg: '#ffffff', sides: true },
+}
+
 // "Sam & Riley · since 2023" — scales with the print area.
-export function Names({ a, b, year, w, h }: { a: string; b: string; year: number | null; w: number; h: number }) {
+export function Names({ a, b, year, w, h, product }: { a: string; b: string; year: number | null; w: number; h: number; product?: string }) {
+  const look = (product && DESIGNS[product]) || {}
+  const bg = look.bg ?? PAPER
+  if (look.sides) return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', background: bg }}>
+      <NamesBlock a={a} b={b} year={year} w={w / 2} h={h} bg={bg} />
+      <NamesBlock a={a} b={b} year={year} w={w / 2} h={h} bg={bg} />
+    </div>
+  )
+  return <NamesBlock a={a} b={b} year={year} w={w} h={h} bg={bg} />
+}
+
+function NamesBlock({ a, b, year, w, h, bg }: { a: string; b: string; year: number | null; w: number; h: number; bg: string }) {
   const u = Math.min(w, h) / 100
   const long = `${a}${b}`.length > 12
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: PAPER }}>
+    <div style={{ width: w, height: h, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: bg }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: u * 3, fontFamily: 'Instrument Serif', fontSize: u * (long ? 11 : 14), color: INK, lineHeight: 1 }}>
         <span>{a}</span>
         <span style={{ fontFamily: 'Caveat', color: ROSE, fontSize: u * (long ? 9 : 11) }}>&</span>
