@@ -20,25 +20,52 @@ const Card = ({ children, className = '' }: { children: React.ReactNode; classNa
   <div className={`rounded-2xl bg-stone-950/70 border border-stone-800/80 p-3.5 ${className}`}>{children}</div>
 )
 
+// The one scene you can play with: answer, and Riley's reply unlocks — the
+// same moment the app is built around, without leaving the tour.
+function TryQuestion() {
+  const [answer, setAnswer] = useState<string | null>(null)
+  return (
+    <div className="paper paper-ruled rounded-[4px] px-4 pt-3.5 pb-4 rotate-[-1.2deg]">
+      <span className="tape -top-3 left-6 rotate-[-6deg]" />
+      <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--paper-muted)]">Today&rsquo;s question</p>
+      <p className="font-serif text-[22px] leading-tight mt-1">Would you rather live by the beach, or in the mountains?</p>
+      {answer ? (
+        <div className="mt-3 flex flex-col gap-1 text-[13px] animate-page-in">
+          <p><span className="font-semibold">You:</span> {answer}</p>
+          <p><span className="font-semibold">Riley:</span> the mountains, obviously</p>
+          <p className="font-hand text-[19px] mt-0.5 text-[#9a4a2f]">{answer === 'the mountains' ? 'a match! cabin trip?' : 'now you have something to talk about.'}</p>
+        </div>
+      ) : (
+        <>
+          <div className="mt-3 flex items-center gap-2 text-[12px] text-[var(--paper-muted)]">
+            <span className="h-5 w-5 rounded-full bg-rose-300 grid place-items-center text-[10px] font-semibold text-rose-950">R</span>
+            <span className="flex-1 rounded-md bg-[rgb(43_38_32/0.06)] px-2 py-1 blur-[3px] select-none" aria-hidden="true">the mountains, obviously</span>
+            <Lock size={13} />
+          </div>
+          <div className="mt-3 flex gap-2">
+            {['the beach', 'the mountains'].map(a => (
+              <button
+                key={a}
+                onClick={() => setAnswer(a)}
+                className="flex-1 rounded-full border border-[#2b2620]/25 px-3 py-1.5 text-sm text-[#2b2620] hover:bg-[#2b2620]/5 transition-colors"
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 const slides: Slide[] = [
   {
     eyebrow: 'Every morning',
     title: 'One question. Two answers.',
-    hand: 'hidden until you both reply.',
+    hand: 'hidden until you both reply. try it.',
     span: 2,
-    scene: (
-      <div className="paper paper-ruled rounded-[4px] px-4 pt-3.5 pb-4 rotate-[-1.2deg]">
-        <span className="tape -top-3 left-6 rotate-[-6deg]" />
-        <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--paper-muted)]">Today&rsquo;s question</p>
-        <p className="font-serif text-[22px] leading-tight mt-1">Would you rather live by the beach, or in the mountains?</p>
-        <div className="mt-3 flex items-center gap-2 text-[12px] text-[var(--paper-muted)]">
-          <span className="h-5 w-5 rounded-full bg-rose-300 grid place-items-center text-[10px] font-semibold text-rose-950">R</span>
-          <span className="flex-1 rounded-md bg-[rgb(43_38_32/0.06)] px-2 py-1 blur-[3px] select-none" aria-hidden="true">the mountains, obviously</span>
-          <Lock size={13} />
-        </div>
-        <p className="font-hand text-[19px] mt-1.5 text-[#9a4a2f]">Riley answered — your turn</p>
-      </div>
-    ),
+    scene: <TryQuestion />,
   },
   {
     eyebrow: 'The little things',
@@ -374,18 +401,22 @@ function LoginPageInner() {
             >
               Create your space
             </Link>
-            <button
-              onClick={() => setView('signin')}
-              className="w-full bg-stone-900 hover:bg-stone-800 border border-stone-800 text-amber-50 font-medium rounded-full px-4 py-3.5 transition-colors"
-            >
-              Sign in
-            </button>
             <Link
               href="/demo"
-              className="text-stone-500 hover:text-amber-400 text-sm text-center transition-colors flex items-center justify-center"
+              className="w-full bg-stone-900 hover:bg-stone-800 border border-stone-800 text-amber-50 font-medium rounded-full px-4 py-3.5 transition-colors text-center"
             >
-              or look around a demo space →
+              Look around a demo space
             </Link>
+            <p className="text-stone-500 text-sm text-center">
+              Already have a space?{' '}
+              <button
+                onClick={() => setView('signin')}
+                className="text-amber-500 hover:text-amber-400 transition-colors"
+                style={{ minHeight: 0 }}
+              >
+                Sign in
+              </button>
+            </p>
             <p className="text-stone-600 text-xs text-center">
               Free for two. Invited by someone? Their link brings you right in.
             </p>

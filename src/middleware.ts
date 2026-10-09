@@ -73,6 +73,6 @@ export const config = {
   // NTP sync hits /api/time with no session cookie and gets HTML instead of JSON).
   // The PWA files (manifest, service worker) are excluded too:
   // browsers fetch the manifest without cookies, so a login redirect breaks
-  // installing the app.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|manifest\\.webmanifest|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // installing the app. robots.txt is fetched by crawlers without cookies too.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|manifest\\.webmanifest|robots\\.txt|sw\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

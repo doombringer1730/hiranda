@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   // canonical links, and Twitter cards. Without it Next.js falls back to
   // "http://localhost:3000" and Google reports malformed canonical/OG URLs.
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? 'https://hiranda-616i.vercel.app'
+    process.env.NEXT_PUBLIC_APP_URL ?? 'https://hiranda.com'
   ),
   title: "Hiranda",
   description: "Our little place on the internet.",
