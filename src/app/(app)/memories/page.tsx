@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getPeople } from '@/lib/profiles'
 import Link from 'next/link'
-import { Plus, Map, BookOpen, Hourglass } from 'lucide-react'
+import { Plus, Map, BookOpen, Hourglass, Printer } from 'lucide-react'
 import PageHeader from '@/components/page-header'
 import { Polaroid } from '@/components/handmade'
 import { EmptyState, PersonChip, primaryButton, iconButton } from '@/components/ui'
@@ -52,6 +52,7 @@ export default async function MemoriesPage() {
           <Link href="/month" aria-label="Our month" title="Our month" className={iconButton}><BookOpen size={17} /></Link>
           <Link href="/together" aria-label="Hours together" title="Hours together" className={iconButton}><Hourglass size={17} /></Link>
           <Link href="/memories/map" aria-label="Map of memories" className={iconButton}><Map size={17} /></Link>
+          <Link href="/memories/print" aria-label="Order prints" title="Order prints" className={iconButton}><Printer size={17} /></Link>
           <Link href="/memories/new" className={primaryButton}><Plus size={16} /> New</Link>
         </div>
       </div>
