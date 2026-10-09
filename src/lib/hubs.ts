@@ -33,13 +33,9 @@ export const HUBS: Hub[] = [
     { href: '/watchlist', label: 'Watch', title: 'Watchlist', icon: Clapperboard },
     { href: '/library', label: 'Read', title: 'Library', icon: Library },
     { href: '/music', label: 'Listen', title: 'Music', icon: Music },
+    THEATER,
   ] },
 ]
-
-export function hubsFor(theaterUnlocked: boolean): Hub[] {
-  if (!theaterUnlocked) return HUBS
-  return HUBS.map(h => h.key === 'play' ? { ...h, items: [...h.items, THEATER] } : h)
-}
 
 const inItem = (pathname: string, href: string) =>
   href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')

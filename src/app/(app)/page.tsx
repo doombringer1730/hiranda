@@ -2,11 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  PenLine, Play, MessageCircle, MessageCircleQuestion, ChevronRight, Gamepad2, Brain, Gift, CalendarPlus,
+  PenLine, MessageCircle, MessageCircleQuestion, ChevronRight, Gamepad2, Brain, Gift,
 } from 'lucide-react'
 import { type PresonProfile } from './presence-cards'
-import { FlameTile } from './flame-pet'
-import { CountUp, ThinkingOfYou } from './home-tiles'
+import { FlamePet } from './flame-pet'
+import { flameState } from '@/lib/flame'
+import { ThinkingOfYou, PhotoFrame, TodosWidget } from './home-tiles'
 import { GAMES, type Kind } from './games/board/engine'
 import DailyQuestion from './daily-question'
 import { WidgetSync } from '@/components/widget-sync'
@@ -14,9 +15,24 @@ import TalkTime from './talk-time'
 import { awardMilestones } from './grow/actions'
 import { Greeting, TodayLine } from './greeting'
 import { InstallCard, NotificationCard } from '@/components/pwa'
-import { Polaroid, Scribble } from '@/components/handmade'
+import { Scribble } from '@/components/handmade'
 import SponsorCard from '@/components/sponsor-card'
 import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
+import CheckinCard from './closeness/checkin-card'
+import PlusWelcome from './plus/plus-welcome'
+import HomeGrid from './home-grid'
+import ClassicHome from './home-classic'
+import { ClocksWidget, TimeZoneSync } from './home-clocks'
+import {
+  CountdownWidget, DaysWidget, LettersWidget, BucketWidget, WatchlistWidget, SongWidget, ShortcutsWidget,
+  CalendarWidget, JournalWidget, MovesWidget, WatchingWidget, MemoryWidget, Shell, Label, Ring, big, type Waiting,
+} from './home-widget-tiles'
+import { normalizeLayout, DEFAULT_LAYOUT } from '@/lib/home-widgets'
+import { hasPlus } from '@/lib/plus'
+import { NoteWidget } from './home-tiles'
+import { PartnerWidget, WeatherWidget, WeekWidget, JarWidget, GrowWidget } from './home-more-tiles'
+import { weatherFor, cityOf } from '@/lib/weather'
+import { ALL_LESSONS } from '@/lib/path'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
 
@@ -39,16 +55,9 @@ function daysUntil(dateStr: string, recurring: boolean): number | null {
   return Math.round((next.getTime() - today.getTime()) / 86_400_000)
 }
 
-// Shared streak: consecutive days (ending today, or yesterday as grace) with
-// any couple activity — a journal entry, memory, or answered prompt.
 const dayKey = (d: Date) => d.toISOString().slice(0, 10)
-function computeStreak(days: Set<string>): number {
-  const d = new Date()
-  if (!days.has(dayKey(d))) d.setUTCDate(d.getUTCDate() - 1) // grace: today not logged yet
-  let n = 0
-  while (days.has(dayKey(d))) { n++; d.setUTCDate(d.getUTCDate() - 1) }
-  return n
-}
+// How far back the flame looks (each query stays well under the row cap).
+const FLAME_LOOKBACK_DAYS = 100
 
 function HomeAvatar({ p }: { p: PresonProfile }) {
   return (
@@ -78,9 +87,11 @@ export default async function HomeHub() {
     : null
 
   // New passport stamps (and their coupons) appear as soon as they're earned.
-  if (partnerId) await awardMilestones()
+  // Plus decides which Home you get: the widgets you arrange, or the classic one.
+  const [plus] = await Promise.all([hasPlus(), partnerId ? awardMilestones() : null])
 
-  const since = new Date(Date.now() - 45 * 86_400_000).toISOString()
+  const none = Promise.resolve({ data: [] as never[] })
+  const since = new Date(Date.now() - FLAME_LOOKBACK_DAYS * 86_400_000).toISOString()
 
   const [
     { data: profiles },
@@ -100,12 +111,25 @@ export default async function HomeHub() {
     { data: partnerLove },
     { data: talkDays },
     { count: unreadChat },
+    { data: savedLayout },
+    { data: lettersForMe },
+    { data: bucket },
+    { data: upNext, count: watchlistLeft },
+    { data: songs },
+    { data: zones },
+    { data: lastPage },
+    { data: openTodos },
+    { data: homeNote },
+    { data: jarSlips },
+    { data: lessons },
+    { count: heartsThisWeek },
   ] = await Promise.all([
     supabase.from('profiles').select(PROFILE_FIELDS).in('id', [user.id, ...(partnerId ? [partnerId] : [])]),
     partnerId
       ? supabase.from('prompt_responses')
           .select('prompt_id, responded_at, prompts!inner(text, type)')
-          .eq('user_id', partnerId).order('responded_at', { ascending: false }).limit(20)
+          .eq('user_id', partnerId).lt('prompts.depth', 4) // never After Dark on Home
+          .order('responded_at', { ascending: false }).limit(20)
       : Promise.resolve({ data: [] as never[] }),
     supabase.from('prompt_responses').select('prompt_id').eq('user_id', user.id),
     partnerId
@@ -138,6 +162,30 @@ export default async function HomeHub() {
     partnerId
       ? supabase.from('messages').select('id', { count: 'exact', head: true }).eq('sender', partnerId).is('read_at', null)
       : Promise.resolve({ count: 0 }),
+    // Everything below is only for the widget Home (Plus).
+    // The Home screen layout, shared by you both (none yet: the default).
+    plus && couple
+      ? supabase.from('home_layouts').select('layout').eq('couple_id', couple.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    // For the Letters, Bucket list, Up next and Our song widgets
+    plus ? supabase.from('letters').select('unlock_at').eq('recipient', user.id).is('opened_at', null).limit(50) : none,
+    plus ? supabase.from('bucket_list').select('id, title, completed').limit(500) : none,
+    plus
+      ? supabase.from('watchlist').select('title, type', { count: 'exact' }).eq('watched', false).order('created_at', { ascending: true }).limit(1)
+      : Promise.resolve({ data: [] as never[], count: 0 }),
+    plus ? supabase.from('music_moments').select('song_name, artist, note, added_by').order('created_at', { ascending: false }).limit(1) : none,
+    // For the Clocks widget (fails quietly until migration 040 adds the column)
+    plus ? supabase.from('profiles').select('id, time_zone').in('id', [user.id, ...(partnerId ? [partnerId] : [])]) : Promise.resolve({ data: null }),
+    // For the Notes and Reminders widgets
+    plus ? supabase.from('journal_entries').select('id, title, body, created_by, created_at').order('created_at', { ascending: false }).limit(1) : none,
+    plus ? supabase.from('todos').select('id, text').eq('completed', false).order('created_at', { ascending: true }).limit(9) : none,
+    // For the Sticky note, Date jar, Grow and Thinking of you widgets
+    plus && couple ? supabase.from('home_notes').select('body, updated_by, updated_at').eq('couple_id', couple.id).maybeSingle() : Promise.resolve({ data: null }),
+    plus && partnerId ? supabase.rpc('jar_slips_for', { p_jar: 'ours' }) : none,
+    plus && couple ? supabase.from('lesson_progress').select('user_id, lesson_key').eq('couple_id', couple.id) : none,
+    plus && partnerId
+      ? supabase.from('love_taps').select('id', { count: 'exact', head: true }).in('from_user', [user.id, partnerId]).gte('created_at', new Date(Date.now() - 7 * 86_400_000).toISOString())
+      : Promise.resolve({ count: 0 }),
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p as PresonProfile]))
@@ -163,7 +211,11 @@ export default async function HomeHub() {
   const upcoming = (dates ?? [])
     .map(d => ({ ...d, inDays: daysUntil(d.date, d.recurring ?? true) }))
     .filter((d): d is typeof d & { inDays: number } => d.inDays !== null)
-    .sort((a, b) => a.inDays - b.inDays)[0]
+    .sort((a, b) => a.inDays - b.inDays)
+    .map(d => {
+      const on = new Date(); on.setHours(12, 0, 0, 0); on.setDate(on.getDate() + d.inDays)
+      return { id: d.id, label: d.label, inDays: d.inDays, on: `${on.getFullYear()}-${String(on.getMonth() + 1).padStart(2, '0')}-${String(on.getDate()).padStart(2, '0')}` }
+    })
 
   const watching = (continueWatching ?? [])[0] as { id: string; title: string } | undefined
   const partnerFirst = partner?.display_name.split(' ')[0] ?? 'your partner'
@@ -190,8 +242,7 @@ export default async function HomeHub() {
       if (t.completed || over) fedDays.add(t.started_at.slice(0, 10))
     }
   }
-  const streak = computeStreak(fedDays)
-  const fedToday = fedDays.has(dayKey(new Date()))
+  const flame = flameState(fedDays, new Date(), FLAME_LOOKBACK_DAYS)
 
   // ── On this day: a memory from this date in an earlier year, otherwise one
   // from the archive (stable for the day). ──
@@ -211,7 +262,6 @@ export default async function HomeHub() {
   }
 
   // ── Your move: everything currently waiting on you ──
-  type Waiting = { href: string; icon: React.ElementType; title: string; sub?: string }
   const waiting: Waiting[] = []
   if (unreadChat) waiting.push({ href: '/chat', icon: MessageCircle, title: `${unreadChat} new message${unreadChat === 1 ? '' : 's'} from ${partnerFirst}` })
   for (const g of (myMoves ?? []) as { id: string; kind: Kind }[]) {
@@ -230,7 +280,166 @@ export default async function HomeHub() {
   }
 
   const lastLove = ((partnerLove ?? []) as { created_at: string }[])[0]?.created_at ?? null
-  const eyebrow = 'text-stone-400 text-[11px] uppercase tracking-[0.22em]'
+
+  // Arranging Home is Plus. Without it, Home is the default (a saved layout
+  // waits for Plus to come back).
+  const layout = plus && savedLayout ? normalizeLayout(savedLayout.layout) : DEFAULT_LAYOUT.map(i => ({ ...i }))
+
+  // Letters to you: the ones you can open now, and the next sealed one.
+  const now = today.getTime()
+  const myLetters = (lettersForMe ?? []) as { unlock_at: string | null }[]
+  const lettersWaiting = myLetters.filter(l => !l.unlock_at || new Date(l.unlock_at).getTime() <= now).length
+  const nextUnlock = myLetters.map(l => l.unlock_at).filter((u): u is string => !!u && new Date(u).getTime() > now).sort()[0]
+  const sealedDays = nextUnlock ? Math.max(1, Math.ceil((new Date(nextUnlock).getTime() - now) / 86_400_000)) : null
+
+  // Bucket list: a dream for today (stable for the day), and how far along you are.
+  const dreams = (bucket ?? []) as { id: string; title: string; completed: boolean | null }[]
+  const notYet = dreams.filter(d => !d.completed)
+  const dream = notYet.length ? notYet[Number(dayKey(today).replace(/-/g, '')) % notYet.length].title : null
+
+  const next = ((upNext ?? []) as { title: string; type: string | null }[])[0]
+  const song = ((songs ?? []) as { song_name: string; artist: string; note: string | null; added_by: string }[])[0]
+
+  // Photo frame (Plus): your latest photos, only fetched when it's on Home.
+  let framePhotos: { url: string; caption: string | null; href: string }[] = []
+  if (plus) {
+    const { data: ph } = await supabase.from('photos').select('storage_path, caption, memory_id, memories(title)').order('created_at', { ascending: false }).limit(8)
+    const rows = (ph ?? []) as { storage_path: string; caption: string | null; memory_id: string; memories: { title: string } | { title: string }[] | null }[]
+    if (rows.length) {
+      const { data: signed } = await supabase.storage.from('photos').createSignedUrls(rows.map(r => r.storage_path), 3600)
+      framePhotos = rows.flatMap((r, n) => {
+        const url = signed?.[n]?.signedUrl
+        const mem = Array.isArray(r.memories) ? r.memories[0] : r.memories
+        return url ? [{ url, caption: r.caption || mem?.title || null, href: `/memories/${r.memory_id}` }] : []
+      })
+    }
+  }
+
+  // Clocks: only when you two are in different time zones.
+  const tzOf = new Map(((zones ?? []) as { id: string; time_zone: string | null }[]).map(z => [z.id, z.time_zone]))
+  const myTz = tzOf.get(user.id) ?? null, partnerTz = partnerId ? tzOf.get(partnerId) ?? null : null
+  const twoZones = !!myTz && !!partnerTz && myTz !== partnerTz
+  const clocks = (size: 's' | 'm' | 'l') => twoZones
+    ? <ClocksWidget me={{ name: firstName, tz: myTz! }} partner={{ name: partnerFirst, tz: partnerTz! }} size={size} />
+    : null
+
+  const rise = (n: number) => ({ '--i': n }) as React.CSSProperties
+  const ago = (iso: string) => {
+    const d = Math.floor((today.getTime() - new Date(iso).getTime()) / 86_400_000)
+    return d <= 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`
+  }
+  const page = ((lastPage ?? []) as { id: string; title: string | null; body: string; created_by: string; created_at: string }[])[0]
+  const journalEntry = page ? {
+    id: page.id, title: page.title, body: page.body.slice(0, 280),
+    by: page.created_by === user.id ? 'You' : partnerFirst, ago: ago(page.created_at),
+  } : null
+  const todos = (openTodos ?? []) as { id: string; text: string }[]
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+  // Partner: their face, their status, and what they're up to right now.
+  const partnerCard = partner ? {
+    name: partnerFirst, avatar: partner.avatar_url, accent: partner.accent_color, status: partner.status_text,
+    live: partner.activity && partner.activity_at && Date.now() - new Date(partner.activity_at).getTime() < 10 * 60_000 ? partner.activity : null,
+  } : null
+
+  // Weather where each of you is (your time zone's city).
+  const [myWeather, partnerWeather] = plus
+    ? await Promise.all([myTz ? weatherFor(myTz, myTz) : null, partnerTz ? weatherFor(partnerTz, myTz) : null])
+    : [null, null]
+  const place = (who: string, tz: string | null, w: typeof myWeather) => tz ? { who, w, city: cityOf(tz) } : null
+
+  // This week: the last seven days, lit when you both showed up.
+  const week = Array.from({ length: 7 }, (_, n) => {
+    const d = new Date(today); d.setDate(d.getDate() - 6 + n)
+    return { label: d.toLocaleDateString('en-US', { weekday: 'narrow' }), lit: fedDays.has(dayKey(d)), today: n === 6 }
+  })
+
+  // Date jar: ideas waiting, and the last one you drew.
+  const slips = (jarSlips ?? []) as { body: string | null; drawn_at: string | null }[]
+  const jarWaiting = slips.filter(x => !x.drawn_at).length
+  const lastDrawn = slips.filter(x => x.drawn_at).sort((a, b) => b.drawn_at!.localeCompare(a.drawn_at!))[0]?.body ?? null
+
+  // Grow: your next lesson, and how many you've done together.
+  const doneBy = new Map<string, Set<string>>()
+  for (const l of (lessons ?? []) as { user_id: string; lesson_key: string }[]) doneBy.set(l.lesson_key, (doneBy.get(l.lesson_key) ?? new Set()).add(l.user_id))
+  const lessonsTogether = ALL_LESSONS.filter(l => doneBy.get(l.key)?.size === 2).length
+  const nextLesson = ALL_LESSONS.find(l => !doneBy.get(l.key)?.has(user.id))
+
+  const memory = (size: 's' | 'm' | 'l') => (
+    <MemoryWidget href={pick ? `/memories/${pick.id}` : '/memories/new'} photo={pickPhoto} title={pick?.title ?? 'Add your first memory'} when={pickLabel ?? 'On this day'} size={size} />
+  )
+  // Flame, as a ring that fills toward the next milestone (like Activity).
+  const MARKS = [7, 14, 30, 50, 100, 200, 365, 500, 1000]
+  const nextMark = MARKS.find(m => m > flame.days) ?? null
+  const prevMark = [...MARKS].reverse().find(m => m <= flame.days) ?? 0
+  const flamePct = nextMark ? (flame.days - prevMark) / (nextMark - prevMark) : 1
+  const flameMood = flame.resting ? 'sleep' : flame.fedToday ? 'happy' : 'idle'
+  const flameNote = !partnerId ? 'Invite your partner to light it'
+    : flame.resting ? 'Resting. Do anything together to relight it'
+    : flame.fedToday ? (nextMark ? `Lit today · ${nextMark - flame.days} to ${nextMark}` : 'Lit today')
+    : `Not lit yet today · ${flame.cozyLeft} cozy day${flame.cozyLeft === 1 ? '' : 's'} left`
+
+  // Every widget, rendered once per size. HomeGrid places them; a missing one
+  // means there's nothing to show right now (it hides until there is).
+  const both = <T,>(f: (size: 's' | 'm' | 'l') => T) => ({ s: f('s'), m: f('m'), l: f('l') })
+  const sized = (id: string, f: (size: 's' | 'm' | 'l') => React.ReactNode) =>
+    Object.fromEntries(Object.entries(both(f)).map(([k, v]) => [`${id}:${k}`, v]))
+  const nodes: Record<string, React.ReactNode> = {
+    ...sized('moves', size => waiting.length > 0 ? <MovesWidget waiting={waiting} size={size} /> : null),
+    question: partnerId ? <div className="h-full w-full overflow-y-auto overscroll-contain pt-3 [scrollbar-width:none]"><DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} /></div> : null,
+    talk: partnerId ? <div className="h-full w-full overflow-y-auto overscroll-contain [scrollbar-width:none]"><TalkTime myId={user.id} partnerName={partnerFirst} /></div> : null,
+    ...sized('clocks', clocks),
+    ...sized('calendar', size => <CalendarWidget today={todayKey} dates={upcoming} size={size} />),
+    ...sized('todos', size => <TodosWidget todos={todos} size={size} />),
+    ...sized('journal', size => <JournalWidget entry={journalEntry} size={size} />),
+    ...sized('memory', memory),
+    ...sized('countdown', size => <CountdownWidget dates={upcoming} size={size} />),
+    'heart:s': partnerId ? <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} /> : null,
+    'heart:m': partnerId ? <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} week={heartsThisWeek ?? 0} /> : null,
+    ...sized('partner', size => partnerCard ? <PartnerWidget p={partnerCard} size={size} /> : null),
+    ...sized('note', size => couple ? (
+      <NoteWidget
+        coupleId={couple.id} myId={user.id} partnerName={partnerFirst} size={size}
+        initial={homeNote?.body ? { body: homeNote.body, by: homeNote.updated_by === user.id ? 'You' : partnerFirst, ago: ago(homeNote.updated_at) } : null}
+      />
+    ) : null),
+    ...sized('weather', size => <WeatherWidget me={place(firstName, myTz, myWeather)} partner={place(partnerFirst, partnerTz, partnerWeather)} size={size} />),
+    ...sized('week', size => partnerId ? <WeekWidget days={week} size={size} /> : null),
+    ...sized('jar', size => partnerId ? <JarWidget waiting={jarWaiting} last={lastDrawn} size={size} /> : null),
+    ...sized('grow', size => couple ? (
+      <GrowWidget
+        next={nextLesson ? { key: nextLesson.key, title: nextLesson.title, emoji: nextLesson.unit.emoji, unit: nextLesson.unit.title } : null}
+        together={lessonsTogether} total={ALL_LESSONS.length} size={size}
+      />
+    ) : null),
+    'flame:s': couple ? (
+      <Shell href="/grow" className="items-center justify-between text-center">
+        <Ring pct={flamePct} size={92} color="stroke-amber-500"><FlamePet streak={flame.days} size={44} mood={flameMood} /></Ring>
+        <div>
+          <p className={`${big} text-[26px]`}>{flame.days}<span className="text-[13px] font-medium text-stone-400 ml-1">{flame.days === 1 ? 'day' : 'days'} lit</span></p>
+        </div>
+      </Shell>
+    ) : null,
+    'flame:m': couple ? (
+      <Shell href="/grow" className="!flex-row items-center gap-5">
+        <Ring pct={flamePct} size={112} color="stroke-amber-500"><FlamePet streak={flame.days} size={54} mood={flameMood} /></Ring>
+        <div className="min-w-0 flex-1 flex flex-col gap-2">
+          <Label>Flame</Label>
+          <p className={`${big} text-[40px]`}>{flame.days}<span className="text-[15px] font-medium text-stone-400 ml-1.5">{flame.days === 1 ? 'day' : 'days'} lit{flame.fedToday ? ' 🔥' : ''}</span></p>
+          <p className="text-[13px] leading-snug text-stone-400">{flameNote}</p>
+        </div>
+      </Shell>
+    ) : null,
+    watching: watching ? <WatchingWidget id={watching.id} title={watching.title} /> : null,
+    ...sized('days', size => <DaysWidget days={days} since={couple?.together_since ?? null} size={size} />),
+    ...sized('letters', size => <LettersWidget waiting={lettersWaiting} sealedDays={sealedDays} partnerName={partnerFirst} size={size} />),
+    ...sized('bucket', size => <BucketWidget dream={dream} done={dreams.length - notYet.length} total={dreams.length} size={size} />),
+    ...sized('watchlist', size => <WatchlistWidget title={next?.title ?? null} kind={next?.type ?? null} left={watchlistLeft ?? 0} size={size} />),
+    ...sized('song', size => <SongWidget song={song?.song_name ?? null} artist={song?.artist ?? null} note={song?.note ?? null} by={song ? profileMap.get(song.added_by)?.display_name.split(' ')[0] ?? null : null} size={size} />),
+    ...sized('shortcuts', size => <ShortcutsWidget size={size} />),
+    ...sized('photos', size => plus ? <PhotoFrame photos={framePhotos} large={size === 'l'} /> : null),
+  }
+
   return (
     <div className="px-4 pb-10 max-w-2xl md:max-w-5xl mx-auto">
       {/* Greeting */}
@@ -261,6 +470,9 @@ export default async function HomeHub() {
         )}
       </header>
 
+      {/* Plus: the one-time hello for a new couple, or a note as a free week ends */}
+      {couple && partnerId && <PlusWelcome userId={user.id} partnerName={partnerFirst} />}
+
       <div className="flex flex-col gap-3 mb-3 empty:hidden">
         <InstallCard />
         <NotificationCard />
@@ -275,97 +487,45 @@ export default async function HomeHub() {
         </div>
       )}
 
-      {/* Your move — only when something is waiting on you */}
-      {waiting.length > 0 && (
-        <section className="mb-6 animate-rise">
-          <p className={`${eyebrow} px-1 mb-2`}>Your move · {waiting.length}</p>
-          <div className="tile p-1.5 flex flex-col">
-            {waiting.slice(0, 4).map((w, i) => {
-              const Icon = w.icon
-              return (
-                <Link key={i} href={w.href} className="group flex items-center gap-3 rounded-[22px] px-3 py-2.5 hover:bg-stone-800/50 transition-colors">
-                  <span className="grid place-items-center h-9 w-9 shrink-0 rounded-full bg-amber-700/20 text-amber-300"><Icon size={16} /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-amber-50 text-[15px] truncate">{w.title}</span>
-                    {w.sub && <span className="block text-stone-400 text-xs truncate">{w.sub}</span>}
-                  </span>
-                  <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
-                </Link>
-              )
-            })}
-          </div>
-        </section>
+      {!plus && (
+        <ClassicHome
+          myId={user.id} partnerId={partnerId} partnerFirst={partnerFirst} firstName={firstName}
+          hasPartnerProfile={!!partner} togetherSince={couple?.together_since ?? null} hasCouple={!!couple}
+          waiting={waiting} pick={pick} pickPhoto={pickPhoto} pickLabel={pickLabel} upcoming={upcoming[0]}
+          lastLove={lastLove} flame={flame} watching={watching}
+        />
       )}
 
-      {/* Two columns on desktop, one flowing column on phones. The things you
-          do together today come first; keepsakes and counters follow. */}
-      <div className="grid gap-x-6 gap-y-6 md:grid-cols-[1.15fr_1fr] md:items-start">
-        <div className="flex flex-col gap-6">
-          {partnerId && (
-            <div className="pt-2 animate-rise" style={{ '--i': 1 } as React.CSSProperties}>
-              <DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} />
-              <WidgetSync since={couple?.together_since ?? null} partner={partner ? partnerFirst : null} me={firstName} />
-            </div>
-          )}
-          {partnerId && (
-            <div className="animate-rise" style={{ '--i': 2 } as React.CSSProperties}>
-              <TalkTime myId={user.id} partnerName={partnerFirst} />
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-4">
-          {/* A keepsake, then the two little counters beside it */}
-          <div className="grid grid-cols-[1.15fr_1fr] gap-4 items-stretch animate-rise" style={{ '--i': 3 } as React.CSSProperties}>
-            <Link href={pick ? `/memories/${pick.id}` : '/memories/new'} className="block pt-3 pl-1">
-              <Polaroid
-                src={pickPhoto}
-                caption={pick?.title ?? 'Add your first memory'}
-                sub={pickLabel ?? 'On this day'}
-                tilt={-3}
-              />
-            </Link>
-            <div className="flex flex-col gap-4">
-              <Link href="/dates" className="tile flex-1 p-4 flex flex-col justify-between min-h-[120px]">
-                <p className={eyebrow}>Countdown</p>
-                {upcoming ? (
-                  <div>
-                    {upcoming.inDays === 0
-                      ? <p className="font-serif text-[38px] leading-none text-amber-50">Today 🎉</p>
-                      : <p className="font-serif text-[44px] leading-none text-amber-50"><CountUp value={upcoming.inDays} /><span className="text-stone-400 text-base font-sans ml-1.5">{upcoming.inDays === 1 ? 'day' : 'days'}</span></p>}
-                    <p className="text-stone-400 text-xs mt-1 truncate">{upcoming.label}</p>
-                  </div>
-                ) : (
-                  <p className="text-stone-400 text-sm flex items-center gap-2"><CalendarPlus size={18} className="text-stone-500" /> Add a date</p>
-                )}
-              </Link>
-              {partnerId && (
-                <div className="flex-1">
-                  <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {couple && (
-            <Link href="/grow" className="block animate-rise" style={{ '--i': 4 } as React.CSSProperties}>
-              <FlameTile streak={streak} fedToday={fedToday} partnerMissing={!partnerId} />
-            </Link>
-          )}
-
-          {/* Continue watching (Theater link only — the watch page is untouched) */}
-          {watching && (
-            <Link href={`/watch/${watching.id}`} className="tile p-4 flex items-center gap-3">
-              <span className="grid place-items-center h-10 w-10 rounded-full bg-stone-800 text-amber-300"><Play size={16} fill="currentColor" /></span>
+      {/* Timely notes that come and go on their own */}
+      {plus && couple && (new Date().getUTCDate() <= 7 || partnerId) && (
+        <div className="mb-6 flex flex-col gap-3 empty:hidden">
+          {/* The first week of a month: last month's keepsake is ready. */}
+          {new Date().getUTCDate() <= 7 && (
+            <Link href="/month" className="tile p-4 flex items-center gap-3 animate-rise">
+              <span className="grid place-items-center h-10 w-10 rounded-full bg-stone-800 text-lg" aria-hidden>📔</span>
               <span className="min-w-0 flex-1">
-                <span className="block text-amber-50 text-sm truncate">{watching.title}</span>
-                <span className="block text-stone-400 text-xs">Continue watching</span>
+                <span className="block text-amber-50 text-sm truncate">Your {new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 1, 15)).toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })} keepsake is ready</span>
+                <span className="block text-stone-400 text-xs">Our month, and what you two were great at</span>
               </span>
               <ChevronRight size={16} className="text-stone-600" />
             </Link>
           )}
+          {/* About once a month: a private closeness check-in. */}
+          {partnerId && <CheckinCard partnerName={partnerFirst} />}
         </div>
-      </div>
+      )}
+
+      {plus && (
+        <>
+          {zones && <TimeZoneSync saved={myTz} />}
+          {partnerId && <WidgetSync since={couple?.together_since ?? null} partner={partner ? partnerFirst : null} me={firstName} />}
+
+          {/* Your widgets: added, removed, resized and arranged by the two of you. */}
+          <div className="animate-rise" style={rise(1)}>
+            <HomeGrid initial={layout} nodes={nodes} plus={plus} />
+          </div>
+        </>
+      )}
 
       <div className="mt-8"><SponsorCard place="home" /></div>
     </div>

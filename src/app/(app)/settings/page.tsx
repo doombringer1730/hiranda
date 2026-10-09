@@ -4,11 +4,9 @@ import Link from 'next/link'
 import SettingsClient from './settings-client'
 import { NotificationSettings } from '@/components/pwa'
 import QuietSettings from '@/components/quiet-settings'
-import TheaterGate from './theater-gate'
 import { logout } from '@/app/(auth)/actions'
-import { LogOut, Film } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { getTheaterState } from '@/theater/public'
 import PageHeader from '@/components/page-header'
 import AccountSection from './account-section'
 import MfaSettings from '@/components/mfa-settings'
@@ -16,7 +14,7 @@ import { hasPlus } from '@/lib/plus'
 import { Sparkles } from 'lucide-react'
 
 export default async function SettingsPage() {
-  const [theater, plus] = await Promise.all([getTheaterState(), hasPlus()])
+  const plus = await hasPlus()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase
@@ -126,15 +124,6 @@ export default async function SettingsPage() {
             showTimer={couple?.show_timer ?? true}
             togetherSince={couple?.together_since ?? ''}
           />
-        </section>
-
-        {/* Theater — passcode-gated watch/sync */}
-        <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
-          <h3 className="text-amber-200 font-medium mb-1 flex items-center gap-2"><Film size={16} className="text-indigo-400" /> Theater</h3>
-          <p className="text-stone-500 text-sm mb-4">
-            Watch-together lives behind a shared passcode. {theater.hasPasscode ? 'Enter it to unlock for this session.' : 'Set a passcode to enable it.'}
-          </p>
-          <TheaterGate hasPasscode={theater.hasPasscode} unlocked={theater.unlocked} />
         </section>
 
         {/* Spotify */}

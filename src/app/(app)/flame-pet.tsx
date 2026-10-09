@@ -1,49 +1,31 @@
 import { Flame, Heart } from 'lucide-react'
 import { CountUp } from './home-tiles'
+import type { FlameState } from '@/lib/flame'
 
 const MILESTONES = [3, 7, 30, 100, 365]
 
-// Appearance tiers — the flame runs hotter (and glows more) as the streak grows.
+// Glow tiers: the pet glows hotter as the run grows.
 function look(streak: number) {
-  if (streak <= 0) return { c1: '#78716c', c2: '#44403c', hi: '#a8a29e', glow: 'none', alive: false }
-  if (streak < 3)   return { c1: '#fbbf24', c2: '#b45309', hi: '#fde68a', glow: '0 0 10px rgba(180,83,9,.5)', alive: true }
-  if (streak < 7)   return { c1: '#fb923c', c2: '#c2410c', hi: '#fed7aa', glow: '0 0 16px rgba(234,88,12,.55)', alive: true }
-  if (streak < 30)  return { c1: '#fb7185', c2: '#e11d48', hi: '#fecdd3', glow: '0 0 20px rgba(225,29,72,.55)', alive: true }
-  if (streak < 100) return { c1: '#c084fc', c2: '#7c3aed', hi: '#e9d5ff', glow: '0 0 24px rgba(124,58,237,.6)', alive: true }
-  return { c1: '#38bdf8', c2: '#2563eb', hi: '#bae6fd', glow: '0 0 28px rgba(37,99,235,.65)', alive: true }
+  if (streak <= 0) return { glow: 'none', alive: false }
+  if (streak < 3)   return { glow: '0 0 10px rgba(180,83,9,.5)', alive: true }
+  if (streak < 7)   return { glow: '0 0 16px rgba(234,88,12,.55)', alive: true }
+  if (streak < 30)  return { glow: '0 0 20px rgba(225,29,72,.55)', alive: true }
+  if (streak < 100) return { glow: '0 0 24px rgba(124,58,237,.6)', alive: true }
+  return { glow: '0 0 28px rgba(37,99,235,.65)', alive: true }
 }
 
-export function FlamePet({ streak, size = 72 }: { streak: number; size?: number }) {
-  const { c1, c2, hi, glow, alive } = look(streak)
-  const gid = `flame-${c2.replace('#', '')}`
+export type FlameMood = 'idle' | 'happy' | 'sleep'
+
+// The flame pet: a little fire creature (pixel sprites in /public). It sleeps
+// while the flame rests, perks up on days you've been together, and glows
+// hotter as the run grows. No sad or hurt states, on purpose.
+export function FlamePet({ streak, size = 72, mood }: { streak: number; size?: number; mood?: FlameMood }) {
+  const { glow, alive } = look(streak)
+  const m: FlameMood = mood ?? (alive ? 'idle' : 'sleep')
   return (
-    <div className={alive ? 'animate-flame' : ''} style={{ width: size, height: size * 1.25, filter: `drop-shadow(${glow})` }}>
-      <svg viewBox="0 0 64 80" width={size} height={size * 1.25} aria-hidden>
-        <defs>
-          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor={c1} />
-            <stop offset="1" stopColor={c2} />
-          </linearGradient>
-        </defs>
-        {/* body */}
-        <path d="M32 5 C 22 22 13 30 16 47 C 18 60 25 73 32 75 C 39 73 46 60 48 47 C 51 30 42 22 32 5 Z" fill={`url(#${gid})`} />
-        {/* inner highlight */}
-        <path d="M32 33 C 27 41 24 47 26 55 C 28 63 32 68 32 68 C 32 68 36 63 38 55 C 40 47 37 41 32 33 Z" fill={hi} opacity="0.85" />
-        {/* face */}
-        {alive ? (
-          <g fill="#1c1917">
-            <ellipse cx="27" cy="45" rx="2.4" ry="3.1" />
-            <ellipse cx="37" cy="45" rx="2.4" ry="3.1" />
-            <path d="M28 53 Q 32 57 36 53" stroke="#1c1917" strokeWidth="2" fill="none" strokeLinecap="round" />
-          </g>
-        ) : (
-          <g stroke="#1c1917" strokeWidth="2" strokeLinecap="round">
-            <path d="M24.5 46 q 2.5 2 5 0" fill="none" />
-            <path d="M34.5 46 q 2.5 2 5 0" fill="none" />
-            <path d="M29 54 q 3 -2 6 0" fill="none" />
-          </g>
-        )}
-      </svg>
+    <div className={m !== 'sleep' ? 'animate-flame' : ''} style={{ width: size, filter: glow === 'none' ? undefined : `drop-shadow(${glow})` }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={`/flame-${m}.png`} alt="" width={size} className="block h-auto w-full select-none" style={{ imageRendering: 'pixelated' }} draggable={false} />
     </div>
   )
 }
@@ -103,25 +85,24 @@ export function FlameWidget({ streak, fedToday, partnerMissing, days }: {
   )
 }
 
-// Square bento tile: the streak as a big number, days together underneath.
-export function FlameTile({ streak, fedToday, partnerMissing }: {
-  streak: number
-  fedToday: boolean
-  partnerMissing: boolean
-}) {
-  const next = MILESTONES.find(m => m > streak)
+// Home tile. Flame 2.0 (src/lib/flame.ts): it counts days you showed up for
+// each other, forgives busy days, and never says anything was broken.
+export function FlameTile({ flame, partnerMissing }: { flame: FlameState; partnerMissing: boolean }) {
+  const { days, fedToday, resting, cozyLeft, cozyUsed } = flame
+  const next = MILESTONES.find(m => m > days)
+  const restedRecently = cozyUsed.length > 0 && !fedToday
   return (
     <section className="tile px-4 py-3.5 flex items-center gap-4">
-      <div className="shrink-0 -my-1"><FlamePet streak={streak} size={38} /></div>
+      <div className={`shrink-0 -my-1 transition-opacity ${restedRecently ? 'opacity-80' : ''}`}><FlamePet streak={days} size={44} mood={resting ? 'sleep' : fedToday ? 'happy' : 'idle'} /></div>
       <div className="min-w-0 flex-1">
         <p className="font-serif text-2xl leading-none text-amber-50">
-          <CountUp value={streak} /> <span className="text-stone-300 text-lg">{streak === 1 ? 'day' : 'days'} lit{fedToday ? ' 🔥' : ''}</span>
+          <CountUp value={days} /> <span className="text-stone-300 text-lg">{days === 1 ? 'day' : 'days'} lit{fedToday ? ' 🔥' : ''}</span>
         </p>
         <p className="text-stone-400 text-xs mt-1 truncate">
           {partnerMissing ? 'Invite your partner to light it'
-            : fedToday ? (next ? `Fed today · ${next - streak} to the ${next}-day mark` : 'Fed today')
-            : streak > 0 ? 'Anything you two do today adds to it'
-            : 'We were on a break 🦞 — anything together relights it'}
+            : resting ? 'Resting. Anything you do together relights it'
+            : fedToday ? (next ? `Lit today · ${next - days} to the ${next}-day mark` : 'Lit today')
+            : `Busy day? It keeps. ${cozyLeft} cozy day${cozyLeft === 1 ? '' : 's'} left this month`}
         </p>
       </div>
       {!fedToday && !partnerMissing && <Flame size={16} className="shrink-0 text-amber-400/70" />}

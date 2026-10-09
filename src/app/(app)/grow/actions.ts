@@ -3,6 +3,7 @@
 import { hasPlus } from '@/lib/plus'
 import { isPlusUnit } from '@/lib/plus-config'
 
+import { creditFinishedCoupon } from '@/lib/coupon-credit'
 import { revalidatePath } from 'next/cache'
 import { coupleContext } from '@/lib/couple'
 import { notifyPartner, myFirstName } from '@/lib/push'
@@ -92,10 +93,12 @@ export async function spendCoupon(id: string) {
 export async function markCouponDone(id: string) {
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Not signed in' }
-  await ctx.supabase.from('coupons').update({ done_at: new Date().toISOString() })
-    .eq('id', id).eq('bought_by', ctx.partnerId).eq('redeemed', true)
+  const { data: done } = await ctx.supabase.from('coupons').update({ done_at: new Date().toISOString() })
+    .eq('id', id).eq('bought_by', ctx.partnerId).eq('redeemed', true).is('done_at', null).select('id')
+  // A finished coupon takes a little off your next Plus renewal (Stripe only).
+  const credited = done?.length ? await creditFinishedCoupon(ctx.couple.id, id) : 0
   revalidatePath('/grow/coupons')
-  return { ok: true }
+  return { ok: true, credited }
 }
 
 export async function giveCoupon(title: string, emoji: string) {
@@ -133,7 +136,7 @@ export async function getReviewDeck(): Promise<{ partnerName: string; cards: Rev
   const ctx = await coupleContext()
   if (!ctx) return null
   const [{ data: theirs }, { data: mine }, { data: boxes }, { data: partner }] = await Promise.all([
-    ctx.supabase.from('prompt_responses').select('prompt_id, response, prompts!inner(id, type, text, option_a, option_b)').eq('user_id', ctx.partnerId),
+    ctx.supabase.from('prompt_responses').select('prompt_id, response, prompts!inner(id, type, text, option_a, option_b)').eq('user_id', ctx.partnerId).lt('prompts.depth', 4),
     ctx.supabase.from('prompt_responses').select('prompt_id').eq('user_id', ctx.user.id),
     ctx.supabase.from('lovemap_reviews').select('prompt_id, due_on').eq('user_id', ctx.user.id),
     ctx.supabase.from('profiles').select('display_name').eq('id', ctx.partnerId).maybeSingle(),

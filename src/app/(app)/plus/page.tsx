@@ -1,12 +1,12 @@
 import { coupleContext } from '@/lib/couple'
-import { plusDetails } from '@/lib/plus'
+import { plusDetails, trialState } from '@/lib/plus'
 import { stripeConfigured, stripeOpenTo, stripeTestMode } from '@/lib/billing'
 import PlusClient from './plus-client'
 
 export const metadata = { title: 'Hiranda Plus' }
 
 export default async function PlusPage({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
-  const [ctx, details, { welcome }] = await Promise.all([coupleContext(), plusDetails(), searchParams])
+  const [ctx, details, trial, { welcome }] = await Promise.all([coupleContext(), plusDetails(), trialState(), searchParams])
   return (
     <PlusClient
       details={details}
@@ -15,6 +15,7 @@ export default async function PlusPage({ searchParams }: { searchParams: Promise
       testMode={stripeTestMode()}
       appKey={process.env.NEXT_PUBLIC_REVENUECAT_IOS_KEY ?? null}
       welcome={welcome === '1'}
+      freeWeek={!!ctx && trial.offer}
     />
   )
 }

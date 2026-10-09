@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import Nav from '@/components/nav'
 import HubSwitcher from '@/components/hub-switcher'
 import PageTransition from '@/components/page-transition'
-import { getTheaterState } from '@/theater/public'
 import { RememberAccount, type RememberedAccount } from '@/components/remember-account'
 
 
@@ -36,14 +35,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     if (!couples?.[0]?.user2_id) redirect('/invite-partner')
   }
 
-  const { unlocked } = await getTheaterState()
-
   return (
     <div className="min-h-screen">
-      <Nav theaterUnlocked={unlocked} />
+      <Nav />
       {remembered && <RememberAccount {...remembered} />}
       <main className="md:ml-[16.5rem] pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-10 min-h-screen">
-        <HubSwitcher theaterUnlocked={unlocked} />
+        <HubSwitcher />
         <PageTransition>{children}</PageTransition>
       </main>
     </div>

@@ -580,6 +580,9 @@ html {
 }
 @keyframes peel { to { transform: perspective(600px) rotateX(-95deg); opacity: 0; } }
 .animate-peel { animation: peel 0.55s var(--ease-out-quint) forwards; transform-origin: top; }
+/* A coupon tearing off and flying to your partner. */
+@keyframes send-off { 30% { transform: translateY(6px) rotate(-1deg); } to { transform: translate(40px, -90px) rotate(8deg) scale(0.85); opacity: 0; } }
+.animate-send-off { animation: send-off 0.6s var(--ease-out-quint) forwards; }
 
 /* Chat bubbles arrive on a soft spring. */
 @keyframes bubble-in {
@@ -612,7 +615,7 @@ html {
 ::view-transition-new(tabbar), ::view-transition-new(sidebar), ::view-transition-new(compact-title) { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-sheet, .animate-fade, .animate-pop, .animate-rise, .animate-bubble, .animate-jar-shake, .animate-flap, .animate-letter, .animate-bounce-soft, .coupon-legendary, .animate-peel { animation: none; }
+  .animate-sheet, .animate-fade, .animate-pop, .animate-rise, .animate-bubble, .animate-jar-shake, .animate-flap, .animate-letter, .animate-bounce-soft, .coupon-legendary, .animate-peel, .animate-send-off { animation: none; }
   .skeleton { animation: none; }
   ::view-transition-old(.page), ::view-transition-new(.page) { animation: none; }
 }

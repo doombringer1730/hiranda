@@ -149,6 +149,17 @@ export default async function GrowPage() {
           <p className="text-stone-400 text-xs mt-1">{review?.dueTotal ? `things about ${review.partnerName} to review` : 'answer more questions to fill it'}</p>
         </Link>
 
+        {/* Trails: five-day courses on one topic */}
+        <Link href="/trails" className={`${tile} col-span-2 md:col-span-4 flex items-center gap-4 group`}>
+          <span className="text-3xl" aria-hidden>🥾</span>
+          <span className="min-w-0 flex-1">
+            <span className={label}>Trails</span>
+            <span className="block text-amber-50 text-[15px] mt-0.5">Money, love, distance, moving in, family, after a fight</span>
+            <span className="block text-stone-500 text-xs mt-0.5">Five small days on one thing that matters</span>
+          </span>
+          <ChevronRight size={18} className="text-stone-600 group-hover:text-amber-400 shrink-0" />
+        </Link>
+
         {/* Up next on the path — one team bar, never a leaderboard */}
         {next && (
           <Link href={`/grow/lesson/${next.key}`} className={`${tile} col-span-2 md:col-span-4 flex items-center gap-4 group`} style={{ background: `linear-gradient(110deg, color-mix(in oklab, ${next.unit.color} 28%, transparent), transparent 70%), color-mix(in oklab, var(--color-stone-900) 80%, transparent)` }}>
