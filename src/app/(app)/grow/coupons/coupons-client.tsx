@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, Gift, Camera } from 'lucide-react'
+import { ArrowLeft, Loader2, Gift, Camera, Shuffle } from 'lucide-react'
 import { haptic, celebrate, toast } from '@/lib/feel'
 import { revealCoupon, spendCoupon, markCouponDone, giveCoupon } from '../actions'
 
@@ -24,6 +24,8 @@ export default function CouponsClient({ myId, partnerId, partnerName, coupons, i
   const [pending, start] = useTransition()
   const [gift, setGift] = useState('')
   const [giftEmoji, setGiftEmoji] = useState('🎁')
+  const [sending, setSending] = useState(false)
+  const [ideaAt, setIdeaAt] = useState(0)
 
   const mine = coupons.filter(c => c.bought_by === myId)
   const toReveal = mine.filter(c => !c.revealed_at && !c.redeemed)
@@ -56,22 +58,59 @@ export default function CouponsClient({ myId, partnerId, partnerName, coupons, i
     start(async () => { await markCouponDone(c.id); celebrate(null, { count: 24 }); router.refresh() })
   }
 
-  function give(title = gift, emoji = giftEmoji) {
-    if (!title.trim()) return
+  // Ideas fill the coupon in; nothing is sent until you press Give.
+  function pickIdea(i: { emoji: string; title: string }) { haptic(); setGiftEmoji(i.emoji); setGift(i.title) }
+  function surprise() {
+    if (!ideas.length) return
+    const next = (ideaAt + 1 + Math.floor(Math.random() * Math.max(1, ideas.length - 1))) % ideas.length
+    setIdeaAt(next); pickIdea(ideas[next])
+  }
+
+  function give() {
+    if (!gift.trim()) return
     haptic()
     start(async () => {
-      const res = await giveCoupon(title, emoji)
+      const res = await giveCoupon(gift, giftEmoji)
       if ('error' in res && res.error) { toast(res.error); return }
-      setGift(''); toast(`Given to ${partnerName} 💝`); router.refresh()
+      // The ticket tears off and flies to them, then a fresh blank one.
+      setSending(true); celebrate(null, { count: 30 })
+      setTimeout(() => { setSending(false); setGift(''); setGiftEmoji('🎁'); toast(`Sent to ${partnerName} 💝 they'll scratch to reveal it`); router.refresh() }, 650)
     })
   }
+
+  const preview: Coupon = { id: 'preview', title: gift.trim() || 'Good for one…', emoji: giftEmoji || '🎁', bought_by: partnerId, given_by: myId, rarity: 'gift', source: 'gift', redeemed: false, redeemed_at: null, revealed_at: null, done_at: null, created_at: '' }
 
   return (
     <div className="px-4 pt-6 pb-12 max-w-2xl mx-auto">
       <Link href="/grow" className="inline-flex items-center gap-1.5 text-stone-400 hover:text-amber-300 text-sm mb-4"><ArrowLeft size={16} /> Grow</Link>
       <p className="text-stone-400 text-[11px] uppercase tracking-[0.3em]">Earned together, used on each other</p>
       <h1 className="font-serif text-[44px] leading-none text-amber-50 mt-2">Coupon Book<span className="text-amber-500">.</span></h1>
-      <p className="font-hand text-[22px] text-stone-400 mt-2 mb-8">every stamp in your passport gives you both one.</p>
+      <p className="font-hand text-[22px] text-stone-400 mt-2 mb-8">write one any time. stamps in your passport add surprise ones.</p>
+
+      {/* Make one: free, any time. The ticket previews as you write. */}
+      <section className="tile p-5">
+        <p className="flex items-center gap-2 text-amber-200 font-serif text-2xl"><Gift size={20} /> Make {partnerName} a coupon</p>
+        <p className="text-stone-400 text-sm mt-1">Free, as many as you like. They scratch it to see what it is.</p>
+        <div className={`mt-4 ${sending ? 'animate-send-off' : ''}`}>
+          <CouponCard c={preview} />
+        </div>
+        <div className="flex gap-2 mt-4">
+          <input value={giftEmoji} onChange={e => setGiftEmoji(e.target.value)} maxLength={4} aria-label="Emoji" className="w-12 text-center rounded-xl bg-stone-950/60 border border-stone-800 text-lg" />
+          <input value={gift} onChange={e => setGift(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') give() }} maxLength={80} placeholder="Good for one…" aria-label="What it's good for"
+            className="flex-1 min-w-0 rounded-xl bg-stone-950/60 border border-stone-800 px-3 py-2.5 font-hand text-[21px] text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700" />
+          <button onClick={give} disabled={pending || sending || !gift.trim()} className="shrink-0 rounded-full bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 text-sm font-medium px-5">
+            {pending ? <Loader2 size={15} className="animate-spin" /> : 'Give'}
+          </button>
+        </div>
+        {ideas.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar mt-3 -mx-1 px-1">
+            <button onClick={surprise} className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-900/40 hover:bg-amber-900/60 text-amber-200 px-3 py-1.5 text-[13px]"><Shuffle size={13} /> Surprise me</button>
+            {ideas.map(i => (
+              <button key={i.title} onClick={() => pickIdea(i)} className="shrink-0 rounded-full bg-stone-800/80 hover:bg-stone-700 text-stone-200 px-3 py-1.5 text-[13px]">{i.emoji} {i.title}</button>
+            ))}
+          </div>
+        )}
+      </section>
 
       {toReveal.length > 0 && (
         <Section title={`To reveal · ${toReveal.length}`}>
@@ -106,7 +145,7 @@ export default function CouponsClient({ myId, partnerId, partnerName, coupons, i
 
       <Section title={`Yours to use · ${toUse.length}`}>
         {toUse.length === 0 ? (
-          <p className="text-stone-500 text-sm">None right now — stamps in your passport earn more, or {partnerName} can give you one.</p>
+          <p className="text-stone-500 text-sm">None right now. Stamps in your passport bring surprise ones, and anything {partnerName} makes for you lands here.</p>
         ) : toUse.map(c => (
           <div key={c.id}>
             <CouponCard c={c} />
@@ -128,25 +167,6 @@ export default function CouponsClient({ myId, partnerId, partnerName, coupons, i
           ))}
         </Section>
       )}
-
-      {/* Give one, free, any time */}
-      <section className="mt-10 tile p-5">
-        <p className="flex items-center gap-2 text-amber-200 font-serif text-2xl"><Gift size={20} /> Give {partnerName} a coupon</p>
-        <p className="text-stone-400 text-sm mt-1">Free, any time. Pick one or write your own.</p>
-        <div className="flex gap-1.5 overflow-x-auto no-scrollbar mt-3 -mx-1 px-1">
-          {ideas.map(i => (
-            <button key={i.title} onClick={() => give(i.title, i.emoji)} disabled={pending} className="shrink-0 rounded-full bg-stone-800/80 hover:bg-stone-700 text-stone-200 px-3 py-1.5 text-[13px]">{i.emoji} {i.title}</button>
-          ))}
-        </div>
-        <div className="flex gap-2 mt-3">
-          <input value={giftEmoji} onChange={e => setGiftEmoji(e.target.value)} maxLength={4} aria-label="Emoji" className="w-12 text-center rounded-xl bg-stone-950/60 border border-stone-800 text-lg" />
-          <input value={gift} onChange={e => setGift(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') give() }} maxLength={80} placeholder="Good for one…"
-            className="flex-1 min-w-0 rounded-xl bg-stone-950/60 border border-stone-800 px-3 py-2.5 font-hand text-[21px] text-amber-50 placeholder:text-stone-600 focus:outline-none focus:border-amber-700" />
-          <button onClick={() => give()} disabled={pending || !gift.trim()} className="shrink-0 rounded-xl bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-amber-50 text-sm font-medium px-4">
-            {pending ? <Loader2 size={15} className="animate-spin" /> : 'Give'}
-          </button>
-        </div>
-      </section>
 
       {history.length > 0 && (
         <Section title="Used and loved">
