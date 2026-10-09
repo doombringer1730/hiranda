@@ -12,6 +12,7 @@ export const PLUS_TRIAL_DAYS = 7
 // Shown on the paywall, in this order.
 export const PLUS_PERKS = [
   { emoji: '📔', title: 'Our Month', text: 'Every month becomes a keepsake: your photos, good news, questions and songs.' },
+  { emoji: '🏡', title: 'Your own Home', text: 'Arrange Home like your phone: widgets you add, resize, color and stack, plus a photo frame.' },
   { emoji: '⏳', title: 'Hours together', text: 'Every movie night a ticket stub, every talk a pressed flower.' },
   { emoji: '🥾', title: 'Every Trail', text: 'Five-day courses on money, love, distance, moving in, family and after a fight.' },
   { emoji: '🕯️', title: 'After Dark', text: 'An intimacy deck for desire and touch. Opens only when you both say yes.' },
