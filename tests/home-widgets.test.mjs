@@ -27,10 +27,16 @@ test('saved layouts drop unknown widgets and repeats, and fix bad sizes', () => 
   assert.deepEqual(normalizeLayout([]), [])
 })
 
+test('the default Home is the original one, Polaroid included', () => {
+  assert.deepEqual(DEFAULT_LAYOUT.filter(i => i.size === 'w').map(i => i.id), ['moves', 'question', 'talk', 'memory', 'flame', 'watching'])
+})
+
 test('the size button cycles through a widget’s sizes', () => {
   assert.equal(nextSize('memory', 's'), 'm')
   assert.equal(nextSize('memory', 'm'), 'l')
-  assert.equal(nextSize('memory', 'l'), 's')
+  assert.equal(nextSize('memory', 'l'), 'w')
+  assert.equal(nextSize('memory', 'w'), 's')
+  assert.equal(nextSize('memory', 'l', ['calendar']), 's') // a stack can't go Full
   assert.equal(nextSize('watching', 'm'), 'w')
   assert.equal(nextSize('watching', 'w'), 'm')
   assert.equal(nextSize('heart', 's'), 'm')

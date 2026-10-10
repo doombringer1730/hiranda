@@ -21,7 +21,7 @@ import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
 import CheckinCard from './closeness/checkin-card'
 import PlusWelcome from './plus/plus-welcome'
 import HomeGrid from './home-grid'
-import ClassicHome, { YourMoveList, ContinueWatchingRow } from './home-classic'
+import ClassicHome, { YourMoveList, ContinueWatchingRow, KeepsakeRow } from './home-classic'
 import { ClocksWidget, TimeZoneSync } from './home-clocks'
 import {
   CountdownWidget, DaysWidget, LettersWidget, BucketWidget, WatchlistWidget, SongWidget, ShortcutsWidget,
@@ -392,6 +392,7 @@ export default async function HomeHub() {
     'talk:w': partnerId ? <TalkTime myId={user.id} partnerName={partnerFirst} /> : null,
     'flame:w': couple ? <Link href="/grow" className="block"><FlameTile flame={flame} partnerMissing={!partnerId} /></Link> : null,
     'watching:w': watching ? <ContinueWatchingRow id={watching.id} title={watching.title} /> : null,
+    'memory:w': <KeepsakeRow pick={pick} pickPhoto={pickPhoto} pickLabel={pickLabel} upcoming={upcoming[0]} partnerId={partnerId} partnerFirst={partnerFirst} lastLove={lastLove} />,
     question: partnerId ? <div className="h-full w-full overflow-y-auto overscroll-contain pt-3 [scrollbar-width:none]"><DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} /></div> : null,
     talk: partnerId ? <div className="h-full w-full overflow-y-auto overscroll-contain [scrollbar-width:none]"><TalkTime myId={user.id} partnerName={partnerFirst} /></div> : null,
     ...sized('clocks', clocks),

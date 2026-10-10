@@ -21,13 +21,23 @@ const SPAN: Record<WidgetSize, string> = {
 }
 const CELLS: Record<Exclude<WidgetSize, 'w'>, [number, number]> = { s: [1, 1], m: [2, 1], l: [2, 2] }
 const GRID_CSS = `
-  .hw-wrap { container-type: inline-size; width: 100%; --cols: 2; --gap: 14px; }
+  .hw-wrap { container-type: inline-size; width: 100%; --cols: 2; --gap: 16px; }
   @media (min-width: 768px) { .hw-wrap { --cols: 4; --gap: 18px; } }
   .hw-grid { display: grid; gap: var(--gap); grid-auto-flow: row dense;
     grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
     grid-auto-rows: calc((100cqw - (var(--cols) - 1) * var(--gap)) / var(--cols)); }
-  .hw-full { display: grid; gap: var(--gap); align-items: start; }
-  @media (min-width: 768px) { .hw-full { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  /* Full cards keep the original Home's fit: one column on phones, two
+     flowing columns on desktop (no row lining them up, so no holes), with
+     its spacing: 24px after the things you do together, 16px between the
+     keepsakes. Your move spans both columns, as it always sat on top. */
+  .hw-full { margin-bottom: -16px; }
+  .hw-full > .hw-cell { break-inside: avoid; margin-bottom: 16px; }
+  .hw-full > [data-wid=moves], .hw-full > [data-wid=question], .hw-full > [data-wid=talk] { margin-bottom: 24px; }
+  .hw-full:has(> :last-child:is([data-wid=moves], [data-wid=question], [data-wid=talk])) { margin-bottom: -24px; }
+  @media (min-width: 768px) {
+    .hw-full { columns: 2; column-gap: 24px; }
+    .hw-full > [data-wid=moves] { column-span: all; }
+  }
   .hw-grid .hw-cell .tile { border-radius: 22px; }
   @keyframes hw-jiggle { 0%,100% { rotate: -0.6deg } 50% { rotate: 0.6deg } }
   .hw-jiggle { animation: hw-jiggle 0.3s ease-in-out infinite; }
@@ -304,7 +314,7 @@ export default function HomeGrid({ initial, nodes, plus }: {
         onPointerMove={onPointerMove}
         onPointerUp={drop}
         onPointerCancel={() => drop()}
-        className="relative flex flex-col gap-[var(--gap)]"
+        className="relative flex flex-col gap-6"
       >
         {runs(shown.map((item, n) => {
           const meta = WIDGETS[item.id]

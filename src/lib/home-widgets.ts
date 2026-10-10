@@ -42,7 +42,7 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
   calendar:  { name: 'Calendar', emoji: '📅', blurb: 'Today, and the dates coming up for you two.', sizes: ['s', 'm', 'l'] },
   todos:     { name: 'Reminders', emoji: '☑️', blurb: 'Your shared to-dos. Tick them off right here.', sizes: ['s', 'm', 'l'] },
   journal:   { name: 'Notes', emoji: '📝', blurb: 'The latest page from your journal.', sizes: ['s', 'm'] },
-  memory:    { name: 'On this day', emoji: '📸', blurb: 'A memory from this date, or one from the archive.', sizes: ['s', 'm', 'l'] },
+  memory:    { name: 'On this day', emoji: '📸', blurb: 'A memory from this date as a Polaroid, or one from the archive.', sizes: ['w', 's', 'm', 'l'] },
   countdown: { name: 'Countdown', emoji: '⏳', blurb: 'Days until your next important date.', sizes: ['s', 'm'] },
   heart:     { name: 'Thinking of you', emoji: '💗', blurb: 'One tap sends a heart.', sizes: ['s', 'm'] },
   flame:     { name: 'Flame', emoji: '🔥', blurb: 'How many days you’ve kept it lit.', sizes: ['s', 'm', 'w'] },
@@ -61,19 +61,16 @@ export const WIDGET_IDS = Object.keys(WIDGETS) as WidgetId[]
 export const SIZE_NAMES: Record<WidgetSize, string> = { s: 'Small', m: 'Medium', l: 'Large', w: 'Full' }
 
 // Everyone's Home until they arrange it: the old page's sections, at their
-// old full-width fit, plus the world clock (which only shows when you're in
-// different time zones).
+// old fit (the Polaroid with the countdown and a heart beside it included),
+// plus the world clock (which only shows when you're in different time zones).
 export const DEFAULT_LAYOUT: readonly LayoutItem[] = [
   { id: 'moves', size: 'w' },
   { id: 'question', size: 'w' },
   { id: 'talk', size: 'w' },
-  { id: 'clocks', size: 'm' },
-  { id: 'memory', size: 's' },
-  { id: 'countdown', size: 's' },
-  { id: 'heart', size: 's' },
-  { id: 'letters', size: 's' },
+  { id: 'memory', size: 'w' },
   { id: 'flame', size: 'w' },
   { id: 'watching', size: 'w' },
+  { id: 'clocks', size: 'm' },
 ]
 
 /** Clean up a saved layout: known widgets only, each once (stacks
