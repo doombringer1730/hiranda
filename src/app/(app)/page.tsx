@@ -5,7 +5,7 @@ import {
   PenLine, MessageCircle, MessageCircleQuestion, ChevronRight, Gamepad2, Brain, Gift,
 } from 'lucide-react'
 import { type PresonProfile } from './presence-cards'
-import { FlamePet } from './flame-pet'
+import { FlamePet, FlameTile } from './flame-pet'
 import { flameState } from '@/lib/flame'
 import { ThinkingOfYou, PhotoFrame, TodosWidget } from './home-tiles'
 import { GAMES, type Kind } from './games/board/engine'
@@ -21,7 +21,7 @@ import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
 import CheckinCard from './closeness/checkin-card'
 import PlusWelcome from './plus/plus-welcome'
 import HomeGrid from './home-grid'
-import ClassicHome from './home-classic'
+import ClassicHome, { YourMoveList, ContinueWatchingRow } from './home-classic'
 import { ClocksWidget, TimeZoneSync } from './home-clocks'
 import {
   CountdownWidget, DaysWidget, LettersWidget, BucketWidget, WatchlistWidget, SongWidget, ShortcutsWidget,
@@ -386,6 +386,12 @@ export default async function HomeHub() {
     Object.fromEntries(Object.entries(both(f)).map(([k, v]) => [`${id}:${k}`, v]))
   const nodes: Record<string, React.ReactNode> = {
     ...sized('moves', size => waiting.length > 0 ? <MovesWidget waiting={waiting} size={size} /> : null),
+    // Full: the original Home's cards, at their own height.
+    'moves:w': waiting.length > 0 ? <div className="animate-rise"><YourMoveList waiting={waiting} /></div> : null,
+    'question:w': partnerId ? <div className="pt-2"><DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} /></div> : null,
+    'talk:w': partnerId ? <TalkTime myId={user.id} partnerName={partnerFirst} /> : null,
+    'flame:w': couple ? <Link href="/grow" className="block"><FlameTile flame={flame} partnerMissing={!partnerId} /></Link> : null,
+    'watching:w': watching ? <ContinueWatchingRow id={watching.id} title={watching.title} /> : null,
     question: partnerId ? <div className="h-full w-full overflow-y-auto overscroll-contain pt-3 [scrollbar-width:none]"><DailyQuestion myId={user.id} partnerId={partnerId} partnerName={partnerFirst} /></div> : null,
     talk: partnerId ? <div className="h-full w-full overflow-y-auto overscroll-contain [scrollbar-width:none]"><TalkTime myId={user.id} partnerName={partnerFirst} /></div> : null,
     ...sized('clocks', clocks),

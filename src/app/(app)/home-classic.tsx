@@ -37,26 +37,7 @@ export default function ClassicHome({
   return (
     <>
       {/* Your move — only when something is waiting on you */}
-      {waiting.length > 0 && (
-        <section className="mb-6 animate-rise">
-          <p className={`${eyebrow} px-1 mb-2`}>Your move · {waiting.length}</p>
-          <div className="tile p-1.5 flex flex-col">
-            {waiting.slice(0, 4).map((w, i) => {
-              const Icon = w.icon
-              return (
-                <Link key={i} href={w.href} className="group flex items-center gap-3 rounded-[22px] px-3 py-2.5 hover:bg-stone-800/50 transition-colors">
-                  <span className="grid place-items-center h-9 w-9 shrink-0 rounded-full bg-amber-700/20 text-amber-300"><Icon size={16} /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-amber-50 text-[15px] truncate">{w.title}</span>
-                    {w.sub && <span className="block text-stone-400 text-xs truncate">{w.sub}</span>}
-                  </span>
-                  <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
-                </Link>
-              )
-            })}
-          </div>
-        </section>
-      )}
+      {waiting.length > 0 && <section className="mb-6 animate-rise"><YourMoveList waiting={waiting} /></section>}
 
       {/* Two columns on desktop, one flowing column on phones. The things you
           do together today come first; keepsakes and counters follow. */}
@@ -130,16 +111,7 @@ export default function ClassicHome({
           {hasCouple && partnerId && <div className="animate-rise" style={{ '--i': 5 } as React.CSSProperties}><CheckinCard partnerName={partnerFirst} /></div>}
 
           {/* Continue watching (Theater link only — the watch page is untouched) */}
-          {watching && (
-            <Link href={`/watch/${watching.id}`} className="tile p-4 flex items-center gap-3">
-              <span className="grid place-items-center h-10 w-10 rounded-full bg-stone-800 text-amber-300"><Play size={16} fill="currentColor" /></span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-amber-50 text-sm truncate">{watching.title}</span>
-                <span className="block text-stone-400 text-xs">Continue watching</span>
-              </span>
-              <ChevronRight size={16} className="text-stone-600" />
-            </Link>
-          )}
+          {watching && <ContinueWatchingRow id={watching.id} title={watching.title} />}
         </div>
       </div>
 
@@ -149,5 +121,42 @@ export default function ClassicHome({
         </p>
       )}
     </>
+  )
+}
+
+// The original Home's sections, also used as full-width Home widgets.
+export function YourMoveList({ waiting }: { waiting: Waiting[] }) {
+  return (
+    <>
+      <p className={`${eyebrow} px-1 mb-2`}>Your move · {waiting.length}</p>
+      <div className="tile p-1.5 flex flex-col">
+        {waiting.slice(0, 4).map((w, i) => {
+          const Icon = w.icon
+          return (
+            <Link key={i} href={w.href} className="group flex items-center gap-3 rounded-[22px] px-3 py-2.5 hover:bg-stone-800/50 transition-colors">
+              <span className="grid place-items-center h-9 w-9 shrink-0 rounded-full bg-amber-700/20 text-amber-300"><Icon size={16} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-amber-50 text-[15px] truncate">{w.title}</span>
+                {w.sub && <span className="block text-stone-400 text-xs truncate">{w.sub}</span>}
+              </span>
+              <ChevronRight size={16} className="text-stone-600 group-hover:text-amber-400 transition-colors shrink-0" />
+            </Link>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
+export function ContinueWatchingRow({ id, title }: { id: string; title: string }) {
+  return (
+    <Link href={`/watch/${id}`} className="tile p-4 flex items-center gap-3">
+      <span className="grid place-items-center h-10 w-10 rounded-full bg-stone-800 text-amber-300"><Play size={16} fill="currentColor" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-amber-50 text-sm truncate">{title}</span>
+        <span className="block text-stone-400 text-xs">Continue watching</span>
+      </span>
+      <ChevronRight size={16} className="text-stone-600" />
+    </Link>
   )
 }
