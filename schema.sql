@@ -27,7 +27,8 @@ create table couple (
   jellyfin_api_key    text,
   real_debrid_api_key text,
   torbox_api_key      text,
-  theme               text not null default 'coffee'
+  theme               text not null default 'coffee',
+  paired_at           timestamptz  -- set by accept_invite() (migration 042)
 );
 
 alter table couple enable row level security;
@@ -76,7 +77,8 @@ begin
        and user2_id is null;
 
     update couple
-       set user2_id = new_user_id
+       set user2_id = new_user_id,
+           paired_at = now()  -- migration 042
      where id = target_id
        and user2_id is null;
 
@@ -785,3 +787,5 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 -- 041 store_orders.photos — photo ids to print, in order (1–200), for
 --     Polaroid prints and photo books; the server re-checks they belong to
 --     the couple when it renders the print files.
+-- 042 couple.paired_at — when the partner accepted the invite, stamped by
+--     accept_invite(); null for couples that paired before 042.
