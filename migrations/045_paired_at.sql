@@ -1,4 +1,4 @@
--- 042: When each couple actually paired up.
+-- 045: When each couple actually paired up.
 --
 -- couple.created_at is when the first partner made the space, not when the
 -- second one joined. paired_at is set by accept_invite() the moment an invite

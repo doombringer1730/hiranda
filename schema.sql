@@ -28,7 +28,7 @@ create table couple (
   real_debrid_api_key text,
   torbox_api_key      text,
   theme               text not null default 'coffee',
-  paired_at           timestamptz  -- set by accept_invite() (migration 042)
+  paired_at           timestamptz  -- set by accept_invite() (migration 045)
 );
 
 alter table couple enable row level security;
@@ -78,7 +78,7 @@ begin
 
     update couple
        set user2_id = new_user_id,
-           paired_at = now()  -- migration 042
+           paired_at = now()  -- migration 045
      where id = target_id
        and user2_id is null;
 
@@ -730,7 +730,7 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 
 
 -- ─────────────────────────────────────────
--- MIGRATIONS 017–041 (summary — see each file in migrations/ for the full
+-- MIGRATIONS 017–045 (summary — see each file in migrations/ for the full
 -- table, policy and function definitions; every one is safe to re-run)
 -- ─────────────────────────────────────────
 -- Unless noted, new tables are couple-scoped (couple_id or a member's user id),
@@ -787,5 +787,9 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 -- 041 store_orders.photos — photo ids to print, in order (1–200), for
 --     Polaroid prints and photo books; the server re-checks they belong to
 --     the couple when it renders the print files.
--- 042 couple.paired_at — when the partner accepted the invite, stamped by
---     accept_invite(); null for couples that paired before 042.
+-- 042 feedback — the "Enjoying Hiranda?" card; only you see your answers.
+-- 043 watch_queue — "Up next" in the Theater, scoped like watch_messages.
+-- 044 invite_preview(token) — the inviter's first name, photo and colour for
+--     an unused invite link; callable signed out, needs the token.
+-- 045 couple.paired_at — when the partner accepted the invite, stamped by
+--     accept_invite(); null for couples that paired before 045.
