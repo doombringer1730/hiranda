@@ -220,7 +220,8 @@ business (for example an LLC).
 - **The iPhone app loads the website, so the website *is* the app.** Don't
   switch on features in the app that the reviewer didn't see, and never bring
   back streaming from debrid or torrent services.
-- **Tips stay on the web.** The "Buy me a coffee" card in Settings links to
+- **Tips stay on the web.** The "Buy me a coffee" card (Settings, and Home for
+  couples without Plus) links to
   `NEXT_PUBLIC_BUY_ME_COFFEE_URL` (set it in Vercel, e.g.
   `https://buymeacoffee.com/yourname`; unset hides the card). It hides itself
   inside the app, since Apple requires in-app purchase for tips (rule 3.1.1).

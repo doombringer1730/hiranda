@@ -17,6 +17,7 @@ import { Greeting, TodayLine } from './greeting'
 import { InstallCard, NotificationCard } from '@/components/pwa'
 import { Scribble } from '@/components/handmade'
 import SponsorCard from '@/components/sponsor-card'
+import BuyMeCoffee from '@/components/buy-me-coffee'
 import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
 import CheckinCard from './closeness/checkin-card'
 import PlusWelcome from './plus/plus-welcome'
@@ -535,6 +536,7 @@ export default async function HomeHub() {
       )}
 
       <div className="mt-8"><SponsorCard place="home" /></div>
+      {!plus && <div className="mt-3 empty:hidden"><BuyMeCoffee compact /></div>}
     </div>
   )
 }
