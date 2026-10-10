@@ -3,11 +3,12 @@
 import { Coffee } from 'lucide-react'
 import { useIsNativeApp } from '@/lib/native'
 
-const url = process.env.NEXT_PUBLIC_BUY_ME_COFFEE_URL
+// NEXT_PUBLIC_BUY_ME_COFFEE_URL overrides it (set it to an empty value to hide the card).
+const url = process.env.NEXT_PUBLIC_BUY_ME_COFFEE_URL ?? 'https://buymeacoffee.com/huddy'
 
 // A tip jar for whoever runs Hiranda. Web only: inside the iPhone app a tip
 // that unlocks nothing still has to go through Apple (App Store rule 3.1.1),
-// so the link never shows there. Hidden too until the URL is set.
+// so the link never shows there.
 // `compact` is the quiet one-line version Home shows under the sponsor card.
 export default function BuyMeCoffee({ compact = false }: { compact?: boolean }) {
   const native = useIsNativeApp()

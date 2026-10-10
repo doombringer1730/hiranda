@@ -222,7 +222,7 @@ business (for example an LLC).
   back streaming from debrid or torrent services.
 - **Tips stay on the web.** The "Buy me a coffee" card (Settings, and Home for
   couples without Plus) links to
-  `NEXT_PUBLIC_BUY_ME_COFFEE_URL` (set it in Vercel, e.g.
-  `https://buymeacoffee.com/yourname`; unset hides the card). It hides itself
+  https://buymeacoffee.com/huddy (to change it, set
+  `NEXT_PUBLIC_BUY_ME_COFFEE_URL` in Vercel; an empty value hides the card). It hides itself
   inside the app, since Apple requires in-app purchase for tips (rule 3.1.1).
 - **Keep the review notes accurate**, including the passcode, whenever you resubmit.
