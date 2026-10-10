@@ -356,20 +356,34 @@ export function WatchingWidget({ id, title }: { id: string; title: string }) {
   )
 }
 
-// ── On this day (like the Photos widget) ──────────────────────────────────
+// ── On this day ───────────────────────────────────────────────────────────
+// The original Home's Polaroid, tape and all, fitted to the widget: the print
+// sits a little crooked in its spot, photo on top (or beside it when medium),
+// the caption handwritten on the white border.
 export function MemoryWidget({ href, photo, title, when, size }: { href: string; photo: string | null; title: string; when: string; size: Size }) {
-  // A print: your photo with a cream border and a handwritten caption.
+  const wide = size === 'm'
+  const pic = (
+    <span className={cls('relative block overflow-hidden rounded-[2px] bg-[#ece6da]', wide ? 'h-full aspect-square shrink-0' : 'flex-1 min-h-0')}>
+      {photo
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        : <span className={cls('absolute inset-0 grid place-items-center font-serif text-[#b4a993]', size === 'l' ? 'text-7xl' : 'text-5xl')} aria-hidden>H.</span>}
+    </span>
+  )
+  const caption = (
+    <span className={cls('block min-w-0 text-[#2b2620]', wide ? 'self-end pb-1' : 'px-1 pt-1.5 pb-1')}>
+      <span className={cls('block font-hand leading-[1.05]', size === 's' ? 'text-[19px] truncate' : size === 'l' ? 'text-[30px] line-clamp-2' : 'text-[26px] line-clamp-3')}>{title}</span>
+      <span className="block text-[10px] uppercase tracking-[0.18em] text-[#8a7f70] mt-0.5 truncate">{when}</span>
+    </span>
+  )
   return (
-    <Link href={href} className="block h-full w-full rounded-[22px] bg-[#efe8da] p-2 shadow-[0_12px_32px_-16px_var(--drop)]">
-      <span className="relative block h-full w-full overflow-hidden rounded-[15px] bg-gradient-to-br from-amber-700/50 via-stone-700 to-stone-800">
-        {photo
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover" />
-          : <span className="absolute inset-0 grid place-items-center font-serif text-6xl text-amber-100/30" aria-hidden>H.</span>}
-        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-3 pb-2.5 pt-10">
-          <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-white/75">{when}</span>
-          <span className={cls('block font-hand leading-[1.05] text-white line-clamp-2', size === 'l' ? 'text-[30px]' : 'text-[22px]')}>{title}</span>
-        </span>
+    <Link href={href} className="relative block h-full w-full">
+      <span
+        className={cls('polaroid !absolute inset-x-[8px] bottom-[8px] top-[16px] !flex !rounded-[4px]', wide ? 'flex-row gap-3 !p-2' : 'flex-col !pb-0')}
+        style={{ rotate: size === 'l' ? '-1.2deg' : '-2deg' }}
+      >
+        <span className="tape -top-3 left-1/2 -translate-x-1/2 rotate-[-4deg]" aria-hidden />
+        {pic}{caption}
       </span>
     </Link>
   )
