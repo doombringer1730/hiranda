@@ -133,7 +133,9 @@ export default function PlusClient({ details, coupleId, webReady, testMode, appK
       {active && !onTrial ? (
         <div className="rounded-2xl border border-amber-800/40 bg-amber-950/20 p-5 text-center flex flex-col items-center gap-3">
           <p className="text-stone-300 text-sm">
-            {details.source === 'grant' ? 'Founders’ Plus — on the house, forever.'
+            {details.source === 'grant'
+              ? details.renews ? `Plus on the house until ${new Date(details.renews).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.`
+                : 'Founders’ Plus — on the house, forever.'
               : details.renews ? `Renews ${new Date(details.renews).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.`
               : 'Active.'}
           </p>

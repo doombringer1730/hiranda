@@ -47,8 +47,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 async function record(row: PlusRow) {
   if (!UUID.test(row.couple_id)) return
   const db = createAdminClient()
-  const { data: existing } = await db.from('couple_plus').select('source').eq('couple_id', row.couple_id).maybeSingle()
-  if (existing?.source === 'grant') return
+  // A forever grant is never replaced; a grant with an end date gives way to a
+  // real subscription, so a couple that pays after (or during) it gets Plus.
+  const { data: existing } = await db.from('couple_plus').select('source, current_period_end').eq('couple_id', row.couple_id).maybeSingle()
+  if (existing?.source === 'grant' && !existing.current_period_end) return
   await db.from('couple_plus').upsert({ ...row, updated_at: new Date().toISOString() })
 }
 
