@@ -20,6 +20,7 @@ import SponsorCard from '@/components/sponsor-card'
 import BuyMeCoffee from '@/components/buy-me-coffee'
 import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
 import CheckinCard from './closeness/checkin-card'
+import FeedbackCard from './feedback/feedback-card'
 import PlusWelcome from './plus/plus-welcome'
 import HomeGrid from './home-grid'
 import ClassicHome, { YourMoveList, ContinueWatchingRow, KeepsakeRow } from './home-classic'
@@ -494,6 +495,9 @@ export default async function HomeHub() {
           ))}
         </div>
       )}
+
+      {/* A few days in: one tap on how it's going */}
+      {couple && partnerId && <div className="mb-6 empty:hidden"><FeedbackCard joinedAt={user.created_at} /></div>}
 
       {!plus && (
         <ClassicHome
