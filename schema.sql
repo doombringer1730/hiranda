@@ -725,3 +725,63 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 -- Migration 011: couple.theater_passcode_hash — the "Theater" (watch/sync +
 -- streaming sources) is hidden behind a shared passcode; unlock is a session
 -- cookie whose value must equal this hash. UI-gating only (data is RLS-scoped).
+
+
+-- ─────────────────────────────────────────
+-- MIGRATIONS 017–041 (summary — see each file in migrations/ for the full
+-- table, policy and function definitions; every one is safe to re-run)
+-- ─────────────────────────────────────────
+-- Unless noted, new tables are couple-scoped (couple_id or a member's user id),
+-- carry the restrictive "Require 2FA when enabled" policy from 021, and give
+-- anon nothing (018).
+--
+-- 017 love_taps — "thinking of you" taps; partner-readable, insert your own.
+-- 018 Security hardening: Spotify token columns unreadable through the API
+--     (profiles SELECT is granted per column); couple UPDATE granted per
+--     column, so membership / invite_token can't be rewritten; every UPDATE
+--     policy's WITH CHECK = USING; anon loses all table access; bucket size
+--     limits (photos 50 MB, avatars/banners 10 MB, epubs 200 MB).
+--     MAINTENANCE: a new profiles column the app reads, or a new couple column
+--     it updates, needs a matching column GRANT.
+-- 019 prompt_responses added to the supabase_realtime publication.
+-- 020 purge_user_data(target) — service-role-only account deletion.
+-- 021 mfa_ok() + a restrictive 2FA policy on every RLS table (except
+--     watch_sessions / watch_messages).
+-- 022 push_subscriptions.private ("hide details on lock screen");
+--     partner_push_subscriptions() returns it.
+-- 023 talk_sessions — shared talk-time countdowns (realtime).
+-- 024 messages — couple chat; recipients set reaction / read_at, senders
+--     unsend (realtime).
+-- 025 letters (body sealed; read via read_letter()), jar_slips + jar_settings
+--     (bodies via jar_slips_for(), draw_from_jar()) (realtime).
+-- 026 Grow: coupons gain rarity / source / given_by / revealed_at / done_at
+--     and are created only by functions; coupon_catalog, milestones,
+--     lesson_progress, lovemap_reviews; milestone_defs(),
+--     milestone_progress(), award_milestones(), give_coupon().
+-- 027 prompts.depth (1–3) + depth_optins + couple_depth(); notify_prefs (Do
+--     Not Disturb / quiet hours); messages.kind 'urgent', 3 a day
+--     (limit_urgent trigger).
+-- 028 native_push_tokens (APNs) + register_native_push_token(),
+--     partner_native_push_tokens(), prune_partner_native_push_token().
+-- 029 couple_plus — the couple's Plus entitlement, written only by payment
+--     webhooks (service role); couple_has_plus().
+-- 030 Store: store_addresses (owner-only), store_orders (sender starts as
+--     'pending', server moves it on); partner_has_gift_address(),
+--     incoming_gifts().
+-- 031 confirm_gift_arrived(order).
+-- 032 store_orders.vendor / vendor_order_id / vendor_error (server-set).
+-- 033 seller_applications — server only (RLS on, no policies).
+-- 034 store_products — admin-added products; server only (no policies).
+-- 035 store_products.category adds 'her' / 'him'.
+-- 036 store_products.options (jsonb) and store_orders.option.
+-- 037 gift_sizes (owner-only) + partner_size_kinds().
+-- 038 trail_progress, trail_stamps, finish_trail(); After Dark deck
+--     (prompts.depth = 4, depth_optins.after_dark, couple_after_dark());
+--     closeness_checkins (private to you).
+-- 039 plus_trials (one free week per couple) + start_plus_trial();
+--     couple_has_plus() counts a running trial; plus_intro_seen.
+-- 040 home_layouts (saving needs Plus), home_notes (realtime),
+--     profiles.time_zone.
+-- 041 store_orders.photos — photo ids to print, in order (1–200), for
+--     Polaroid prints and photo books; the server re-checks they belong to
+--     the couple when it renders the print files.
