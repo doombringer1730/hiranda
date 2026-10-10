@@ -9,7 +9,7 @@ export function storeContactEmail() {
 }
 
 /** Our public origin, for URLs suppliers fetch (print files). */
-export const siteUrl = () => (process.env.NEXT_PUBLIC_APP_URL ?? 'https://hiranda-616i.vercel.app').replace(/\/$/, '')
+export const siteUrl = () => (process.env.NEXT_PUBLIC_APP_URL ?? 'https://hiranda.com').replace(/\/$/, '')
 
 /** fetch → JSON with a timeout; throws on network errors and non-JSON bodies. */
 export async function fetchJson(url: string, init: RequestInit & { timeoutMs?: number } = {}) {

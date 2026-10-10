@@ -32,11 +32,12 @@ export async function supplierFor(productKey: string): Promise<{ vendor: Vendor;
 export async function fulfilOrder(orderId: string): Promise<{ ok?: true; manual?: true; error?: string }> {
   const db = createAdminClient()
   const { data: order } = await db.from('store_orders')
-    .select('id, product_key, note, sender_id, recipient_id, status, vendor, vendor_order_id, option')
+    .select('id, product_key, note, sender_id, recipient_id, status, vendor, vendor_order_id, option, photos')
     .eq('id', orderId).maybeSingle()
   if (!order || order.status !== 'paid' || order.vendor_order_id) return { error: 'This gift isn’t waiting to be sent.' }
   const pick = await supplierFor(order.product_key)
   if (!pick) return { manual: true }
+  const prints = (await findProduct(order.product_key, { includeInactive: true }))?.prints
   const { vendor } = pick
   let { spec } = pick
   // A size (or other option) that maps to its own CJ variant.
@@ -86,6 +87,7 @@ export async function fulfilOrder(orderId: string): Promise<{ ok?: true; manual?
       id: order.id, note: order.note,
       senderFirst: nameOf(order.sender_id) || 'Your partner',
       recipientFirst: nameOf(order.recipient_id) || first,
+      ...(prints && order.photos?.length ? { prints: { kind: prints, count: order.photos.length } } : {}),
     }, spec, to)
   } catch (e) {
     return problem(e instanceof VendorError

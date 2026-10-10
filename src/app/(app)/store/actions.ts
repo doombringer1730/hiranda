@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyPartner, myFirstName } from '@/lib/push'
 import { SHIP_TO, SIZE_KINDS, sameSize } from '@/lib/store/catalog'
 import { findProduct } from '@/lib/store/products'
+import { PRINT_KINDS, isPrintKind, parsePhotoIds, type PrintKind } from '@/lib/store/prints'
 import { isStoreAdmin, storeEnabled } from '@/lib/store/server'
 import { usStateCode } from '@/lib/store/vendors/us-states'
 
@@ -71,6 +72,7 @@ export async function startGift(productKey: string, note: string, option?: strin
   if (!storeEnabled()) return { error: 'The store opens soon.' }
   const product = await findProduct(productKey)
   if (!product) return { error: 'Unknown gift' }
+  if (product.prints) return { error: 'Pick the photos for this one from your memories.' }
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Gifts are for your partner — invite them first.' }
   if (!stripeOpenTo(ctx.user.email)) return { error: 'The store opens soon.' }
@@ -111,19 +113,59 @@ export async function startGift(productKey: string, note: string, option?: strin
   }).select('id').single()
   if (error || !order) return { error: 'Couldn’t start the order — try again.' }
 
+  return checkout(order.id, picked && !privateSize ? `${product.title} (${product.options!.name}: ${picked})` : product.title,
+    product.priceCents, ctx.user.email, '/store')
+}
+
+// Hand a pending order to Stripe Checkout.
+async function checkout(orderId: string, name: string, cents: number, email: string | null | undefined, back: string) {
   const base = await origin()
   const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
-    line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: product.priceCents, product_data: { name: picked && !privateSize ? `${product.title} (${product.options!.name}: ${picked})` : product.title } } }],
-    customer_email: ctx.user.email ?? undefined,
-    metadata: { order_id: order.id, kind: 'gift' },
-    payment_intent_data: { metadata: { order_id: order.id } },
-    success_url: `${base}/store/thanks?o=${order.id}`,
-    cancel_url: `${base}/store`,
+    line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: cents, product_data: { name } } }],
+    customer_email: email ?? undefined,
+    metadata: { order_id: orderId, kind: 'gift' },
+    payment_intent_data: { metadata: { order_id: orderId } },
+    success_url: `${base}/store/thanks?o=${orderId}`,
+    cancel_url: `${base}${back}`,
   })
   // Only the server can write the session id onto the order.
-  await createAdminClient().from('store_orders').update({ stripe_session_id: session.id }).eq('id', order.id).eq('status', 'pending')
+  await createAdminClient().from('store_orders').update({ stripe_session_id: session.id }).eq('id', orderId).eq('status', 'pending')
   return session.url ? { url: session.url } : { error: 'Couldn’t open checkout — try again.' }
+}
+
+// Prints from your memories (/store/print): Polaroids or a photo book, sent
+// to your partner like any gift. The photos must be ones you two uploaded.
+export async function startPrintOrder(kind: PrintKind, photoIds: string[], note: string): Promise<{ url?: string; error?: string }> {
+  if (!storeEnabled()) return { error: 'The store opens soon.' }
+  if (!isPrintKind(kind)) return { error: 'Unknown print' }
+  const cfg = PRINT_KINDS[kind]
+  const product = await findProduct(cfg.productKey)
+  if (!product?.prints) return { error: 'Prints aren’t available right now.' }
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Prints are for your partner — invite them first.' }
+  if (!stripeOpenTo(ctx.user.email)) return { error: 'The store opens soon.' }
+  const { data: hasAddress } = await ctx.supabase.rpc('partner_has_gift_address')
+  if (!hasAddress) return { error: 'Your partner hasn’t added a delivery address yet.' }
+
+  const wanted = parsePhotoIds(photoIds.join(','), cfg.max)
+  if (!wanted.length) return { error: 'Pick some photos first.' }
+  // Your couple's photos only (row-level security), kept in the order picked.
+  const { data: rows } = await ctx.supabase.from('photos').select('id').in('id', wanted)
+  const ok = new Set((rows ?? []).map(r => r.id))
+  const ids = wanted.filter(id => ok.has(id))
+  if (ids.length !== wanted.length) return { error: 'Some of those photos aren’t available anymore. Pick them again.' }
+
+  const title = cfg.title(ids.length)
+  const cents = cfg.priceCents(ids.length)
+  const { data: order, error } = await ctx.supabase.from('store_orders').insert({
+    couple_id: ctx.couple.id, sender_id: ctx.user.id, recipient_id: ctx.partnerId,
+    product_key: product.key, title, note: note.trim().slice(0, 300) || null, amount_cents: cents, photos: ids,
+  }).select('id').single()
+  if (error || !order) return { error: 'Couldn’t start the order — try again.' }
+  // Cancelling comes back to the same picks, when the link stays short enough for Stripe.
+  const back = `/store/print?kind=${kind}&photos=${ids.join(',')}`
+  return checkout(order.id, title, cents, ctx.user.email, back.length < 1500 ? back : '/store')
 }
 
 export async function confirmArrived(orderId: string) {

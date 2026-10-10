@@ -138,13 +138,13 @@ trial. Prices, perks, free themes and free Grow units all live in
    - `REVENUECAT_SECRET_KEY`: a secret (v1) API key
    - `REVENUECAT_WEBHOOK_AUTH`: any long random string
 6. In RevenueCat → Integrations → Webhooks, set the URL to
-   `https://hiranda-616i.vercel.app/api/revenuecat/webhook` and the Authorization
+   `https://hiranda.com/api/revenuecat/webhook` and the Authorization
    header to the same `REVENUECAT_WEBHOOK_AUTH` value.
 
 **Web (Stripe):**
 1. In Stripe, create the product "Hiranda Plus" with two recurring prices
    ($4.99 monthly, $39.99 yearly). Turn on the customer portal (Settings → Billing → Customer portal).
-2. Add a webhook at `https://hiranda-616i.vercel.app/api/stripe/webhook` with these events:
+2. Add a webhook at `https://hiranda.com/api/stripe/webhook` with these events:
    - `checkout.session.completed`
    - `customer.subscription.created`
    - `customer.subscription.updated`
