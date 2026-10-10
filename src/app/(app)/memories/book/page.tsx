@@ -98,7 +98,8 @@ export default async function MemoryBookPage({ searchParams }: { searchParams: P
           </div>
         )}
         <p className="text-stone-500 text-xs mb-6">
-          Tip: “Save as PDF” in the print dialog, then print at home or upload it to any photo-book or print shop.
+          Tip: “Save as PDF” in the print dialog, then print at home. Or{' '}
+          <Link href="/memories/print?kind=book" className="text-amber-400 underline underline-offset-4">order it as a bound photo book</Link>.
         </p>
       </div>
 

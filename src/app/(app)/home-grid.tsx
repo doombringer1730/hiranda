@@ -17,15 +17,18 @@ const SPAN: Record<WidgetSize, string> = {
   s: 'col-span-1 row-span-1',
   m: 'col-span-2 row-span-1',
   l: 'col-span-2 row-span-2',
+  w: '', // its own row, as tall as it needs
 }
-const CELLS: Record<WidgetSize, [number, number]> = { s: [1, 1], m: [2, 1], l: [2, 2] }
+const CELLS: Record<Exclude<WidgetSize, 'w'>, [number, number]> = { s: [1, 1], m: [2, 1], l: [2, 2] }
 const GRID_CSS = `
-  .hw-wrap { container-type: inline-size; width: 100%; }
-  .hw-grid { --cols: 2; --gap: 14px; display: grid; gap: var(--gap); grid-auto-flow: row dense;
+  .hw-wrap { container-type: inline-size; width: 100%; --cols: 2; --gap: 14px; }
+  @media (min-width: 768px) { .hw-wrap { --cols: 4; --gap: 18px; } }
+  .hw-grid { display: grid; gap: var(--gap); grid-auto-flow: row dense;
     grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
     grid-auto-rows: calc((100cqw - (var(--cols) - 1) * var(--gap)) / var(--cols)); }
-  @media (min-width: 768px) { .hw-grid { --cols: 4; --gap: 18px; } }
-  .hw-cell .tile { border-radius: 22px; }
+  .hw-full { display: grid; gap: var(--gap); align-items: start; }
+  @media (min-width: 768px) { .hw-full { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .hw-grid .hw-cell .tile { border-radius: 22px; }
   @keyframes hw-jiggle { 0%,100% { rotate: -0.6deg } 50% { rotate: 0.6deg } }
   .hw-jiggle { animation: hw-jiggle 0.3s ease-in-out infinite; }
   .hw-jiggle-b { animation-delay: -0.15s; }
@@ -91,6 +94,19 @@ export default function HomeGrid({ initial, nodes, plus }: {
   const nodeFor = (i: { id: WidgetId; size: WidgetSize }) => nodes[`${i.id}:${i.size}`] ?? nodes[i.id] ?? null
   // A Plus widget stays in the saved layout if Plus lapses; it just hides.
   const shown = layout.filter(i => plus || !WIDGETS[i.id].plus)
+
+  // Square widgets flow in the iPhone grid; Full cards sit between them at
+  // their own height (two side by side on wide screens), like the old Home.
+  function runs(cells: React.ReactNode[], items: LayoutItem[]) {
+    const out: { full: boolean; cells: React.ReactNode[] }[] = []
+    cells.forEach((c, n) => {
+      if (!c) return
+      const full = items[n].size === 'w'
+      if (out.at(-1)?.full !== full) out.push({ full, cells: [] })
+      out.at(-1)!.cells.push(c)
+    })
+    return out.map((r, n) => <div key={n} className={r.full ? 'hw-full' : 'hw-grid'}>{r.cells}</div>)
+  }
 
   const update = useCallback((next: LayoutItem[]) => { setLayout(next); setDirty(true) }, [])
 
@@ -250,8 +266,8 @@ export default function HomeGrid({ initial, nodes, plus }: {
     const g = gridRef.current
     if (!g) return 170
     const cs = getComputedStyle(g)
-    const cols = cs.gridTemplateColumns.split(' ').length || 2
-    const gap = parseFloat(cs.columnGap) || 14
+    const cols = parseFloat(cs.getPropertyValue('--cols')) || 2
+    const gap = parseFloat(cs.getPropertyValue('--gap')) || 14
     return (g.clientWidth - gap * (cols - 1)) / cols
   }
 
@@ -288,9 +304,9 @@ export default function HomeGrid({ initial, nodes, plus }: {
         onPointerMove={onPointerMove}
         onPointerUp={drop}
         onPointerCancel={() => drop()}
-        className="hw-grid relative"
+        className="relative flex flex-col gap-[var(--gap)]"
       >
-        {shown.map((item, n) => {
+        {runs(shown.map((item, n) => {
           const meta = WIDGETS[item.id]
           const members = idsOf(item).map(id => ({ id, node: nodeFor({ id, size: item.size }) }))
           const visible = editing ? members : members.filter(m => m.node)
@@ -311,7 +327,7 @@ export default function HomeGrid({ initial, nodes, plus }: {
               className={`hw-cell relative min-w-0 min-h-0 ${SPAN[item.size]} ${editing ? 'cursor-grab [-webkit-touch-callout:none] outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-[22px]' : ''} ${lifted ? 'z-20 cursor-grabbing' : ''}`}
             >
               <div className={`h-full ${editing && !lifted ? `hw-jiggle ${n % 2 ? 'hw-jiggle-b' : ''}` : ''} ${lifted ? 'scale-[1.04] drop-shadow-2xl' : ''} transition-transform`}>
-                <div inert={editing} style={tintStyle(item.tint)} className={`h-full w-full overflow-hidden rounded-[22px] ${item.tint ? `hw-tinted hw-tint-${item.tint}` : ''} ${editing ? 'pointer-events-none' : ''}`}>
+                <div inert={editing} style={tintStyle(item.tint)} className={`w-full rounded-[22px] ${item.size === 'w' ? '' : 'h-full overflow-hidden'} ${item.tint ? `hw-tinted hw-tint-${item.tint}` : ''} ${editing ? 'pointer-events-none' : ''}`}>
                   {stacked
                     ? <Stack members={stacked} editing={editing} />
                     : visible[0].node ?? <Placeholder id={item.id} />}
@@ -342,7 +358,7 @@ export default function HomeGrid({ initial, nodes, plus }: {
               )}
             </div>
           )
-        })}
+        }), shown)}
       </div>
       </div>
 
@@ -394,6 +410,18 @@ export default function HomeGrid({ initial, nodes, plus }: {
 function Preview({ node, size, unit, meta }: { node: React.ReactNode; size: WidgetSize; unit: number; meta: (typeof WIDGETS)[WidgetId] }) {
   // The widget at its real size, scaled down to fit the sheet.
   const gap = 14
+  if (size === 'w') {
+    // A Full card is as tall as its content, so shrink the whole card.
+    const w = 2 * unit + gap
+    const fit = Math.min(1, 300 / w)
+    return (
+      <div inert className="mx-auto max-h-[300px] overflow-hidden pointer-events-none" style={{ width: w * fit }}>
+        <div className="hw-cell" style={{ width: w, zoom: fit }}>
+          {node ?? <div className="tile p-6 text-center text-amber-50 text-sm">{meta.emoji} {meta.name}</div>}
+        </div>
+      </div>
+    )
+  }
   const [c, r] = CELLS[size]
   const w = c * unit + (c - 1) * gap, h = r * unit + (r - 1) * gap
   const fit = Math.min(1, 300 / w, 300 / h)
@@ -616,7 +644,7 @@ function OptionsSheet({ item, layout, onChange, onClose }: {
           </div>
         </section>
 
-        <section>
+        {item.size !== 'w' && <section>
           <p className="text-stone-400 text-xs uppercase tracking-[0.16em] mb-1">Smart Stack</p>
           <p className="text-stone-500 text-xs mb-2">Stack widgets in one spot and swipe between them.</p>
           {ids.length > 1 && (
@@ -641,7 +669,7 @@ function OptionsSheet({ item, layout, onChange, onClose }: {
           ) : (
             <p className="text-stone-500 text-xs">Other {SIZE_NAMES[item.size].toLowerCase()} widgets on your Home can join this one.</p>
           )}
-        </section>
+        </section>}
       </div>
     </div>,
     document.body,

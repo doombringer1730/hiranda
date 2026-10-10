@@ -18,7 +18,7 @@ test('saved layouts drop unknown widgets and repeats, and fix bad sizes', () => 
       { id: 'question', size: 'l' },
       { id: 'rocket', size: 's' },
       { id: 'question', size: 'm' },
-      { id: 'heart', size: 'l' }, // heart only comes small
+      { id: 'heart', size: 'l' }, // heart has no large size
       null,
       { id: 'photos' },
     ]),
@@ -31,7 +31,9 @@ test('the size button cycles through a widget’s sizes', () => {
   assert.equal(nextSize('memory', 's'), 'm')
   assert.equal(nextSize('memory', 'm'), 'l')
   assert.equal(nextSize('memory', 'l'), 's')
-  assert.equal(nextSize('watching', 'm'), 'm')
+  assert.equal(nextSize('watching', 'm'), 'w')
+  assert.equal(nextSize('watching', 'w'), 'm')
+  assert.equal(nextSize('heart', 's'), 'm')
 })
 
 test('moving a widget keeps everything else in order', () => {
@@ -53,4 +55,11 @@ test('stacks keep each widget once, only at a size they all have, and tints are 
       { id: 'song', size: 's' },
     ],
   )
+})
+
+test('full-width cards fit like the original Home and never stack', () => {
+  assert.deepEqual(normalizeLayout([{ id: 'question', size: 'w', stack: ['talk'] }, { id: 'talk', size: 'w' }]),
+    [{ id: 'question', size: 'w' }, { id: 'talk', size: 'w' }])
+  assert.deepEqual(normalizeLayout([{ id: 'calendar', size: 'w' }]), [{ id: 'calendar', size: 's' }]) // calendar has no full size
+  assert.equal(nextSize('flame', 'm', ['days']), 's') // a stack skips Full
 })

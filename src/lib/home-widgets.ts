@@ -4,8 +4,9 @@
 // (Safe to import anywhere: no server code here.)
 
 // Sizes work like iPhone widgets: small is one square, medium is two squares
-// side by side, large is a two-by-two square.
-export type WidgetSize = 's' | 'm' | 'l'
+// side by side, large is a two-by-two square. Full ('w') is the original
+// Home's card: full width, as tall as what's in it.
+export type WidgetSize = 's' | 'm' | 'l' | 'w'
 export type WidgetId =
   | 'moves' | 'question' | 'talk' | 'memory' | 'countdown' | 'heart' | 'flame' | 'watching'
   | 'clocks' | 'calendar' | 'todos' | 'journal' | 'days' | 'letters' | 'bucket' | 'watchlist' | 'song'
@@ -22,7 +23,7 @@ export type WidgetMeta = {
   name: string
   blurb: string
   emoji: string
-  sizes: readonly WidgetSize[] // smallest first
+  sizes: readonly WidgetSize[] // the first is what a new one starts as
   plus?: boolean
 }
 
@@ -34,9 +35,9 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
   week:      { name: 'This week', emoji: '🌿', blurb: 'The days this week you showed up for each other.', sizes: ['s', 'm'] },
   jar:       { name: 'Date jar', emoji: '🫙', blurb: 'What’s waiting in your jar, and what you last drew.', sizes: ['s', 'm'] },
   grow:      { name: 'Grow', emoji: '🌱', blurb: 'Your next lesson together, and how far you’ve come.', sizes: ['s', 'm'] },
-  moves:     { name: 'Your move', emoji: '👉', blurb: 'Messages, games and answers waiting on you.', sizes: ['m', 'l'] },
-  question:  { name: 'Daily question', emoji: '💬', blurb: 'Today’s question for the two of you.', sizes: ['l'] },
-  talk:      { name: 'Talk time', emoji: '⏱️', blurb: 'Start a timed talk together.', sizes: ['l'] },
+  moves:     { name: 'Your move', emoji: '👉', blurb: 'Messages, games and answers waiting on you.', sizes: ['w', 'm', 'l'] },
+  question:  { name: 'Daily question', emoji: '💬', blurb: 'Today’s question for the two of you.', sizes: ['w', 'l'] },
+  talk:      { name: 'Talk time', emoji: '⏱️', blurb: 'Start a timed talk together.', sizes: ['w', 'l'] },
   clocks:    { name: 'World clock', emoji: '🕰️', blurb: 'Your time and theirs, when you’re in different time zones.', sizes: ['s', 'm'] },
   calendar:  { name: 'Calendar', emoji: '📅', blurb: 'Today, and the dates coming up for you two.', sizes: ['s', 'm', 'l'] },
   todos:     { name: 'Reminders', emoji: '☑️', blurb: 'Your shared to-dos. Tick them off right here.', sizes: ['s', 'm', 'l'] },
@@ -44,8 +45,8 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
   memory:    { name: 'On this day', emoji: '📸', blurb: 'A memory from this date, or one from the archive.', sizes: ['s', 'm', 'l'] },
   countdown: { name: 'Countdown', emoji: '⏳', blurb: 'Days until your next important date.', sizes: ['s', 'm'] },
   heart:     { name: 'Thinking of you', emoji: '💗', blurb: 'One tap sends a heart.', sizes: ['s', 'm'] },
-  flame:     { name: 'Flame', emoji: '🔥', blurb: 'How many days you’ve kept it lit.', sizes: ['s', 'm'] },
-  watching:  { name: 'Continue watching', emoji: '🍿', blurb: 'Jump back into your movie night.', sizes: ['m'] },
+  flame:     { name: 'Flame', emoji: '🔥', blurb: 'How many days you’ve kept it lit.', sizes: ['s', 'm', 'w'] },
+  watching:  { name: 'Continue watching', emoji: '🍿', blurb: 'Jump back into your movie night.', sizes: ['m', 'w'] },
   days:      { name: 'Days together', emoji: '💞', blurb: 'Every day since you got together.', sizes: ['s', 'm'] },
   letters:   { name: 'Letters', emoji: '💌', blurb: 'Letters waiting for you to open.', sizes: ['s', 'm'] },
   bucket:    { name: 'Bucket list', emoji: '🌍', blurb: 'A dream for today, and how many you’ve done.', sizes: ['s', 'm'] },
@@ -57,21 +58,22 @@ export const WIDGETS: Record<WidgetId, WidgetMeta> = {
 
 export const WIDGET_IDS = Object.keys(WIDGETS) as WidgetId[]
 
-export const SIZE_NAMES: Record<WidgetSize, string> = { s: 'Small', m: 'Medium', l: 'Large' }
+export const SIZE_NAMES: Record<WidgetSize, string> = { s: 'Small', m: 'Medium', l: 'Large', w: 'Full' }
 
-// Everyone's Home until they arrange it: the old page's sections, plus the
-// world clock (which only shows when you're in different time zones).
+// Everyone's Home until they arrange it: the old page's sections, at their
+// old full-width fit, plus the world clock (which only shows when you're in
+// different time zones).
 export const DEFAULT_LAYOUT: readonly LayoutItem[] = [
-  { id: 'moves', size: 'm' },
-  { id: 'question', size: 'l' },
-  { id: 'talk', size: 'l' },
+  { id: 'moves', size: 'w' },
+  { id: 'question', size: 'w' },
+  { id: 'talk', size: 'w' },
   { id: 'clocks', size: 'm' },
   { id: 'memory', size: 's' },
   { id: 'countdown', size: 's' },
   { id: 'heart', size: 's' },
   { id: 'letters', size: 's' },
-  { id: 'flame', size: 'm' },
-  { id: 'watching', size: 'm' },
+  { id: 'flame', size: 'w' },
+  { id: 'watching', size: 'w' },
 ]
 
 /** Clean up a saved layout: known widgets only, each once (stacks
@@ -88,7 +90,7 @@ export function normalizeLayout(raw: unknown): LayoutItem[] {
     seen.add(id)
     const next: LayoutItem = { id, size: WIDGETS[id].sizes.includes(size as WidgetSize) ? size as WidgetSize : WIDGETS[id].sizes[0] }
     if (TINTS.includes(tint as Tint)) next.tint = tint as Tint
-    if (Array.isArray(stack)) {
+    if (Array.isArray(stack) && next.size !== 'w') { // full-width cards don't stack
       const more = stack.filter((s): s is WidgetId => known(s) && WIDGETS[s].sizes.includes(next.size)).slice(0, 9)
       for (const s of more) seen.add(s)
       if (more.length) next.stack = more
@@ -103,7 +105,8 @@ export const idsOf = (i: LayoutItem): WidgetId[] => [i.id, ...(i.stack ?? [])]
 
 /** Sizes every widget in a spot shares (a stack resizes as one). */
 export function sizesOf(i: LayoutItem): WidgetSize[] {
-  return WIDGETS[i.id].sizes.filter(s => (i.stack ?? []).every(o => WIDGETS[o].sizes.includes(s)))
+  const stack = i.stack ?? []
+  return WIDGETS[i.id].sizes.filter(s => (!stack.length || s !== 'w') && stack.every(o => WIDGETS[o].sizes.includes(s)))
 }
 
 /** The next size up, wrapping back to the smallest (the size button cycles). */
