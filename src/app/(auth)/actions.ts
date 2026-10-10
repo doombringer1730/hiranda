@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { notifyPartner } from '@/lib/push'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 
@@ -47,6 +48,8 @@ export async function signup(_: unknown, formData: FormData) {
       const { data: joined, error: joinError } = await supabase
         .rpc('accept_invite', { token: inviteToken.trim(), new_user_id: data.user.id })
       if (joinError || !joined) return { error: 'That invite link is invalid or has already been used.' }
+      // The partner who sent the link is usually long gone by now — ping them.
+      notifyPartner({ title: `${displayName?.trim().split(' ')[0] || 'Your partner'} joined your space 💗`, body: 'Your little place is ready. Come say hi.', url: '/', tag: 'joined' })
       redirect(safeNext ?? '/')
     } else {
       // An unchecked failure here left the account with no couple row, and the
