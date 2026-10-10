@@ -17,7 +17,9 @@ export async function login(_prev: string | null, formData: FormData): Promise<s
     path: '/',
     maxAge: 60 * 60 * 24 * 30,
   })
-  redirect('/')
+  const next = String(formData.get('next') ?? '')
+  // Only same-site paths, never //host or /\host.
+  redirect(/^\/(?![/\\])/.test(next) ? next : '/')
 }
 
 export async function logout() {

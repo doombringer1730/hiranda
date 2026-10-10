@@ -3,8 +3,8 @@
 The Real-Debrid / TorBox search that used to live in Hiranda's Theater, as a
 separate, password-protected site. Search TMDB for a movie or show, pick an
 episode, and get the streams already cached on your debrid account through
-Torrentio. Each one can be played in the page, copied (to paste into VLC,
-Infuse, or a Hiranda "link" watch session), or opened in a new tab.
+Torrentio. Each one can be watched together (synced, with chat), played in
+the page, copied (for VLC or Infuse), or opened in a new tab.
 
 It is a standalone Next.js app and shares nothing with Hiranda. Keep it that
 way: **don't link to it from Hiranda**. The iPhone app loads the Hiranda site,
@@ -25,7 +25,31 @@ so nothing debrid can appear there (see `../APPSTORE.md`).
 | `TMDB_API_KEY` | yes | TMDB v3 API key (the same one Hiranda uses works). |
 | `REALDEBRID_API_KEY` | one of these | From https://real-debrid.com/apitoken |
 | `TORBOX_API_KEY` | one of these | From your TorBox settings. With both set, results are merged. |
+| `SUPABASE_URL` | for watch together | A Supabase project URL, used only for Realtime. |
+| `SUPABASE_ANON_KEY` | for watch together | That project's anon (publishable) key. |
 | `TORRENTIO_URL` | no | A different Torrentio instance. Defaults to `https://torrentio.strem.fun`. |
+
+## Watch together
+
+**Watch together** on a stream opens a room (`/watch/<id>?…`) and **Invite**
+copies its link. Whoever opens it signs in with the site password (the
+link survives the login), picks a name, and lands in sync. Play, pause and
+seek follow whoever did them, and there's a live viewer list, chat and emotes.
+The room's link carries the stream plus up to five backups. If a link dies,
+everyone moves on to the next one together.
+
+The sync is Hiranda's Theater algorithm (`app/watch/[room]/room.tsx`):
+heartbeats every 4s plus instant play/pause/seek actions, a rolling-median
+clock offset against `/api/time` so a playing position is projected forward
+by its travel time, and corrections when drift passes 1.5s (0.8s for
+actions). A newcomer stays quiet until it has heard from the room, so it
+never drags everyone back to 0:00.
+
+It runs on Supabase Realtime **broadcast and presence only**: no tables, no
+auth, nothing stored. Chat disappears on reload. Use a new free Supabase
+project for it, not Hiranda's, so the two stay unconnected. Realtime's
+default "allow public access" setting must stay on. The keys reach the
+browser only on the signed-in room page, never in the public JS.
 
 ## How it works
 

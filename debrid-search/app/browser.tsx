@@ -6,6 +6,8 @@ import {
   type Episode, type Kind, type Season, type Title,
 } from './actions'
 import { fetchStreams, type Stream } from '@/lib/torrentio'
+import { newRoomId, roomHref } from '@/lib/room'
+import { useRouter } from 'next/navigation'
 
 const IMG = 'https://image.tmdb.org/t/p'
 // Browsers can't decode these, so such files play silent or not at all.
@@ -112,6 +114,18 @@ export default function Browser() {
     }
   }
 
+  const router = useRouter()
+
+  // A room for this stream, with the next few streams as backups.
+  function watchTogether(s: Stream, list: Stream[]) {
+    router.push(roomHref(newRoomId(), {
+      title: label,
+      poster: title?.poster ?? null,
+      src: s.url,
+      fallbacks: list.filter(o => o.url !== s.url).slice(0, 5).map(o => o.url),
+    }))
+  }
+
   async function copy(s: Stream) {
     try {
       await navigator.clipboard.writeText(s.url)
@@ -208,6 +222,7 @@ export default function Browser() {
                 <p className="muted small truncate">{s.title}{s.size ? ` · ${formatSize(s.size)}` : ''}</p>
               </div>
               <div className="actions">
+                <button type="button" className="together" onClick={() => watchTogether(s, list)}>Watch together</button>
                 <button type="button" onClick={() => setPlaying(s)}>Play</button>
                 <button type="button" onClick={() => copy(s)}>{copied === s.url ? 'Copied' : 'Copy link'}</button>
                 <a href={s.url} target="_blank" rel="noreferrer">Open</a>
