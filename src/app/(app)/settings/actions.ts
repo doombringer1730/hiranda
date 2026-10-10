@@ -1,7 +1,7 @@
 'use server'
 
 import { hasPlus } from '@/lib/plus'
-import { FREE_THEMES } from '@/lib/plus-config'
+import { parseCustomTheme } from '@/lib/custom-theme'
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -127,9 +127,11 @@ export async function disconnectSpotify() {
 
 const THEME_KEYS = new Set(['coffee', 'preppy', 'midnight', 'rose', 'forest', 'ocean', 'glacier', 'cloud'])
 
+// Every preset is free; your own theme comes with Plus.
 export async function saveTheme(theme: string) {
-  if (!THEME_KEYS.has(theme)) return
-  if (!FREE_THEMES.has(theme) && !(await hasPlus())) return
+  const custom = parseCustomTheme(theme)
+  if (!THEME_KEYS.has(theme) && !custom) return
+  if (custom && !(await hasPlus())) return
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

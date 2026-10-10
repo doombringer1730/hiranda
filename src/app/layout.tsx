@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Caveat, Instrument_Serif, Inter } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
+import { parseCustomTheme, baseTheme, customThemeVars } from "@/lib/custom-theme";
 import { ServiceWorkerRegister } from "@/components/pwa";
 import { NativeBridge } from "@/components/native-bridge";
 import PressFeedback from "@/components/press-feedback";
@@ -72,10 +73,14 @@ export default async function RootLayout({
     // no-op — fall back to default theme
   }
 
+  // Your own theme: the matching preset, with its palette swapped inline.
+  const custom = parseCustomTheme(theme)
+
   return (
     <html
       lang="en"
-      data-theme={theme}
+      data-theme={custom ? baseTheme(custom) : theme}
+      style={custom ? customThemeVars(custom) as React.CSSProperties : undefined}
       data-scroll-behavior="smooth"
       className={`${serif.variable} ${inter.variable} ${hand.variable} h-full`}
     >
