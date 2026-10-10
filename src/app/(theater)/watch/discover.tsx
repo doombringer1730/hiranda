@@ -33,8 +33,8 @@ export function SearchBar({ defaultValue = '', autoFocus = false }: { defaultVal
         type="search"
         defaultValue={defaultValue}
         autoFocus={autoFocus}
-        placeholder="Search movies and shows"
-        aria-label="Search movies and shows"
+        placeholder="Search movies, shows and YouTube"
+        aria-label="Search movies, shows and YouTube"
         className="w-full bg-stone-900 border border-stone-800 rounded-full pl-11 pr-4 py-3 text-amber-50 placeholder:text-stone-500 focus:outline-none focus:border-amber-700 transition-colors"
       />
     </form>
@@ -88,7 +88,10 @@ export function PosterGrid({ items, badgeFor }: { items: CatalogItem[]; badgeFor
   )
 }
 
-export function DiscoverHome({ trending, classics, hasTmdb }: { trending: CatalogItem[]; classics: CatalogItem[]; hasTmdb: boolean }) {
+export function DiscoverHome({ trending, classics, hasTmdb, youtube, error }: {
+  trending: CatalogItem[]; classics: CatalogItem[]; hasTmdb: boolean
+  youtube?: React.ReactNode; error?: string
+}) {
   return (
     <div className="max-w-5xl mx-auto md:px-6 pt-6 flex flex-col gap-8">
       <div className="px-4 md:px-0">
@@ -100,7 +103,9 @@ export function DiscoverHome({ trending, classics, hasTmdb }: { trending: Catalo
         </p>
         <p className="text-stone-400 text-sm mt-2 mb-4">In sync wherever the service allows, even when you’re miles apart.</p>
         <SearchBar />
+        {error && <p role="alert" className="text-red-400 text-sm mt-3">{error}</p>}
       </div>
+      {youtube}
       <PosterRow title="Free classics" hint="Public-domain films · they play right here, in sync" items={classics} badge="In sync" />
       <PosterRow title="Trending this week" hint="Tap one to see where it streams and how to watch together" items={trending} />
       {!hasTmdb && (

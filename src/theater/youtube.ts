@@ -24,3 +24,11 @@ export function youTubeId(input: string | null | undefined): string | null {
 
 export const youTubeWatchUrl = (id: string) => `https://www.youtube.com/watch?v=${id}`
 export const youTubeThumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+
+/** 3723 → "1:02:03" */
+export function formatDuration(s: number | null) {
+  if (!s) return null
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
+  const mm = h ? String(m).padStart(2, '0') : String(m)
+  return `${h ? `${h}:` : ''}${mm}:${String(sec).padStart(2, '0')}`
+}
