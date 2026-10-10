@@ -2,8 +2,7 @@ import WidgetKit
 import SwiftUI
 
 // Hiranda's home-screen widget: "312 days of you two".
-// Lives in the HirandaWidget extension target (see APPSTORE.md for the
-// one-time Xcode setup). The app writes the data via WidgetBridgePlugin into
+// Lives in the HirandaWidget extension target. The app writes the data via WidgetBridgePlugin into
 // the shared App Group below — keep the two group names identical.
 private let appGroup = "group.com.hiranda.app"
 
