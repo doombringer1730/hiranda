@@ -1,11 +1,14 @@
 // What every gift supplier (Gelato, CJ Dropshipping, Goody) implements.
 
+import type { PrintKind } from '../prints'
+
 export type VendorName = 'gelato' | 'cj' | 'goody' | 'printful' | 'printify'
 
 /** How a catalog product is made. Empty ids mean "not picked yet": the
  *  product is then fulfilled by hand from /store/admin. */
 export type VendorSpec =
-  | { name: 'gelato'; productUid: string }
+  // `art`: render size for prints made from the couple's photos.
+  | { name: 'gelato'; productUid: string; art?: ArtSize }
   // `from`: CJ's US warehouse (days) or international, 'CN' (1–2 weeks, far more choice).
   | { name: 'cj'; items: { vid: string; quantity: number }[]; from?: 'US' | 'CN' }
   | { name: 'goody'; productId: string; variants?: string[] }
@@ -42,6 +45,8 @@ export type VendorOrder = {
   note: string | null
   senderFirst: string
   recipientFirst: string
+  /** Prints from the couple's photos: which kind, and how many photos. */
+  prints?: { kind: PrintKind; count: number }
 }
 
 /** Where a supplier says the order is. `problem` is shown to the owner. */

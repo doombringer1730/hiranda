@@ -12,6 +12,7 @@ import AccountSection from './account-section'
 import MfaSettings from '@/components/mfa-settings'
 import { hasPlus } from '@/lib/plus'
 import { Sparkles } from 'lucide-react'
+import BuyMeCoffee from '@/components/buy-me-coffee'
 
 export default async function SettingsPage() {
   const plus = await hasPlus()
@@ -170,6 +171,8 @@ export default async function SettingsPage() {
             <a href="/support" className="hover:text-stone-400">Help &amp; support</a> · <a href="/privacy" className="hover:text-stone-400">Privacy policy</a> · <a href="/terms" className="hover:text-stone-400">Terms</a>
           </p>
         </section>
+
+        <BuyMeCoffee />
 
         {/* Sign out */}
         <section className="bg-stone-900 border border-stone-800 rounded-2xl p-5">

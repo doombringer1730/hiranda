@@ -21,6 +21,12 @@ export default function TermsPage() {
         <li>Theater and streaming connections are for content you’re entitled to watch. You’re responsible for the services and sources you connect.</li>
       </ul>
 
+      <h2>Hiranda Plus</h2>
+      <p>Plus is an optional subscription that covers both of you. It starts with a free trial, then renews automatically each month or year at the price shown when you subscribe, until you cancel. Bought on the web, you can cancel anytime from the Plus page; bought in the iPhone app, cancel in Settings → Apple ID → Subscriptions. Cancelling keeps Plus until the end of the period you’ve paid for. We don’t refund partial periods, but if something went wrong, write to us and we’ll make it right. Apple handles refunds for purchases made through Apple.</p>
+
+      <h2>Gifts</h2>
+      <p>Gifts from the store are made and shipped by our suppliers to the address your partner saved. Delivery times shown are estimates. If a gift arrives damaged, wrong, or doesn’t arrive, tell us and we’ll replace it or refund you. Personalized items can’t be returned for a change of mind.</p>
+
       <h2>The service</h2>
       <p>Hiranda is provided as-is. We work to keep it running and your data safe, but we can’t promise it will always be available or error-free, and we’re not liable for indirect losses. Keep your own copy of anything precious — Download our data makes that easy.</p>
 

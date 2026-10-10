@@ -2,14 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Play, Send, Trash2 } from 'lucide-react'
+import { ArrowLeft, Play, Send, Trash2, BellRing, Check } from 'lucide-react'
 import { createClient } from '@/theater/supabase/client'
+import UpNext from './up-next'
+import { playNext, type NowPlaying } from './queue-actions'
 
 // Synced YouTube, through YouTube's official embedded player (IFrame API).
 // It speaks the same protocol as watch-player.tsx — channel `watch:<id>`,
 // the same SyncPayload, NTP-style clock correction against /api/time, the same
 // drift thresholds and watch_messages chat — so both players stay compatible.
 // watch-player.tsx itself is deliberately left untouched.
+//
+// "Up next": the session can move on to another video (from the queue, or
+// "Play now" in search). Every sync payload carries the video it's about and
+// when that video was picked (`videoAt`, server time), so a newer pick always
+// wins and positions from the previous video are never applied to the next.
 
 const EMOTES = ['🍿', '❤️', '😂', '😱', '👏', '💀', '🔥', '🎬']
 const HEARTBEAT_MS = 4000
@@ -20,7 +27,10 @@ const DRIFT_ACTION = 0.8
 const SEEK_JUMP = 2 // seconds of unexplained movement that counts as a seek
 const ECHO_MS = 1200 // ignore our own player's events this long after applying a remote change
 
-type SyncPayload = { kind: 'heartbeat' | 'action'; state: 'playing' | 'paused'; position: number; sentAt: number; from: string }
+type SyncPayload = {
+  kind: 'heartbeat' | 'action'; state: 'playing' | 'paused'; position: number; sentAt: number; from: string
+  video?: string; title?: string; videoAt?: number
+}
 type ChatMsg = { id: string; user_id: string; body: string | null; emote: string | null; created_at: string }
 type FloatingEmote = { id: string; emote: string; x: number }
 
@@ -58,7 +68,7 @@ function loadYouTubeApi(): Promise<YTNamespace> {
 
 const median = (a: number[]) => (a.length ? [...a].sort((x, y) => x - y)[Math.floor(a.length / 2)] : 0)
 
-export default function YouTubePlayer({ sessionId, title, videoId, userId, profileMap, initialState, initialPosition, deleteAction }: {
+export default function YouTubePlayer({ sessionId, title: initialTitle, videoId: initialVideoId, userId, profileMap, initialState, initialPosition, deleteAction }: {
   sessionId: string; title: string; videoId: string; userId: string
   profileMap: Record<string, string>; initialState: string; initialPosition: number
   deleteAction: () => Promise<void>
@@ -73,6 +83,16 @@ export default function YouTubePlayer({ sessionId, title, videoId, userId, profi
   const rtts = useRef<number[]>([])
   const offsets = useRef<number[]>([])
   const last = useRef({ pos: initialPosition, wall: Date.now(), playing: false })
+
+  // The video on screen, and where/how the next player should start.
+  const [videoId, setVideoId] = useState(initialVideoId)
+  const [title, setTitle] = useState(initialTitle)
+  const video = useRef({ id: initialVideoId, title: initialTitle, at: 0 })
+  const start = useRef({ pos: initialPosition, playing: initialState === 'playing' })
+  const [queueTick, setQueueTick] = useState(0)
+  const [tab, setTab] = useState<'chat' | 'next'>('chat')
+  const [pinged, setPinged] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const partnerName = Object.entries(profileMap).find(([id]) => id !== userId)?.[1]?.split(' ')[0] ?? 'your partner'
 
   const [ready, setReady] = useState(false)
   const [connected, setConnected] = useState(false)
@@ -108,7 +128,7 @@ export default function YouTubePlayer({ sessionId, title, videoId, userId, profi
   }, [])
 
   const send = useCallback((kind: SyncPayload['kind'], state: SyncPayload['state'], pos: number) => {
-    const payload: SyncPayload = { kind, state, position: pos, sentAt: now(), from: userId }
+    const payload: SyncPayload = { kind, state, position: pos, sentAt: now(), from: userId, video: video.current.id, title: video.current.title, videoAt: video.current.at }
     channelRef.current?.send({ type: 'broadcast', event: 'sync', payload })
     if (kind === 'action') {
       supabase.from('watch_sessions').update({
@@ -120,6 +140,11 @@ export default function YouTubePlayer({ sessionId, title, videoId, userId, profi
 
   // ── Apply a partner's state ──
   const apply = useCallback((p: SyncPayload) => {
+    if (p.video && p.video !== video.current.id) {
+      // Your partner picked a newer video: follow. An older one: ignore it.
+      if ((p.videoAt ?? 0) > video.current.at) switchTo({ videoId: p.video, title: p.title ?? 'YouTube video' }, p.videoAt!, false)
+      return
+    }
     setPartner({ name: profileMap[p.from] ?? 'Partner', pos: p.position, playing: p.state === 'playing' })
     const player = playerRef.current
     if (!player) return
@@ -154,12 +179,16 @@ export default function YouTubePlayer({ sessionId, title, videoId, userId, profi
       mountRef.current.appendChild(el)
       playerRef.current = new YT.Player(el, {
         videoId, width: '100%', height: '100%',
-        playerVars: { playsinline: 1, rel: 0, modestbranding: 1, start: Math.floor(initialPosition), origin: location.origin },
+        playerVars: { playsinline: 1, rel: 0, modestbranding: 1, start: Math.floor(start.current.pos), origin: location.origin },
         events: {
           onReady: () => {
             setReady(true)
-            last.current = { pos: initialPosition, wall: Date.now(), playing: false }
-            if (initialState === 'playing') { suppressUntil.current = Date.now() + ECHO_MS; playerRef.current?.playVideo() }
+            last.current = { pos: start.current.pos, wall: Date.now(), playing: false }
+            if (start.current.playing) {
+              suppressUntil.current = Date.now() + ECHO_MS
+              playerRef.current?.playVideo()
+              setTimeout(() => { if (playerRef.current && playerRef.current.getPlayerState() !== PLAYING) setNeedsTap(true) }, 1500)
+            }
           },
           onStateChange: ({ data }) => {
             if (data === PLAYING) setNeedsTap(false)
@@ -168,6 +197,7 @@ export default function YouTubePlayer({ sessionId, title, videoId, userId, profi
             if (suppressed()) return
             if (data === PLAYING) send('action', 'playing', pos)
             else if (data === PAUSED || data === ENDED) send('action', 'paused', pos)
+            if (data === ENDED) advance()
           },
         },
       })
@@ -197,6 +227,10 @@ export default function YouTubePlayer({ sessionId, title, videoId, userId, profi
     const channel = supabase
       .channel(`watch:${sessionId}`)
       .on('broadcast', { event: 'sync' }, ({ payload }: { payload: SyncPayload }) => { if (payload.from !== userId) apply(payload) })
+      .on('broadcast', { event: 'video' }, ({ payload }: { payload: NowPlaying & { at: number; from: string } }) => {
+        if (payload.from !== userId && payload.at > video.current.at) switchTo(payload, payload.at, false)
+      })
+      .on('broadcast', { event: 'queue' }, () => setQueueTick(t => t + 1))
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<{ name: string }>()
         setHere(Object.values(state).flat().map(p => p.name))
@@ -209,6 +243,44 @@ export default function YouTubePlayer({ sessionId, title, videoId, userId, profi
     return () => { channel.untrack(); supabase.removeChannel(channel) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, userId])
+
+  // ── Changing videos ──
+  // Loads `next` here; `announce` tells your partner's player to follow.
+  function switchTo(next: NowPlaying, at = now(), announce = true) {
+    if (next.videoId === video.current.id) { video.current.at = Math.max(video.current.at, at); return }
+    video.current = { id: next.videoId, title: next.title, at }
+    start.current = { pos: 0, playing: true }
+    hasFirstSync.current = false
+    last.current = { pos: 0, wall: Date.now(), playing: false }
+    setPartner(null)
+    setReady(false)
+    setNeedsTap(false)
+    setTitle(next.title)
+    setVideoId(next.videoId)
+    setQueueTick(t => t + 1)
+    if (announce) channelRef.current?.send({ type: 'broadcast', event: 'video', payload: { ...next, at, from: userId } })
+  }
+
+  // The video ended: on to the next one in line, for both of you. If you
+  // both get here at once, the server lets only one switch land.
+  function advance() {
+    const ended = video.current.id
+    playNext(sessionId, ended).then(next => { if (next && video.current.id === ended) switchTo(next) })
+  }
+
+  function queueChanged() {
+    setQueueTick(t => t + 1)
+    channelRef.current?.send({ type: 'broadcast', event: 'queue', payload: {} })
+  }
+
+  // "Come watch": a notification to your partner's phone.
+  async function ping() {
+    setPinged('sending')
+    try {
+      const res = await fetch('/api/watch-ping', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }) })
+      setPinged(res.ok ? 'sent' : 'idle')
+    } catch { setPinged('idle') }
+  }
 
   // ── Chat ──
   useEffect(() => {
@@ -257,6 +329,13 @@ export default function YouTubePlayer({ sessionId, title, videoId, userId, profi
             {partner ? <>{partner.name} · {fmt(partner.pos)} {partner.playing ? '▶' : '⏸'}</> : here.length > 1 ? `${here.join(' & ')} here` : 'Waiting for your partner…'}
           </p>
         </div>
+        {here.length < 2 && (
+          <button onClick={ping} disabled={pinged !== 'idle'}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-amber-700 hover:bg-amber-600 disabled:bg-stone-800 disabled:text-stone-400 text-amber-50 text-xs font-medium px-3 py-1.5 transition-colors"
+            style={{ minHeight: 0 }}>
+            {pinged === 'sent' ? <><Check size={13} /> Sent</> : <><BellRing size={13} /> Ask {partnerName}</>}
+          </button>
+        )}
         <span className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-stone-600'}`} aria-label={connected ? 'Live' : 'Connecting'} />
         <button onClick={() => confirmDelete ? deleteAction() : setConfirmDelete(true)} onBlur={() => setConfirmDelete(false)}
           className={`text-xs flex items-center gap-1 transition-colors ${confirmDelete ? 'text-red-400' : 'text-stone-600 hover:text-stone-300'}`}>
@@ -277,7 +356,23 @@ export default function YouTubePlayer({ sessionId, title, videoId, userId, profi
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 bg-stone-950">
+      <div role="tablist" aria-label="While you watch" className="flex gap-1 px-3 pt-2 bg-stone-950 shrink-0">
+        {(['chat', 'next'] as const).map(t => (
+          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
+            className={`flex-1 rounded-lg py-1.5 text-sm transition-colors ${tab === t ? 'bg-stone-800 text-amber-50 font-medium' : 'text-stone-500 hover:text-stone-300'}`}
+            style={{ minHeight: 0 }}>
+            {t === 'chat' ? 'Chat' : 'Up next'}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'next' && (
+        <div className="flex-1 overflow-y-auto bg-stone-950">
+          <UpNext sessionId={sessionId} refresh={queueTick} onChanged={queueChanged} onPlay={next => switchTo(next)} />
+        </div>
+      )}
+
+      <div className={`flex-1 overflow-y-auto px-4 py-3 bg-stone-950 ${tab === 'chat' ? '' : 'hidden'}`}>
         {!messages.length && <p className="text-stone-700 text-sm text-center mt-6">Say something while you watch.</p>}
         <div className="flex flex-col gap-2">
           {messages.map(m => (
@@ -290,7 +385,7 @@ export default function YouTubePlayer({ sessionId, title, videoId, userId, profi
         </div>
       </div>
 
-      <div className="bg-stone-950 border-t border-stone-800/60 shrink-0 pb-[env(safe-area-inset-bottom)]">
+      <div className={`bg-stone-950 border-t border-stone-800/60 shrink-0 pb-[env(safe-area-inset-bottom)] ${tab === 'chat' ? '' : 'hidden'}`}>
         <div className="flex justify-center gap-1 px-3 pt-2">
           {EMOTES.map(e => (
             <button key={e} type="button" onClick={() => sendEmote(e)} aria-label={`Send ${e}`}

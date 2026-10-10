@@ -138,13 +138,13 @@ trial. Prices, perks, free themes and free Grow units all live in
    - `REVENUECAT_SECRET_KEY`: a secret (v1) API key
    - `REVENUECAT_WEBHOOK_AUTH`: any long random string
 6. In RevenueCat → Integrations → Webhooks, set the URL to
-   `https://hiranda-616i.vercel.app/api/revenuecat/webhook` and the Authorization
+   `https://hiranda.com/api/revenuecat/webhook` and the Authorization
    header to the same `REVENUECAT_WEBHOOK_AUTH` value.
 
 **Web (Stripe):**
 1. In Stripe, create the product "Hiranda Plus" with two recurring prices
    ($4.99 monthly, $39.99 yearly). Turn on the customer portal (Settings → Billing → Customer portal).
-2. Add a webhook at `https://hiranda-616i.vercel.app/api/stripe/webhook` with these events:
+2. Add a webhook at `https://hiranda.com/api/stripe/webhook` with these events:
    - `checkout.session.completed`
    - `customer.subscription.created`
    - `customer.subscription.updated`
@@ -220,4 +220,9 @@ business (for example an LLC).
 - **The iPhone app loads the website, so the website *is* the app.** Don't
   switch on features in the app that the reviewer didn't see, and never bring
   back streaming from debrid or torrent services.
+- **Tips stay on the web.** The "Buy me a coffee" card (Settings, and Home for
+  couples without Plus) links to
+  https://buymeacoffee.com/huddy (to change it, set
+  `NEXT_PUBLIC_BUY_ME_COFFEE_URL` in Vercel; an empty value hides the card). It hides itself
+  inside the app, since Apple requires in-app purchase for tips (rule 3.1.1).
 - **Keep the review notes accurate**, including the passcode, whenever you resubmit.

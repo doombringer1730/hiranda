@@ -3,7 +3,7 @@ import { refreshOrder } from '@/lib/store/fulfil'
 import { webhookKeyOk } from '@/lib/store/webhook-key'
 
 // Gelato → order status / tracking updates. In Gelato → Developer → Webhooks,
-// add  https://hiranda-616i.vercel.app/api/store/webhooks/gelato?key=<STORE_WEBHOOK_KEY>
+// add  https://hiranda.com/api/store/webhooks/gelato?key=<STORE_WEBHOOK_KEY>
 // for "Order status updated" and "Order item tracking code updated".
 // Gelato doesn't sign webhooks: we check the key, then ask Gelato itself.
 

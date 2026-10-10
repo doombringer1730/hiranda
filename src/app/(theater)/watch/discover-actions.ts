@@ -57,3 +57,11 @@ export async function startPartySession(input: { platform: string; title: string
   revalidatePath('/watch')
   return { sessionId: data.id }
 }
+
+// A video card on the Theater page or in search (a plain form, so it works
+// before JS loads) → straight into the synced player.
+export async function playYouTube(videoId: string, title: string, thumb: string) {
+  const res = await startYouTubeSession(videoId, title, thumb)
+  if (!res.sessionId) redirect(`/watch?error=${encodeURIComponent(res.error ?? 'Couldn’t start that video')}`)
+  redirect(`/watch/${res.sessionId}`)
+}

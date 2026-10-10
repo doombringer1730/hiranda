@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, X } from 'lucide-react'
 import { formatPrice, madeBy, type Product } from '@/lib/store/catalog'
@@ -26,10 +27,9 @@ export function GiftCard({ product, origin, partner, canSend, partnerSizes }: {
   product: Product; origin: 'US' | 'International'; partner: string; canSend: boolean; partnerSizes: string[]
 }) {
   const [open, setOpen] = useState(false)
-  return (
+  const card = 'tile group text-left p-2 flex flex-col active:scale-[0.98] transition-transform'
+  const inner = (
     <>
-      <button onClick={() => { haptic(); setOpen(true) }}
-        className="tile group text-left p-2 flex flex-col active:scale-[0.98] transition-transform">
         <span className="relative block overflow-hidden rounded-[20px]">
           {product.image
             // eslint-disable-next-line @next/next/no-img-element
@@ -40,9 +40,15 @@ export function GiftCard({ product, origin, partner, canSend, partnerSizes }: {
         <span className="px-1.5 pt-2.5 pb-1.5 flex flex-col gap-1 flex-1">
           <span className="text-[15px] leading-snug text-amber-50 font-medium line-clamp-2">{product.title}</span>
           {madeBy(product) && <span className="text-[11px] text-stone-400 truncate">by {madeBy(product)}</span>}
-          <span className="mt-auto text-amber-200 text-sm">{formatPrice(product.priceCents)}</span>
+          <span className="mt-auto text-amber-200 text-sm">{product.prints ? 'from ' : ''}{formatPrice(product.priceCents)}</span>
         </span>
-      </button>
+    </>
+  )
+  // Prints are made from your own photos: pick them first, in Memories.
+  if (product.prints) return <Link href={`/memories/print?kind=${product.prints}`} className={card}>{inner}</Link>
+  return (
+    <>
+      <button onClick={() => { haptic(); setOpen(true) }} className={card}>{inner}</button>
       {open && <SendSheet product={product} origin={origin} partner={partner} canSend={canSend} partnerSizes={partnerSizes} onClose={() => setOpen(false)} />}
     </>
   )

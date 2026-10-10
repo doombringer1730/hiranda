@@ -12,6 +12,7 @@
 //
 // Nothing can be bought until STORE_ENABLED=1 and Stripe is configured.
 
+import type { PrintKind } from './prints'
 import type { VendorSpec } from './vendors/types'
 
 export type Product = {
@@ -34,6 +35,9 @@ export type Product = {
   delivery?: string
   /** Something the sender picks, like a size. */
   options?: ProductOptions
+  /** Printed from the couple's own photos: picked in Memories and bought
+   *  on /store/print, not from the gift sheet. Price is "from". */
+  prints?: PrintKind
 }
 
 /** e.g. { name: 'Size', values: [{ label: 'M', vid: '…' }] } — `vid` picks the
@@ -86,6 +90,36 @@ export const PRODUCTS: Product[] = [
     fineprint: 'Our print partner prints your note, so they’ll see the words.',
     // A5 flat card, 350 gsm silk, printed both sides (front: "for <name>", back: your note).
     vendor: { name: 'gelato', productUid: 'cards_pf_a5_pt_350-gsm-coated-silk_cl_4-4_ver' },
+  },
+  // Prints from your memories (see lib/store/prints.ts and /api/store/print).
+  // Gelato makes both; paste the productUid from Suppliers → Gelato → Find
+  // once you've checked it with a free draft order. Until then paid orders
+  // wait in /store/admin with their print files, to order by hand.
+  {
+    key: 'polaroids',
+    title: 'Polaroid prints of your memories',
+    blurb: 'Your photos as retro instant-style prints, with each caption written along the bottom.',
+    emoji: '📸',
+    priceCents: 599 + 129,
+    ships: true,
+    category: 'keepsake',
+    prints: 'polaroids',
+    fineprint: 'Our print partner prints your photos and captions, so they’ll see them.',
+    // A small single-sided flat print, about 3.5″×4.2″ at 300 dpi.
+    vendor: { name: 'gelato', productUid: '', art: { w: 1050, h: 1260 } },
+  },
+  {
+    key: 'photo-book',
+    title: 'Our photo book',
+    blurb: 'A hardcover book of your memories, one photo a page with its caption.',
+    emoji: '📖',
+    priceCents: 3999,
+    ships: true,
+    category: 'keepsake',
+    prints: 'book',
+    fineprint: 'Our print partner prints your photos and captions, so they’ll see them.',
+    // 8″×8″ hardcover, one PDF: front cover, then the inner pages.
+    vendor: { name: 'gelato', productUid: '', art: { w: 2400, h: 2400 } },
   },
   // Keepsakes — printed by Printful with both your first names and the year
   // you got together (see /api/store/print). Printful cost (Oct 2026) +

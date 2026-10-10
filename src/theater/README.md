@@ -14,6 +14,17 @@ endpoint) is delicate, so it is fenced off from the rest of Hiranda.
     Need something? Copy it in here.
   - App code may import only `@/theater/public` (nothing lives there
     today). Links to `/watch` are plain URLs.
-- **Database**: `watch_sessions` / `watch_messages` and their policies, and
-  the realtime config sync uses, belong to the Theater. Change them only on
-  purpose, in a Theater-focused change.
+- **Database**: `watch_sessions` / `watch_messages` / `watch_queue` and their
+  policies, and the realtime config sync uses, belong to the Theater. Change
+  them only on purpose, in a Theater-focused change.
+- **YouTube** (`catalog/youtube.ts`): trending rows, category chips and
+  search, from the YouTube Data API. Needs `YOUTUBE_API_KEY` (server-only);
+  without it the YouTube section simply doesn't show. Free quota is 10,000
+  units a day: a list costs 1, a search 100, so lists are cached 30 minutes
+  and searches a day.
+- **Up next** (`watch/[id]/up-next.tsx`, `queue-actions.ts`, migration 043):
+  a shared queue in YouTube sessions. Sync payloads carry the current video
+  and when it was picked, so a newer pick always wins.
+- **"Ask … to join"** calls `/api/watch-ping`, an app-side route (it needs the
+  push code, which the Theater can't import). A URL, not an import, so the
+  fence holds.

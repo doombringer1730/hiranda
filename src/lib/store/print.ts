@@ -7,8 +7,11 @@ import { VendorError } from './vendors/types'
 // Only someone holding the link can read the note printed on the card.
 
 // 'front'/'back': the A5 gift card. 'design': the couple's names artwork for
-// print-on-demand products, at a size the product asks for.
-export type PrintSide = 'front' | 'back' | 'design'
+// print-on-demand products, at a size the product asks for. 'photo-<n>': the
+// order's nth photo as a Polaroid-style print. 'book': the photo book as one
+// PDF (cover, then pages).
+export type PrintSide = 'front' | 'back' | 'design' | 'book' | `photo-${number}`
+const SIDE = /^(front|back|design|book|photo-\d{1,3})$/
 export const MAX_ART = 9000
 
 const secret = () => process.env.STORE_PRINT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || ''
@@ -22,7 +25,7 @@ export function printFileUrl(orderId: string, side: PrintSide, art?: { w: number
 }
 
 export function printSignatureOk(orderId: string, side: string, size: string, sig: string | null) {
-  if (!secret() || !sig || !['front', 'back', 'design'].includes(side)) return false
+  if (!secret() || !sig || !SIDE.test(side)) return false
   const want = Buffer.from(sign(orderId, side, size))
   const got = Buffer.from(sig)
   return want.length === got.length && timingSafeEqual(want, got)

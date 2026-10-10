@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import CopyInviteButton from './copy-button'
 import PartnerWatcher from './partner-watcher'
+import NotifyWhenJoined from './notify-when-joined'
+import Link from 'next/link'
 import AccountSection from '@/app/(app)/settings/account-section'
 import { logout } from '@/app/(auth)/actions'
 
@@ -60,26 +62,30 @@ export default async function InvitePartnerPage() {
   const host = headersList.get('host') ?? 'localhost:3000'
   const protocol = host.includes('localhost') ? 'http' : 'https'
   const inviteLink = `${protocol}://${host}/join/${couple?.invite_token}`
+  const { data: me } = await supabase.from('profiles').select('display_name').eq('id', user.id).maybeSingle()
+  const firstName = me?.display_name?.trim().split(' ')[0] || null
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 bg-stone-950 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_80%,rgba(120,53,15,0.15),transparent_70%)] pointer-events-none" />
       <div className="w-full max-w-sm text-center">
-        <h1 className="font-serif text-4xl text-amber-100 mb-3">One more step</h1>
+        <p className="text-stone-500 text-[10px] uppercase tracking-[0.3em] mb-2">Your space is ready</p>
+        <h1 className="font-serif text-4xl text-amber-100 mb-3">Now bring them in</h1>
         <p className="text-stone-400 text-sm mb-8">
-          Share this link with your partner so they can join your space. They’ll need it to sign up.
+          Hiranda is made for two. Send your partner this invite — they’ll see it’s from you, and you’ll both land inside the moment they join.
         </p>
 
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 mb-4">
           <p className="text-stone-500 text-xs uppercase tracking-widest mb-3">Your invite link</p>
           <p className="text-amber-200 text-sm break-all mb-4 font-mono">{inviteLink}</p>
-          <CopyInviteButton link={inviteLink} />
+          <CopyInviteButton link={inviteLink} from={firstName} />
         </div>
 
-        <p className="text-stone-600 text-xs mb-3">
-          This link only works once. Once your partner joins you’ll both land in the app automatically.
-        </p>
+        <div className="mb-4"><NotifyWhenJoined /></div>
         <PartnerWatcher />
+        <p className="text-stone-500 text-sm mb-2">While you wait</p>
+        <Link href="/demo" className="inline-block text-amber-500 hover:text-amber-400 text-sm mb-10 transition-colors">Look around a demo space →</Link>
+
 
         <form action={logout}>
           <button type="submit" className="text-stone-600 hover:text-stone-400 text-sm transition-colors">

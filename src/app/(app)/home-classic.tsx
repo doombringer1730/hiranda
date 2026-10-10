@@ -58,35 +58,8 @@ export default function ClassicHome({
 
         <div className="flex flex-col gap-4">
           {/* A keepsake, then the two little counters beside it */}
-          <div className="grid grid-cols-[1.15fr_1fr] gap-4 items-stretch animate-rise" style={{ '--i': 3 } as React.CSSProperties}>
-            <Link href={pick ? `/memories/${pick.id}` : '/memories/new'} className="block pt-3 pl-1">
-              <Polaroid
-                src={pickPhoto}
-                caption={pick?.title ?? 'Add your first memory'}
-                sub={pickLabel ?? 'On this day'}
-                tilt={-3}
-              />
-            </Link>
-            <div className="flex flex-col gap-4">
-              <Link href="/dates" className="tile flex-1 p-4 flex flex-col justify-between min-h-[120px]">
-                <p className={eyebrow}>Countdown</p>
-                {upcoming ? (
-                  <div>
-                    {upcoming.inDays === 0
-                      ? <p className="font-serif text-[38px] leading-none text-amber-50">Today 🎉</p>
-                      : <p className="font-serif text-[44px] leading-none text-amber-50"><CountUp value={upcoming.inDays} /><span className="text-stone-400 text-base font-sans ml-1.5">{upcoming.inDays === 1 ? 'day' : 'days'}</span></p>}
-                    <p className="text-stone-400 text-xs mt-1 truncate">{upcoming.label}</p>
-                  </div>
-                ) : (
-                  <p className="text-stone-400 text-sm flex items-center gap-2"><CalendarPlus size={18} className="text-stone-500" /> Add a date</p>
-                )}
-              </Link>
-              {partnerId && (
-                <div className="flex-1">
-                  <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} />
-                </div>
-              )}
-            </div>
+          <div className="animate-rise" style={{ '--i': 3 } as React.CSSProperties}>
+            <KeepsakeRow pick={pick} pickPhoto={pickPhoto} pickLabel={pickLabel} upcoming={upcoming} partnerId={partnerId} partnerFirst={partnerFirst} lastLove={lastLove} />
           </div>
 
           {hasCouple && (
@@ -145,6 +118,51 @@ export function YourMoveList({ waiting }: { waiting: Waiting[] }) {
         })}
       </div>
     </>
+  )
+}
+
+// The original Home's keepsake corner: today's memory as a Polaroid, with the
+// countdown and Thinking of you beside it. Also the Full "On this day" widget.
+export function KeepsakeRow({ pick, pickPhoto, pickLabel, upcoming, partnerId, partnerFirst, lastLove }: {
+  pick: { id: string; title: string } | null
+  pickPhoto: string | null
+  pickLabel: string | null
+  upcoming: { label: string; inDays: number } | undefined
+  partnerId: string | null
+  partnerFirst: string
+  lastLove: string | null
+}) {
+  return (
+    <div className="grid grid-cols-[1.15fr_1fr] gap-4 items-stretch">
+      <Link href={pick ? `/memories/${pick.id}` : '/memories/new'} className="block pt-3 pl-1">
+        <Polaroid
+          src={pickPhoto}
+          caption={pick?.title ?? 'Add your first memory'}
+          sub={pickLabel ?? 'On this day'}
+          tilt={-3}
+        />
+      </Link>
+      <div className="flex flex-col gap-4">
+        <Link href="/dates" className="tile flex-1 p-4 flex flex-col justify-between min-h-[120px]">
+          <p className={eyebrow}>Countdown</p>
+          {upcoming ? (
+            <div>
+              {upcoming.inDays === 0
+                ? <p className="font-serif text-[38px] leading-none text-amber-50">Today 🎉</p>
+                : <p className="font-serif text-[44px] leading-none text-amber-50"><CountUp value={upcoming.inDays} /><span className="text-stone-400 text-base font-sans ml-1.5">{upcoming.inDays === 1 ? 'day' : 'days'}</span></p>}
+              <p className="text-stone-400 text-xs mt-1 truncate">{upcoming.label}</p>
+            </div>
+          ) : (
+            <p className="text-stone-400 text-sm flex items-center gap-2"><CalendarPlus size={18} className="text-stone-500" /> Add a date</p>
+          )}
+        </Link>
+        {partnerId && (
+          <div className="flex-1">
+            <ThinkingOfYou partnerName={partnerFirst} lastFromPartner={lastLove} />
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
