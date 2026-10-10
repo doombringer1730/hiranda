@@ -15,8 +15,9 @@ export function VideoCard({ video }: { video: YtVideo }) {
         <div className="relative aspect-video rounded-lg overflow-hidden bg-stone-900 ring-1 ring-stone-800">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={video.thumb} alt="" loading="lazy" className="h-full w-full object-cover group-hover:scale-[1.03] transition-transform duration-300" />
+          {/* Decorative, so not group-hover:opacity-100 — globals.css reveals that class on touch screens. */}
           <span className="absolute inset-0 grid place-items-center bg-black/0 group-hover:bg-black/35 transition-colors">
-            <span className="grid place-items-center h-11 w-11 rounded-full bg-amber-600 text-stone-950 opacity-0 group-hover:opacity-100 transition-opacity"><Play size={18} fill="currentColor" /></span>
+            <span className="grid place-items-center h-11 w-11 rounded-full bg-amber-600 text-stone-950 opacity-0 group-hover:opacity-95 transition-opacity"><Play size={18} fill="currentColor" /></span>
           </span>
           {time && (
             <span className={`absolute right-1.5 bottom-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ${video.live ? 'bg-red-600 text-white' : 'bg-black/80 text-stone-100'}`}>{time}</span>
