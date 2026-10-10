@@ -25,7 +25,7 @@ export default function PartnerWatcher() {
   }, [router])
   return (
     <p className="flex items-center justify-center gap-2 text-stone-500 text-xs mb-8">
-      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" /> Waiting for your partner — this page updates on its own.
+      <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" /> Waiting for your partner — this page updates on its own. The link works once.
     </p>
   )
 }
