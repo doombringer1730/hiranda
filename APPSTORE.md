@@ -212,6 +212,8 @@ business (for example an LLC).
 
 1. In Xcode's device menu, choose **Any iOS Device (arm64)**.
 2. Go to **Product → Archive**, then **Distribute App → App Store Connect → Upload**.
+   Bump **Build** (target App → General) for every upload. Export compliance is
+   already answered in `Info.plist` (standard HTTPS only), so App Store Connect won't ask.
 3. In App Store Connect → TestFlight, add Miri as a tester to try it first.
 4. Then go to the app's page → add the build → **Add for Review → Submit**.
 
