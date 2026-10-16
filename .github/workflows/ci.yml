@@ -22,6 +22,20 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v4
+      # Running SQL on the live database must always ask first (see AGENTS.md).
+      - name: No pre-approved database tools
+        shell: python3 {0}
+        run: |
+          import json, re, subprocess, sys
+          sql = re.compile(r"^mcp__[^_]*supabase[^_]*(__(\*|execute_sql|apply_migration))?$|^mcp__.*__(execute_sql|apply_migration)$", re.I)
+          files = subprocess.run(["git", "ls-files", "--", ":(glob)**/.claude/settings*.json"],
+                                 capture_output=True, text=True, check=True).stdout.split()
+          bad = [(f, rule) for f in files
+                 for rule in json.load(open(f)).get("permissions", {}).get("allow", [])
+                 if sql.match(rule)]
+          for f, rule in bad:
+              print(f"::error file={f}::{rule} lets Claude run SQL on the live database without asking. Remove it; personal allowlists go in .claude/settings.local.json.")
+          sys.exit(1 if bad else 0)
       - uses: actions/setup-node@v4
         with:
           node-version: 22
