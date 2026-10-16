@@ -8,9 +8,11 @@
 -- rule is still needed: the profile editor uploads with `upsert: true`, which
 -- has to see the existing file to overwrite it. Images keep loading for
 -- everyone because both buckets are public, and /object/public/ URLs don't go
--- through these rules.
+-- through these rules. Keep the read rules' predicate identical to the owner
+-- upload/update/delete rules in 003/004, or an overwrite can't see its own file.
 --
--- Safe to re-run.
+-- Safe to re-run. Re-running 003 or 004 brings the public read rules back, so
+-- run this again after either of them.
 
 drop policy if exists "Anyone can read avatars" on storage.objects;
 drop policy if exists "Anyone can read banners" on storage.objects;
