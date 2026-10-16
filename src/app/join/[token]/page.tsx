@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import { MessageCircle, Images, Popcorn, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { invitePreview } from '@/lib/invite'
+import { acceptInvite } from './actions'
+import JoinButton from './join-button'
 
 type Props = { params: Promise<{ token: string }>; searchParams: Promise<{ error?: string }> }
 
@@ -31,27 +33,41 @@ export default async function JoinPage({ params, searchParams }: Props) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Signed in: claim the slot (and ping the inviter) in the accept route.
-  if (user && !shownError) redirect(`/join/${encodeURIComponent(token)}/accept`)
+  // Signed in: never join on page load — a link from anywhere could do that.
+  // Show what joining means and let them press the button (actions.ts).
+  const { data: myCouples } = user
+    ? await supabase.from('couple').select('user1_id, user2_id, invite_token').or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    : { data: null }
+  // Tapping your own link to check it: back to your invite screen.
+  if (myCouples?.some(c => c.invite_token === token && c.user1_id === user?.id)) redirect('/invite-partner')
+  const partnered = !!myCouples?.some(c => c.user2_id)
 
   const invite = await invitePreview(token)
   const name = invite?.name ?? null
   const who = name ?? 'Your partner'
 
   // Used, unknown, or you're already in a space of your own.
-  if (shownError || invite === null) {
+  if (shownError || invite === null || partnered) {
     return (
       <Shell>
-        <h1 className="font-serif text-4xl text-amber-100 mb-3">{shownError ? 'Couldn’t join' : 'This invite’s been used'}</h1>
+        <h1 className="font-serif text-4xl text-amber-100 mb-3">{shownError || partnered ? 'Couldn’t join' : 'This invite’s been used'}</h1>
         <p className="text-stone-400 text-sm mb-8">
-          {shownError
-            ? 'That invite link is invalid, already used, or you’re already in a space of your own.'
-            : 'Each invite link works once.'}{' '}
-          Ask your partner for the link on their invite screen, or start a space of your own and invite them.
+          {partnered
+            ? 'You’re already in a space with your partner, and each person can only be in one.'
+            : <>
+                {shownError
+                  ? 'That invite link is invalid, already used, or you’re already in a space of your own.'
+                  : 'Each invite link works once.'}{' '}
+                Ask your partner for the link on their invite screen, or start a space of your own and invite them.
+              </>}
         </p>
         <div className="flex flex-col gap-3">
-          <Link href="/signup" className="w-full bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium rounded-full px-4 py-3.5 transition-colors">Start your own space</Link>
-          <Link href="/" className="text-stone-500 hover:text-amber-400 text-sm transition-colors">← Back to Hiranda</Link>
+          {partnered
+            ? <Link href="/" className="w-full bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium rounded-full px-4 py-3.5 transition-colors">Back to your space</Link>
+            : <>
+                <Link href="/signup" className="w-full bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium rounded-full px-4 py-3.5 transition-colors">Start your own space</Link>
+                <Link href="/" className="text-stone-500 hover:text-amber-400 text-sm transition-colors">← Back to Hiranda</Link>
+              </>}
         </div>
       </Shell>
     )
@@ -82,17 +98,28 @@ export default async function JoinPage({ params, searchParams }: Props) {
         ))}
       </ul>
 
-      <div className="mt-8 flex flex-col gap-3">
-        <Link href={`/signup?token=${encodeURIComponent(token)}`}
-          className="w-full bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium rounded-full px-4 py-3.5 transition-colors">
-          Join {name ?? 'them'}
-        </Link>
-        <Link href={login} className="w-full bg-stone-900 hover:bg-stone-800 border border-stone-800 text-amber-50 font-medium rounded-full px-4 py-3.5 transition-colors">
-          I already have an account
-        </Link>
-      </div>
-      <p className="text-stone-500 text-xs mt-5">Free for two. Works in any browser — nothing to download.</p>
-      <Link href="/demo" className="inline-block text-stone-500 hover:text-amber-400 text-xs mt-2 underline underline-offset-4 transition-colors">Peek at a demo space first</Link>
+      {user ? (
+        <form action={acceptInvite.bind(null, token)} className="mt-8 flex flex-col gap-3">
+          <JoinButton label={`Join ${name ? `${name}’s` : 'their'} space`} />
+          <p className="text-stone-500 text-xs">
+            {name ?? 'They'} will see what you’ve added so far, and the space you started on your own is replaced.
+          </p>
+        </form>
+      ) : (
+        <>
+          <div className="mt-8 flex flex-col gap-3">
+            <Link href={`/signup?token=${encodeURIComponent(token)}`}
+              className="w-full bg-amber-700 hover:bg-amber-600 text-amber-50 font-medium rounded-full px-4 py-3.5 transition-colors">
+              Join {name ?? 'them'}
+            </Link>
+            <Link href={login} className="w-full bg-stone-900 hover:bg-stone-800 border border-stone-800 text-amber-50 font-medium rounded-full px-4 py-3.5 transition-colors">
+              I already have an account
+            </Link>
+          </div>
+          <p className="text-stone-500 text-xs mt-5">Free for two. Works in any browser — nothing to download.</p>
+          <Link href="/demo" className="inline-block text-stone-500 hover:text-amber-400 text-xs mt-2 underline underline-offset-4 transition-colors">Peek at a demo space first</Link>
+        </>
+      )}
     </Shell>
   )
 }
