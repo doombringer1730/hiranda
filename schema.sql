@@ -53,9 +53,15 @@ set search_path = public
 as $$
 declare
   target_id uuid;
-  claimed   int;
 begin
   if auth.uid() is null or new_user_id is distinct from auth.uid() then
+    return false;
+  end if;
+
+  -- Migration 047: one couple per person — already partnered, no second one.
+  if exists (select 1 from couple
+              where (user1_id = new_user_id or user2_id = new_user_id)
+                and user2_id is not null) then
     return false;
   end if;
 
@@ -83,13 +89,16 @@ begin
      where id = target_id
        and user2_id is null;
 
-    get diagnostics claimed = row_count;
+    -- Migration 047: lost a race for this invite — undo the delete too.
+    if not found then
+      raise exception 'invite already claimed' using errcode = 'HR001';
+    end if;
   exception
-    when unique_violation then
+    when unique_violation or sqlstate 'HR001' then
       return false;
   end;
 
-  return claimed = 1;
+  return true;
 end;
 $$;
 
@@ -796,3 +805,5 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 --     accept_invite(); null for couples that paired before 045.
 -- 046 couple INSERT must leave user2_id and paired_at empty, so nobody can
 --     insert themselves as someone else's partner (only accept_invite() pairs).
+-- 047 accept_invite() refuses anyone already in a paired couple, and a lost
+--     race for the same invite no longer deletes the loser's own space.
