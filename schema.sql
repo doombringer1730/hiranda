@@ -33,8 +33,9 @@ create table couple (
 
 alter table couple enable row level security;
 
+-- A new couple starts empty; only accept_invite() fills user2_id (046).
 create policy "User can create couple"
-  on couple for insert with check (auth.uid() = user1_id);
+  on couple for insert with check (auth.uid() = user1_id and user2_id is null and paired_at is null);
 create policy "Couple members can read their couple"
   on couple for select using ((auth.uid() = user1_id) or (auth.uid() = user2_id));
 create policy "Members can update couple settings"
@@ -793,3 +794,5 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 --     an unused invite link; callable signed out, needs the token.
 -- 045 couple.paired_at — when the partner accepted the invite, stamped by
 --     accept_invite(); null for couples that paired before 045.
+-- 046 couple INSERT must leave user2_id and paired_at empty, so nobody can
+--     insert themselves as someone else's partner (only accept_invite() pairs).
