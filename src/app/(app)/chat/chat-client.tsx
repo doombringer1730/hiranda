@@ -12,6 +12,7 @@ import { nextMorning } from '@/components/quiet-settings'
 import { toast } from '@/lib/feel'
 import { Avatar, ProfileCard, ProfileEditor, editableFrom, usePresence, type PresonProfile } from '../presence-cards'
 import { getMessages, sendMessage, reactTo, markRead, unsend, type Message } from './actions'
+import { PartnerWhere } from '@/components/partner-here'
 
 const REACTIONS = ['❤️', '😂', '😮', '😢', '👍', '🔥']
 
@@ -184,7 +185,7 @@ export default function ChatClient({ myId, coupleId: coupleIdProp, me, partner: 
               {partnerQuiet
                 ? <span className="text-indigo-300">🌙 {dndOn(quiet.partner) ? 'on Do Not Disturb' : 'in quiet hours'}</span>
                 : online.has(partnerProfile.id)
-                ? <span className="text-emerald-400">online now</span>
+                ? <span className="text-emerald-400">online now<PartnerWhere /></span>
                 : partnerProfile.status_text
                   ? <span className="font-hand text-[17px] text-amber-200/90">{partnerProfile.status_text}</span>
                   : <span className="text-stone-400">Just the two of you</span>}

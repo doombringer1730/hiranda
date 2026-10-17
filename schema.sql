@@ -740,7 +740,7 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 
 
 -- ─────────────────────────────────────────
--- MIGRATIONS 017–049 (summary — see each file in migrations/ for the full
+-- MIGRATIONS 017–050 (summary — see each file in migrations/ for the full
 -- table, policy and function definitions; every one is safe to re-run)
 -- ─────────────────────────────────────────
 -- Unless noted, new tables are couple-scoped (couple_id or a member's user id),
@@ -812,3 +812,6 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 --     Images still load through the buckets' public URLs.
 -- 049 storage.objects gets 021's restrictive "Require 2FA when enabled" policy,
 --     so a password-only session can't reach files through the storage API.
+-- 050 realtime.messages policies for the private `space:<couple id>` channel
+--     (broadcast + presence, the "where's my partner" hints): only the
+--     couple's two members, after 2FA if they use it. Nothing is stored.
