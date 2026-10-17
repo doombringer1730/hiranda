@@ -740,7 +740,7 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 
 
 -- ─────────────────────────────────────────
--- MIGRATIONS 017–048 (summary — see each file in migrations/ for the full
+-- MIGRATIONS 017–049 (summary — see each file in migrations/ for the full
 -- table, policy and function definitions; every one is safe to re-run)
 -- ─────────────────────────────────────────
 -- Unless noted, new tables are couple-scoped (couple_id or a member's user id),
@@ -810,3 +810,5 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 -- 048 avatars / banners: the public read rules are replaced by "signed-in owner
 --     reads own file", so nobody can list the buckets (and collect user ids).
 --     Images still load through the buckets' public URLs.
+-- 049 storage.objects gets 021's restrictive "Require 2FA when enabled" policy,
+--     so a password-only session can't reach files through the storage API.
