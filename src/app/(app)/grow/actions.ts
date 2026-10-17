@@ -1,13 +1,14 @@
 'use server'
 
 import { hasPlus } from '@/lib/plus'
-import { isPlusUnit } from '@/lib/plus-config'
 
 import { creditFinishedCoupon } from '@/lib/coupon-credit'
 import { revalidatePath } from 'next/cache'
 import { coupleContext } from '@/lib/couple'
 import { notifyPartner, myFirstName } from '@/lib/push'
-import { lessonByKey, milestoneByKey, PATH } from '@/lib/path'
+import { milestoneByKey } from '@/lib/path'
+import { stopByKey } from '@/lib/grow-map'
+import { loadProgress, routeOpen } from './map-data'
 
 // ── Milestones ──
 
@@ -30,36 +31,56 @@ export async function awardMilestones(): Promise<string[]> {
   return keys
 }
 
-// ── Path ──
+// ── The map ──
 
+// Finish a map stop (or update your note on one you've finished). No coupons
+// or stamps for lessons: learning together is its own reward (the critic's
+// "no rewards or scores in Grow"). Your partner gets one quiet note, never a
+// "your turn".
 export async function completeLesson(key: string, note: string) {
-  const lesson = lessonByKey(key)
-  if (!lesson) return { error: 'Unknown lesson' }
-  if (isPlusUnit(PATH.indexOf(lesson.unit)) && !(await hasPlus())) return { error: 'This unit comes with Hiranda Plus.' }
+  const stop = stopByKey(key)
+  if (!stop) return { error: 'Unknown stop' }
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Not signed in' }
+  const { done, firstDoneAt } = await loadProgress(ctx)
+  if (!routeOpen(stop.route.key, firstDoneAt, await hasPlus())) return { error: 'This route comes with Hiranda Plus.' }
   const text = note.trim().slice(0, 1000) || null
-  const { data: already } = await ctx.supabase.from('lesson_progress').select('lesson_key')
-    .eq('user_id', ctx.user.id).eq('lesson_key', key).maybeSingle()
-  if (already) {
-    // Already done — just update the note.
+
+  if (done.get(key)?.has(ctx.user.id)) {
     await ctx.supabase.from('lesson_progress').update({ note: text }).eq('user_id', ctx.user.id).eq('lesson_key', key)
-    return { ok: true, together: false, stamped: [] as string[], updated: true }
+    return { ok: true, together: false, updated: true }
   }
   const { error } = await ctx.supabase.from('lesson_progress')
-    .insert({ couple_id: ctx.couple.id, user_id: ctx.user.id, lesson_key: key, note: text })
-  if (error) return { error: 'Couldn’t save — try again' }
-  const { data: partnerDone } = await ctx.supabase.from('lesson_progress').select('user_id')
-    .eq('lesson_key', key).eq('user_id', ctx.partnerId).maybeSingle()
+    .upsert({ couple_id: ctx.couple.id, user_id: ctx.user.id, lesson_key: key, note: text }, { onConflict: 'user_id,lesson_key' })
+  if (error) return { error: 'Couldn’t save. Try again?' }
+  const together = !!done.get(key)?.has(ctx.partnerId)
   notifyPartner(async () => ({
-    title: partnerDone ? `You finished “${lesson.title}” together 🎉` : `${await myFirstName()} finished “${lesson.title}”`,
-    body: partnerDone ? 'Another step on your path.' : 'Your turn whenever you’re ready — no rush.',
+    title: together ? `You finished “${stop.title}” together 💛` : `${await myFirstName()} finished “${stop.title}”`,
+    body: together ? 'Another stop on your map.' : 'It’s on your map whenever you like.',
     url: `/grow/lesson/${key}`,
     tag: `lesson-${key}`,
   }))
-  const stamped = await awardMilestones()
   revalidatePath('/grow')
-  return { ok: true, together: !!partnerDone, stamped }
+  return { ok: true, together }
+}
+
+// Your sealed answers to a stop's prediction: your own pick, and your guess at
+// theirs. Final once given. Returns theirs if they've already answered.
+export async function answerPrediction(key: string, mine: number, guess: number) {
+  const stop = stopByKey(key)
+  const n = stop?.predict?.options.length ?? 0
+  if (!stop || !n || ![mine, guess].every(x => Number.isInteger(x) && x >= 0 && x < n)) return { error: 'Unknown answer' }
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Not signed in' }
+  const { error } = await ctx.supabase.from('lesson_answers')
+    .insert({ couple_id: ctx.couple.id, user_id: ctx.user.id, lesson_key: key, mine, guess })
+  if (error && error.code !== '23505') return { error: 'Couldn’t save. Try again?' }
+  const { data: theirs } = await ctx.supabase.from('lesson_answers').select('mine, guess')
+    .eq('couple_id', ctx.couple.id).eq('user_id', ctx.partnerId).eq('lesson_key', key).maybeSingle()
+  if (theirs) {
+    notifyPartner({ title: 'Your answers are ready to open 📜', body: `“${stop.title}” on your map`, url: `/grow/lesson/${key}`, tag: `answers-${key}` })
+  }
+  return { ok: true, theirs: theirs ?? null }
 }
 
 // ── Coupons ──

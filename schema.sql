@@ -740,7 +740,7 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 
 
 -- ─────────────────────────────────────────
--- MIGRATIONS 017–050 (summary — see each file in migrations/ for the full
+-- MIGRATIONS 017–051 (summary — see each file in migrations/ for the full
 -- table, policy and function definitions; every one is safe to re-run)
 -- ─────────────────────────────────────────
 -- Unless noted, new tables are couple-scoped (couple_id or a member's user id),
@@ -815,3 +815,6 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 -- 050 realtime.messages policies for the private `space:<couple id>` channel
 --     (broadcast + presence, the "where's my partner" hints): only the
 --     couple's two members, after 2FA if they use it. Nothing is stored.
+-- 051 lesson_answers: sealed predictions on the Grow map (your pick and your
+--     guess at theirs); theirs is readable only once yours exists
+--     (answered_lesson()). Final once given; 2FA rule; anon nothing.
