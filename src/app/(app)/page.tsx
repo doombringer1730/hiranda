@@ -17,6 +17,8 @@ import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
 import FeedbackCard from './feedback/feedback-card'
 import PlusWelcome from './plus/plus-welcome'
 import ClassicHome, { type Waiting } from './home-classic'
+import { loadProgress, routeOpen } from './grow/map-data'
+import { nextOnMap, mapStarted } from '@/lib/grow-map'
 import { hasPlus } from '@/lib/plus'
 
 const PROFILE_FIELDS = 'id, display_name, avatar_url, username, status_text, accent_color, banner_url, bio, activity, activity_at'
@@ -228,6 +230,18 @@ export default async function HomeHub() {
 
   const lastLove = ((partnerLove ?? []) as { created_at: string }[])[0]?.created_at ?? null
 
+  // Grow: your next stop while you're partway along a route; a one-line invite
+  // if neither of you has started; nothing once you've started but have no
+  // route in progress (you finished one, or you're between routes).
+  let mapNext: React.ComponentProps<typeof ClassicHome>['mapNext'] = undefined
+  if (couple && partnerId) {
+    const { done, firstDoneAt } = await loadProgress({ supabase, user, couple, partnerId })
+    const n = nextOnMap(done, user.id, partnerId, r => routeOpen(r.key, firstDoneAt, plus))
+    mapNext = n
+      ? { routeTitle: n.route.title, emoji: n.route.emoji, color: n.route.color, stopKey: n.stop.key, stopTitle: n.stop.title, n: n.n, of: n.of }
+      : mapStarted(done) ? undefined : null
+  }
+
   return (
     <div className="px-4 pb-10 max-w-2xl md:max-w-5xl mx-auto">
       {/* Greeting */}
@@ -282,7 +296,7 @@ export default async function HomeHub() {
         myId={user.id} partnerId={partnerId} partnerFirst={partnerFirst} firstName={firstName}
         hasPartnerProfile={!!partner} togetherSince={couple?.together_since ?? null} hasCouple={!!couple}
         waiting={waiting} pick={pick} pickPhoto={pickPhoto} pickLabel={pickLabel} upcoming={upcoming[0]}
-        lastLove={lastLove} flame={flame} watching={watching}
+        lastLove={lastLove} flame={flame} watching={watching} mapNext={mapNext}
       />
 
       <div className="mt-8"><SponsorCard place="home" /></div>

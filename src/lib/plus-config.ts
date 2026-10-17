@@ -13,7 +13,6 @@ export const PLUS_TRIAL_DAYS = 7
 export const PLUS_PERKS = [
   { emoji: '📔', title: 'Our Month', text: 'Every month becomes a keepsake: your photos, good news, questions and songs.' },
   { emoji: '⏳', title: 'Hours together', text: 'Every movie night a ticket stub, every talk a pressed flower.' },
-  { emoji: '🥾', title: 'Every Trail', text: 'Five-day courses on money, love, distance, moving in, family and after a fight.' },
   { emoji: '🕯️', title: 'After Dark', text: 'An intimacy deck for desire and touch. Opens only when you both say yes.' },
   { emoji: '✨', title: 'What you’re good at', text: 'Each month, the strengths you two showed, and one idea to try next.' },
   { emoji: '🌤️', title: 'Your seasons', text: 'Your private closeness check-ins, kept as weather across the months.' },

@@ -389,3 +389,16 @@ export function routeIsFree(route: Route, firstDoneAt: Map<string, number>): boo
   const chosen = freeBranch(firstDoneAt)
   return chosen === null || chosen === route.key
 }
+
+/** For Home: the route you're partway along (map order), and your next stop on it. */
+export function nextOnMap(done: Done, me: string, partner: string, isOpen: (r: Route) => boolean) {
+  for (const route of ROUTES) {
+    if (!isOpen(route)) continue
+    const st = routeState(route, done, me, partner)
+    if (st.mine > 0 && st.next) return { route, stop: st.next, n: route.stops.indexOf(st.next) + 1, of: route.stops.length }
+  }
+  return null
+}
+
+/** Has either of you finished any stop yet? */
+export const mapStarted = (done: Done) => [...done.values()].some(s => s.size > 0)

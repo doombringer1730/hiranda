@@ -9,7 +9,7 @@ import { startFreeWeek, dismissPlusIntro } from './intro-actions'
 
 const HIGHLIGHTS = [
   { emoji: '📔', text: 'Every month turned into a keepsake' },
-  { emoji: '🥾', text: 'Trails: five-day courses on money, love, distance and more' },
+  { emoji: '🗺️', text: 'Every route on your Grow map: money, distance, moving in and more' },
   { emoji: '🕯️', text: 'After Dark, a deck just for the two of you' },
   { emoji: '⏳', text: 'Every movie night kept as a ticket stub' },
 ]

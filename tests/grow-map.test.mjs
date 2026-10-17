@@ -82,3 +82,19 @@ test('Plus: base camp and repair are free; the first branch you start is free in
 test('names fill in', () => {
   assert.equal(withName('What would {p} pick?', 'Sam'), 'What would Sam pick?')
 })
+
+test('Home card: the route you are partway along, never a finished or closed one', async () => {
+  const { nextOnMap, mapStarted } = await import('../src/lib/grow-map.ts')
+  const open = () => true
+  assert.equal(nextOnMap(new Map(), 'me', 'you', open), null)
+  assert.equal(mapStarted(new Map()), false)
+  const done = new Map([['toward_1', new Set(['me'])], ['maps_1', new Set(['you'])]])
+  const n = nextOnMap(done, 'me', 'you', open)
+  assert.equal(n.route.key, 'toward')
+  assert.equal(n.stop.key, 'toward_2')
+  assert.equal(n.n, 2)
+  assert.equal(mapStarted(done), true)
+  assert.equal(nextOnMap(done, 'me', 'you', r => r.key !== 'toward'), null) // closed routes are skipped
+  const all = new Map(ROUTES.find(r => r.key === 'toward').stops.map(s => [s.key, new Set(['me'])]))
+  assert.equal(nextOnMap(all, 'me', 'you', open), null) // finished on your side
+})

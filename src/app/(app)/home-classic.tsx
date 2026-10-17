@@ -8,6 +8,7 @@ import { WidgetSync } from '@/components/widget-sync'
 import TalkTime from './talk-time'
 import { Polaroid } from '@/components/handmade'
 import CheckinCard from './closeness/checkin-card'
+import MapCard from './map-card'
 
 const eyebrow = 'text-stone-400 text-[11px] uppercase tracking-[0.22em]'
 
@@ -17,7 +18,7 @@ export type Waiting = { href: string; icon: React.ElementType; title: string; su
 // Home: the same for every couple, Plus or not.
 export default function ClassicHome({
   myId, partnerId, partnerFirst, firstName, hasPartnerProfile, togetherSince, hasCouple,
-  waiting, pick, pickPhoto, pickLabel, upcoming, lastLove, flame, watching,
+  waiting, pick, pickPhoto, pickLabel, upcoming, lastLove, flame, watching, mapNext,
 }: {
   myId: string
   partnerId: string | null
@@ -34,6 +35,8 @@ export default function ClassicHome({
   lastLove: string | null
   flame: FlameState
   watching: { id: string; title: string } | undefined
+  /** Grow: your next map stop while you're partway along a route; null to invite; undefined to hide. */
+  mapNext?: React.ComponentProps<typeof MapCard>['next']
 }) {
   return (
     <>
@@ -55,6 +58,7 @@ export default function ClassicHome({
               <TalkTime myId={myId} partnerName={partnerFirst} />
             </div>
           )}
+          {partnerId && mapNext !== undefined && <MapCard next={mapNext} />}
         </div>
 
         <div className="flex flex-col gap-4">
