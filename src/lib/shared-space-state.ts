@@ -54,6 +54,13 @@ export function roomFromPath(path: string) {
   return ROOM.test(seg) ? seg : 'home'
 }
 
+/** A heart from the partner: just the moment they sent it. */
+export function cleanLove(v: unknown): { at: number } | null {
+  if (!v || typeof v !== 'object') return null
+  const at = (v as Record<string, unknown>).at
+  return typeof at === 'number' && Number.isFinite(at) ? { at } : null
+}
+
 /** A typing ping from the partner: which item, and started or stopped. */
 export function cleanTyping(v: unknown): { item: string; on: boolean } | null {
   if (!v || typeof v !== 'object') return null

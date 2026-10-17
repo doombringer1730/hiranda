@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, us
 import { usePathname } from 'next/navigation'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
-import { cleanTyping, pickMeta, roomFromPath, samePlace, type Place } from '@/lib/shared-space-state'
+import { cleanLove, cleanTyping, pickMeta, roomFromPath, samePlace, type Place } from '@/lib/shared-space-state'
 
 // "Shared space": each partner sees where the other is in the app (which
 // section, which memory, whether they're typing an answer), live. It runs on
@@ -12,7 +12,8 @@ import { cleanTyping, pickMeta, roomFromPath, samePlace, type Place } from '@/li
 // touches the database:
 //   - Presence carries where each device is (and whether it's on screen).
 //     Supabase clears it by itself when a device disconnects.
-//   - Broadcast carries typing pings, which are too frequent for presence.
+//   - Broadcast carries typing pings, which are too frequent for presence,
+//     and "thinking of you" hearts, which float up on the partner's screen.
 // Migration 050 decides who may join: only the couple's two members.
 //
 // Renders: the channel lives in a store outside React; components subscribe
@@ -32,6 +33,7 @@ class SpaceStore {
   private typing = new Map<string, number>() // item → expires at
   private typingTimer: ReturnType<typeof setTimeout> | null = null
   private listeners = new Set<() => void>()
+  private loveListeners = new Set<() => void>()
 
   private channel: RealtimeChannel | null = null
   private path = '/'
@@ -64,6 +66,22 @@ class SpaceStore {
     else this.typing.delete(t.item)
     this.scheduleTypingExpiry()
     if (this.isTyping(t.item) !== was) this.emit()
+  }
+
+  // ── hearts ──
+
+  onLove(payload: unknown) {
+    if (!cleanLove(payload)) return
+    for (const fn of this.loveListeners) fn()
+  }
+
+  onLoveFromPartner = (fn: () => void) => { this.loveListeners.add(fn); return () => { this.loveListeners.delete(fn) } }
+
+  /** Float a heart on your partner's screen, if they're here. */
+  sendLove() {
+    if (!this.channel || !this.partner.online) return false
+    void this.channel.send({ type: 'broadcast', event: 'love', payload: { at: Date.now() } })
+    return true
   }
 
   isTyping = (item: string) => (this.typing.get(item) ?? 0) > Date.now()
@@ -124,6 +142,7 @@ class SpaceStore {
     if (this.trackTimer) clearTimeout(this.trackTimer)
     if (this.typingTimer) clearTimeout(this.typingTimer)
     this.listeners.clear()
+    this.loveListeners.clear()
   }
 }
 
@@ -150,6 +169,7 @@ export function SharedSpaceProvider({ coupleId, myId, partnerId, myName, childre
         .channel(`space:${coupleId}`, { config: { private: true, presence: { key: myId }, broadcast: { self: false } } })
         .on('presence', { event: 'sync' }, () => store.onPresence(channel!.presenceState()))
         .on('broadcast', { event: 'typing' }, ({ payload }) => store.onTyping(payload))
+        .on('broadcast', { event: 'love' }, ({ payload }) => store.onLove(payload))
         .subscribe(status => {
           if (status === 'SUBSCRIBED') store.connect(channel)
           else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') store.connect(null)
@@ -200,6 +220,20 @@ export function useHere(place: Place | null) {
     if (!store || !room) return
     return store.announce({ room, ...(item ? { item } : {}), ...(label ? { label } : {}) })
   }, [store, room, item, label])
+}
+
+/** Returns a function that floats a heart on your partner's screen (if they're online). */
+export function useSendLoveSignal() {
+  const store = useContext(Space)
+  return useCallback(() => store?.sendLove() ?? false, [store])
+}
+
+/** Runs `onHeart` each time your partner sends you a heart while you're here. */
+export function useLoveFromPartner(onHeart: () => void) {
+  const store = useContext(Space)
+  const cb = useRef(onHeart)
+  useEffect(() => { cb.current = onHeart })
+  useEffect(() => store?.onLoveFromPartner(() => cb.current()), [store])
 }
 
 /**

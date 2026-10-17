@@ -8,6 +8,7 @@ import { toggleTodo } from './todos/actions'
 import { haptic } from '@/lib/feel'
 import { useLive } from '@/lib/use-live'
 import { saveHomeNote, getHomeNote } from './home-actions'
+import { useLoveFromPartner, useSendLoveSignal } from '@/lib/shared-space'
 
 const EASE = (t: number) => 1 - Math.pow(1 - t, 4)
 
@@ -68,19 +69,28 @@ export function ThinkingOfYou({ partnerName, lastFromPartner, week }: {
   const [sentAt, setSentAt] = useState<number | null>(null)
   const [lobster, setLobster] = useState(false)
   const [, startTransition] = useTransition()
+  // A heart that arrives while you're here updates "thought of you" live.
+  const [lastHeart, setLastHeart] = useState(lastFromPartner)
+  useLoveFromPartner(() => { setLastHeart(new Date().toISOString()); setSentAt(null) })
+  const floatOnPartnersScreen = useSendLoveSignal()
 
   function send(e: React.MouseEvent<HTMLButtonElement>) {
     haptic()
     burst(e.currentTarget)
     setSentAt(Date.now())
     setLobster(Math.random() < 0.3) // Friends: "he's her lobster"
-    startTransition(async () => { await sendLove() })
+    startTransition(async () => {
+      // Recorded (and pushed to their phone) first; then, if they're in the
+      // app right now, hearts float up on their screen too.
+      const res = await sendLove()
+      if ('sent' in res && res.sent) floatOnPartnersScreen()
+    })
   }
 
   const note = sentAt
     ? lobster ? <>Sent — you’re their lobster 🦞</> : <>Sent to {partnerName} 💗</>
-    : lastFromPartner
-      ? <>{partnerName} thought of you · {ago(lastFromPartner)}</>
+    : lastHeart
+      ? <>{partnerName} thought of you · {ago(lastHeart)}</>
       : <>Tap to send {partnerName} a heart</>
 
   if (week != null) {

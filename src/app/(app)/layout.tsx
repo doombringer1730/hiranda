@@ -5,6 +5,7 @@ import HubSwitcher from '@/components/hub-switcher'
 import PageTransition from '@/components/page-transition'
 import { RememberAccount, type RememberedAccount } from '@/components/remember-account'
 import { SharedSpaceProvider } from '@/lib/shared-space'
+import { FloatingHearts } from '@/components/partner-here'
 
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -47,6 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <HubSwitcher />
         <PageTransition>{children}</PageTransition>
       </main>
+      {space && <FloatingHearts />}
     </div>
   )
   // Where each of you is in the app, live (lib/shared-space.tsx).

@@ -1,7 +1,7 @@
 // What the shared space accepts from the partner's devices. Run with: npm test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { cleanPlace, pickMeta, samePlace, roomFromPath, cleanTyping, describePlace } from '../src/lib/shared-space-state.ts'
+import { cleanPlace, pickMeta, samePlace, roomFromPath, cleanTyping, cleanLove, describePlace } from '../src/lib/shared-space-state.ts'
 
 test('places are checked and trimmed', () => {
   assert.deepEqual(cleanPlace({ room: 'memories', item: 'abc', label: 'Lisbon' }), { room: 'memories', item: 'abc', label: 'Lisbon' })
@@ -49,4 +49,12 @@ test('places compare by value; descriptions read naturally', () => {
   assert.equal(describePlace({ room: 'memories', item: 'x', label: 'Lisbon' }), 'looking at “Lisbon”')
   assert.equal(describePlace({ room: 'new-thing' }), 'in new thing')
   assert.equal(describePlace(null), null)
+})
+
+test('hearts from the partner are checked', () => {
+  assert.deepEqual(cleanLove({ at: 1760700000000 }), { at: 1760700000000 })
+  assert.equal(cleanLove({ at: '1760700000000' }), null)
+  assert.equal(cleanLove({ at: Infinity }), null)
+  assert.equal(cleanLove({}), null)
+  assert.equal(cleanLove(null), null)
 })
