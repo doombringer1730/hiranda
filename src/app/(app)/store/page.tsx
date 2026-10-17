@@ -4,7 +4,7 @@ import { Check, MapPin, Package, Settings2 } from 'lucide-react'
 import PageHeader from '@/components/page-header'
 import { coupleContext } from '@/lib/couple'
 import { getPeople } from '@/lib/profiles'
-import { CATEGORIES, PARTNER_GIFTS, shipsFrom } from '@/lib/store/catalog'
+import { CATEGORIES, PARTNER_GIFTS } from '@/lib/store/catalog'
 import { iconButton } from '@/components/ui'
 import { storeProducts } from '@/lib/store/products'
 import { isStoreAdmin, storeEnabled } from '@/lib/store/server'
@@ -75,7 +75,7 @@ export default async function StorePage() {
           <h2 className="font-serif text-[26px] leading-tight text-amber-50 mb-3">{g.title}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {g.items.map(p => (
-              <GiftCard key={p.key} product={p} origin={shipsFrom(p)} partner={partner} canSend={open && !!partnerReady} partnerSizes={(partnerSizes as string[] | null) ?? []} />
+              <GiftCard key={p.key} product={p} origin="US" partner={partner} canSend={open && !!partnerReady} partnerSizes={(partnerSizes as string[] | null) ?? []} />
             ))}
           </div>
         </section>
@@ -109,10 +109,6 @@ export default async function StorePage() {
           <span className="text-sm text-stone-200">Gifts you’ve sent</span>
         </Link>
       </div>
-
-      <p className="mt-8 text-center text-sm text-stone-500">
-        Make something couples would love? <Link href="/sell" className="text-amber-400 hover:text-amber-300 underline underline-offset-4">Sell on Hiranda</Link>
-      </p>
     </div>
   )
 }

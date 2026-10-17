@@ -80,7 +80,7 @@ export async function startGift(productKey: string, note: string, option?: strin
   if (!hasAddress) return { error: 'Your partner hasn’t added a delivery address yet.' }
 
   // Keepsakes print both first names — don't let one come out as "me" / "you".
-  if (product.vendor?.name === 'printful' || product.vendor?.name === 'printify') {
+  if (product.vendor?.name === 'printful') {
     const { data: people } = await createAdminClient().from('profiles').select('id, display_name').in('id', [ctx.user.id, ctx.partnerId])
     const named = (id: string) => !!people?.find(p => p.id === id)?.display_name?.trim()
     if (!named(ctx.user.id)) return { error: 'Add your name in Settings first — it’s printed on this one.' }
@@ -230,15 +230,6 @@ export async function connectSupplierWebhook(vendor: string): Promise<{ ok?: str
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Couldn’t connect.' }
   }
-}
-
-// Owner: move a seller application along (/store/admin/sellers).
-export async function setApplicationStatus(id: string, status: 'new' | 'contacted' | 'approved' | 'declined') {
-  if (!(await requireAdmin())) return { error: 'Not allowed' }
-  if (!['new', 'contacted', 'approved', 'declined'].includes(status)) return { error: 'Unknown status' }
-  await createAdminClient().from('seller_applications').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
-  revalidatePath('/store/admin/sellers')
-  return { ok: true }
 }
 
 // ── Sizes (private, like your address) ──

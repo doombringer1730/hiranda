@@ -1,47 +1,21 @@
 import 'server-only'
-import { cache } from 'react'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { PRODUCTS, type Category, type Product, type ProductOptions } from './catalog'
-import type { VendorSpec } from './vendors/types'
+import { PRODUCTS, type Product } from './catalog'
 
-// Every product the Store knows: the built-in ones (catalog.ts) plus those
-// added from /store/admin/catalog (store_products, read with the service role
-// so cost never reaches the browser).
-
-type Row = {
-  key: string; title: string; blurb: string; image_url: string | null; emoji: string; category: Category
-  price_cents: number; vendor: VendorSpec; delivery: string | null; active: boolean; options: ProductOptions | null
-}
-
-const toProduct = (r: Row): Product => ({
-  key: r.key, title: r.title, blurb: r.blurb, emoji: r.emoji, priceCents: r.price_cents, ships: true,
-  category: r.category, vendor: r.vendor, image: r.image_url ?? undefined, delivery: r.delivery ?? undefined,
-  options: r.options?.values?.length ? r.options : undefined,
-})
-
-const added = cache(async (): Promise<(Product & { active: boolean })[]> => {
-  const { data } = await createAdminClient().from('store_products')
-    .select('key, title, blurb, image_url, emoji, category, price_cents, vendor, delivery, active, options')
-    .order('sort').order('created_at')
-  return (data as Row[] | null ?? []).map(r => ({ ...toProduct(r), active: r.active }))
-})
+// Every product the Store sells: the built-in catalog (catalog.ts), made by
+// Printful or Gelato. Async so callers don't change if products ever come
+// from the database again.
 
 /** What shoppers can buy right now. */
 export async function storeProducts(): Promise<Product[]> {
-  const builtIn = new Set(PRODUCTS.map(p => p.key))
-  return [...PRODUCTS, ...(await added()).filter(p => p.active && !builtIn.has(p.key))]
+  return PRODUCTS
 }
 
-/** A product by key — for sending a gift, only what's on sale; for orders
- *  already paid, also products since taken off the shelf. */
-export async function findProduct(key: string, { includeInactive = false } = {}): Promise<Product | null> {
-  return PRODUCTS.find(p => p.key === key)
-    ?? (await added()).find(p => p.key === key && (includeInactive || p.active))
-    ?? null
+/** A product by key. */
+export async function findProduct(key: string): Promise<Product | null> {
+  return PRODUCTS.find(p => p.key === key) ?? null
 }
 
-/** Emoji/photo/title for any product ever sold, for order lists. */
+/** Emoji/photo/title for any product, for order lists. */
 export async function productLookup() {
-  const all = [...PRODUCTS, ...(await added())]
-  return (key: string) => all.find(p => p.key === key) ?? null
+  return (key: string) => PRODUCTS.find(p => p.key === key) ?? null
 }

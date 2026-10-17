@@ -177,16 +177,12 @@ Stripe, which Apple allows outside in-app purchase (rule 3.1.3(e)).
 gift goes to its supplier automatically, and tracking flows back to the
 recipient. Set each one up from **Gifts → Orders to ship → Suppliers**
 (`/store/admin/suppliers`). That page shows whether each supplier is connected,
-the exact steps, and a product finder for the ids that go in
-`src/lib/store/catalog.ts`.
+the exact steps. Product ids go in `src/lib/store/catalog.ts`.
 
 | Supplier | Makes | Vercel settings |
 |---|---|---|
-| Gelato | The printed card ("A card in the mail") | `GELATO_API_KEY` |
-| Printful | Blankets, mugs and posters with your names | `PRINTFUL_API_TOKEN` (`PRINTFUL_STORE_ID` only with an account-level token) |
-| Printify | The same, from many print shops | `PRINTIFY_API_TOKEN`, `PRINTIFY_SHOP_ID` |
-| CJ Dropshipping | Care-package items from its US warehouse | `CJ_API_KEY` (paid from your CJ wallet) |
-| Goody | Chocolates and treats, sent straight to the address | `GOODY_API_KEY`, `GOODY_WEBHOOK_SECRET`; needs Goody's "direct send" approval |
+| Gelato | The printed card ("A card in the mail"), Polaroid prints and the photo book | `GELATO_API_KEY` |
+| Printful | Blankets, mugs, prints, canvas, pillows and ornaments with your names | `PRINTFUL_API_TOKEN` (`PRINTFUL_STORE_ID` only with an account-level token) |
 
 All of them also need:
 - `STORE_CONTACT_EMAIL`: your email, which suppliers put on shipments instead of the user's.
@@ -197,8 +193,7 @@ A gift whose supplier ids are empty is fulfilled **by hand**. It appears under
 **Orders to ship** with the address and note, and you press **Mark shipped**.
 
 While Stripe uses test keys, suppliers get **test orders only**: Gelato and
-Printful drafts, and CJ sandbox orders. Goody is used only with
-`GOODY_SANDBOX=1` and a sandbox key, and Printify not at all.
+Printful drafts.
 
 Then add to Vercel:
 - `STORE_ENABLED=1`: the store stays "opens soon" until you set this.

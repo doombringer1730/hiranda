@@ -11,7 +11,7 @@ import { PDFDocument } from 'pdf-lib'
 //   front / back — a flat A5 card with 4 mm bleed at 300 dpi (Gelato):
 //                  "for <name>" and the sender's note.
 //   design       — the couple's names and year, at the size the product
-//                  asks for (blankets, mugs… via Printful / Printify).
+//                  asks for (blankets, mugs… via Printful).
 //   photo-<n>    — the order's nth photo as a Polaroid-style print.
 //   book         — the photo book as one PDF: front cover, then one photo a
 //                  page, padded with blank pages to the book's page count.

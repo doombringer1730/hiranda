@@ -1,11 +1,10 @@
 import 'server-only'
-import { cjDropshipping } from './cj'
 import { gelato } from './gelato'
-import { goody } from './goody'
 import { printful } from './printful'
-import { printify } from './printify'
 import type { Vendor, VendorName } from './types'
 
-export const VENDORS: Record<VendorName, Vendor> = { gelato, printful, printify, cj: cjDropshipping, goody }
+// Two print-on-demand suppliers: Printful (keepsakes with your names) and
+// Gelato (the card, Polaroid prints and the photo book).
+export const VENDORS: Record<VendorName, Vendor> = { gelato, printful }
 export { VendorError } from './types'
 export type { ShipTo, VendorSpec, VendorState } from './types'

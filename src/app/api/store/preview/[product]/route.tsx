@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ prod
   const { product: key } = await params
   const product = builtInProduct(key)
   const v = product?.vendor
-  const art = v && (v.name === 'printful' || v.name === 'printify') ? v.art : null
+  const art = v && v.name === 'printful' ? v.art : null
   if (!art) return new Response('Not found', { status: 404 })
 
   const q = new URL(request.url).searchParams

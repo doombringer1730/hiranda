@@ -4,10 +4,6 @@
     {
       "path": "/api/store/sync",
       "schedule": "17 15 * * *"
-    },
-    {
-      "path": "/api/store/fresh-picks",
-      "schedule": "23 16 1 * *"
     }
   ]
 }

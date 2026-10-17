@@ -23,8 +23,8 @@ const firstName = (s: string | null | undefined) => (s ?? '').trim().split(/\s+/
 
 /** The supplier that makes this product, if one is set up for it. */
 export async function supplierFor(productKey: string): Promise<{ vendor: Vendor; spec: VendorSpec } | null> {
-  const spec = (await findProduct(productKey, { includeInactive: true }))?.vendor
-  if (!spec || spec.name === 'partner' || spec.name === 'aliexpress') return null // shipped by hand / by a partner
+  const spec = (await findProduct(productKey))?.vendor
+  if (!spec) return null // shipped by hand
   const vendor = VENDORS[spec.name]
   return vendor.ready(spec) ? { vendor, spec } : null
 }
@@ -37,14 +37,8 @@ export async function fulfilOrder(orderId: string): Promise<{ ok?: true; manual?
   if (!order || order.status !== 'paid' || order.vendor_order_id) return { error: 'This gift isn’t waiting to be sent.' }
   const pick = await supplierFor(order.product_key)
   if (!pick) return { manual: true }
-  const prints = (await findProduct(order.product_key, { includeInactive: true }))?.prints
-  const { vendor } = pick
-  let { spec } = pick
-  // A size (or other option) that maps to its own CJ variant.
-  if (order.option && spec.name === 'cj') {
-    const chosen = (await findProduct(order.product_key, { includeInactive: true }))?.options?.values.find(v => v.label === order.option)
-    if (chosen?.vid) spec = { ...spec, items: [{ vid: chosen.vid, quantity: 1 }] }
-  }
+  const prints = (await findProduct(order.product_key))?.prints
+  const { vendor, spec } = pick
 
   // Claim it, so two runs can't both send it.
   const { data: claimed } = await db.from('store_orders')
@@ -141,7 +135,7 @@ export async function refreshOrder(orderId: string): Promise<{ ok?: true; error?
 }
 
 /** The daily sweep: send anything paid that didn't go out, and check on
- *  everything in flight. Spaced out for CJ's one-request-a-second limit, and
+ *  everything in flight. Spaced out to stay inside suppliers' rate limits, and
  *  stops before `budgetMs` so the function isn't cut off mid-order. */
 export async function syncOrders(budgetMs = 50_000) {
   const deadline = Date.now() + budgetMs
