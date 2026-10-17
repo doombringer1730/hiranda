@@ -3,22 +3,26 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowRight, Check, Loader2, MailOpen } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Loader2, MailOpen, Users } from 'lucide-react'
 import { haptic, toast } from '@/lib/feel'
 import { withName, type Guess, type Predict } from '@/lib/grow-map'
 import { answerPrediction, completeLesson } from '../../actions'
+import TogetherPredict from './together-predict'
 
 // One map stop, dealt one card at a time: Guess → Learn → Predict (you, then
 // them) → the sealed note → Do → Reflect. Nothing is scored: a guess shows the
 // answer warmly, and a prediction is a discovery, never right or wrong.
+// Together mode is the same stop on one phone: the prediction passes back and
+// forth and opens on the spot, and finishing counts for you both.
 
 type Pair = { mine: number; guess: number }
-type Card = 'guess' | 'learn' | 'self' | 'them' | 'sealed' | 'do' | 'reflect'
+type Card = 'guess' | 'learn' | 'self' | 'them' | 'sealed' | 'pair' | 'do' | 'reflect'
 
-export default function LessonClient({ stop, route, position, partnerName, done, notes, answers, next }: {
+export default function LessonClient({ stop, route, position, myName, partnerName, done, notes, answers, next }: {
   stop: { key: string; title: string; guess: Guess | null; learn: string; source: string; caveat: string | null; predict: Predict | null; do: { text: string; href?: string; label?: string }; reflect: string }
   route: { key: string; title: string; emoji: string; color: string; safety: string | null }
   position: { n: number; of: number }
+  myName: string
   partnerName: string
   done: { me: boolean; them: boolean }
   notes: { mine: string | null; theirs: string | null }
@@ -27,11 +31,16 @@ export default function LessonClient({ stop, route, position, partnerName, done,
 }) {
   const router = useRouter()
   const p = partnerName
+  // One phone only makes sense on a stop neither of you has started.
+  const canTogether = !done.me && !done.them && !answers.mine && !answers.theirs
+  const [together, setTogether] = useState(false)
   // Answered predictions skip straight to the note.
   const cards: Card[] = [
     ...(stop.guess && !done.me ? ['guess' as const] : []),
     'learn',
-    ...(stop.predict ? (answers.mine ? ['sealed' as const] : ['self' as const, 'them' as const, 'sealed' as const]) : []),
+    ...(stop.predict
+      ? together ? ['pair' as const] : answers.mine ? ['sealed' as const] : ['self' as const, 'them' as const, 'sealed' as const]
+      : []),
     'do', 'reflect',
   ]
   const [i, setI] = useState(done.me ? cards.length - 1 : 0)
@@ -59,10 +68,11 @@ export default function LessonClient({ stop, route, position, partnerName, done,
 
   function finish() {
     start(async () => {
-      const res = await completeLesson(stop.key, note)
+      const res = await completeLesson(stop.key, note, together)
       if ('error' in res && res.error) { toast(res.error); return }
       setFinished(true)
-      if ('together' in res && res.together) toast(`You finished this one together with ${p} 💛`)
+      if ('partnerMissed' in res && res.partnerMissed) toast(`Saved for you. ${p} can finish it on their phone.`)
+      else if ('together' in res && res.together) toast(`You finished this one together with ${p} 💛`)
       router.refresh()
     })
   }
@@ -90,11 +100,22 @@ export default function LessonClient({ stop, route, position, partnerName, done,
       <p className="text-stone-400 text-[11px] uppercase tracking-[0.22em]">{route.emoji} {route.title} · stop {position.n} of {position.of}</p>
       <h1 className="font-serif text-[36px] leading-[1.05] text-amber-50 mt-1 mb-5">{stop.title}</h1>
 
+      {canTogether && i === 0 && !finished && (
+        <button onClick={() => { haptic(); setTogether(t => !t) }} aria-pressed={together}
+          className={`mb-4 w-full tile px-3.5 py-2.5 flex items-center gap-2.5 text-left transition-colors ${together ? 'ring-1 ring-amber-400/60' : ''}`}>
+          <Users size={17} className="text-amber-400 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-amber-50 text-sm">{together ? `Together with ${p}, on this phone` : `With ${p} right now?`}</span>
+            <span className="block text-stone-400 text-xs">{together ? 'Pass it back and forth. It counts for you both. Tap to go solo.' : 'Do this stop together on one phone.'}</span>
+          </span>
+        </button>
+      )}
+
       <div key={card} className="animate-rise">
         {card === 'guess' && stop.guess && (
           <section className={`${paper} -rotate-[0.4deg]`}>
             <span className="tape -top-3 left-6 -rotate-6" />
-            <p className={eyebrow}>A guess, just for fun</p>
+            <p className={eyebrow}>{together ? 'Guess together, just for fun' : 'A guess, just for fun'}</p>
             <p className="font-serif text-[21px] leading-snug text-[var(--paper-ink)] mt-2">{stop.guess.q}</p>
             <div className="mt-4 flex flex-col gap-2">
               {stop.guess.options.map((o, k) => (
@@ -117,7 +138,7 @@ export default function LessonClient({ stop, route, position, partnerName, done,
         {card === 'learn' && (
           <section className={`${paper} rotate-[0.3deg]`}>
             <span className="tape -top-3 right-8 rotate-6" />
-            <p className={eyebrow}>Learn</p>
+            <p className={eyebrow}>{together ? 'Learn · one of you reads it out' : 'Learn'}</p>
             <p className="font-serif text-[20px] leading-relaxed text-[var(--paper-ink)] mt-2">{stop.learn}</p>
             <p className="text-[11px] text-[var(--paper-muted)] mt-3">— {stop.source}{stop.caveat ? ` · ${stop.caveat}` : ''}</p>
             {route.safety && <p className="mt-4 rounded-lg bg-[rgb(43_38_32/0.06)] px-3 py-2 text-[12px] leading-snug text-[var(--paper-muted)]">{route.safety}</p>}
@@ -187,9 +208,13 @@ export default function LessonClient({ stop, route, position, partnerName, done,
           )
         )}
 
+        {card === 'pair' && stop.predict && (
+          <TogetherPredict predict={stop.predict} me={myName} partner={p} onNext={() => go()} paper={paper} eyebrow={eyebrow} option={option} />
+        )}
+
         {card === 'do' && (
           <section className="flex flex-col gap-3">
-            <p className="text-stone-400 text-[11px] uppercase tracking-[0.22em]">Do it, for real</p>
+            <p className="text-stone-400 text-[11px] uppercase tracking-[0.22em]">{together ? 'Do it now, together' : 'Do it, for real'}</p>
             <div className="tile p-4" style={{ background: `linear-gradient(110deg, color-mix(in oklab, ${route.color} 26%, transparent), transparent 75%), color-mix(in oklab, var(--color-stone-900) 80%, transparent)` }}>
               <p className="text-amber-50 text-[16px] leading-snug">{stop.do.text}</p>
               {stop.do.href && (
@@ -210,11 +235,13 @@ export default function LessonClient({ stop, route, position, partnerName, done,
               <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} maxLength={1000} aria-label={stop.reflect}
                 className="w-full bg-transparent resize-none font-hand text-[23px] leading-[30px] text-[var(--paper-ink)] focus:outline-none" />
             </div>
-            <p className="text-stone-500 text-xs -mt-2">Optional. {p} sees it once you’ve both finished this stop.</p>
+            <p className="text-stone-500 text-xs -mt-2">
+              {together && !finished ? `Optional. Write it together; it’s saved as yours, and ${p} can add their own any time.` : `Optional. ${p} sees it once you’ve both finished this stop.`}
+            </p>
             <button onClick={finish} disabled={pending} className={primary}
               style={{ background: route.color, boxShadow: `0 5px 0 color-mix(in oklab, ${route.color} 55%, black)` }}>
               {pending ? <Loader2 size={17} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
-              {finished ? 'Save my note' : 'Finish this stop'}
+              {finished ? 'Save my note' : together ? 'Finish for both of us' : 'Finish this stop'}
             </button>
 
             <div className="tile p-4">
@@ -237,7 +264,7 @@ export default function LessonClient({ stop, route, position, partnerName, done,
         )}
       </div>
 
-      {i > 0 && card !== 'them' && (
+      {i > 0 && card !== 'them' && card !== 'pair' && (
         <button onClick={() => setI(i - 1)} className="mt-6 text-stone-500 hover:text-stone-300 text-xs">← Back a card</button>
       )}
     </div>

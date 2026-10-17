@@ -48,6 +48,7 @@ export default async function LessonPage({ params }: { params: Promise<{ key: st
       }}
       route={{ key: route.key, title: route.title, emoji: route.emoji, color: route.color, safety: route.key === 'repair' ? SAFETY_NOTE : null }}
       position={{ n: stop.index + 1, of: route.stops.length }}
+      myName={people.get(ctx.user.id)?.first || 'You'}
       partnerName={people.get(ctx.partnerId)?.first ?? 'your partner'}
       done={{ me: iDid, them: theyDid }}
       // Their reflection stays private until you've finished too.

@@ -740,7 +740,7 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 
 
 -- ─────────────────────────────────────────
--- MIGRATIONS 017–052 (summary — see each file in migrations/ for the full
+-- MIGRATIONS 017–053 (summary — see each file in migrations/ for the full
 -- table, policy and function definitions; every one is safe to re-run)
 -- ─────────────────────────────────────────
 -- Unless noted, new tables are couple-scoped (couple_id or a member's user id),
@@ -822,3 +822,6 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 --     people) opens when one of you suggests it and the other says yes; only
 --     the other partner can accept, "not yet" deletes the suggestion, and only
 --     accepted_by / accepted_at can be updated.
+-- 053 finish_together(): in the Grow map's one-phone mode, marks a stop done
+--     for your partner too, only within 15 minutes of your own finish, with
+--     no note for them and never over a stop they already finished.

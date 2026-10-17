@@ -36,8 +36,9 @@ export async function awardMilestones(): Promise<string[]> {
 // Finish a map stop (or update your note on one you've finished). No coupons
 // or stamps for lessons: learning together is its own reward (the critic's
 // "no rewards or scores in Grow"). Your partner gets one quiet note, never a
-// "your turn".
-export async function completeLesson(key: string, note: string) {
+// "your turn". `together` is the one-phone mode: it marks the stop done for
+// your partner too (migration 053) and tells them so.
+export async function completeLesson(key: string, note: string, together = false) {
   const stop = stopByKey(key)
   if (!stop) return { error: 'Unknown stop' }
   const ctx = await coupleContext()
@@ -56,15 +57,28 @@ export async function completeLesson(key: string, note: string) {
   const { error } = await ctx.supabase.from('lesson_progress')
     .upsert({ couple_id: ctx.couple.id, user_id: ctx.user.id, lesson_key: key, note: text }, { onConflict: 'user_id,lesson_key' })
   if (error) return { error: 'Couldn’t save. Try again?' }
-  const together = !!done.get(key)?.has(ctx.partnerId)
+  if (together) {
+    const { data: both } = await ctx.supabase.rpc('finish_together', { p_key: key })
+    if (both) {
+      notifyPartner(async () => ({
+        title: `You finished “${stop.title}” together 💛`,
+        body: `Done for you both on ${await myFirstName()}’s phone. Add your own note any time.`,
+        url: `/grow/lesson/${key}`,
+        tag: `lesson-${key}`,
+      }))
+      revalidatePath('/grow')
+      return { ok: true, together: true }
+    }
+  }
+  const bothDone = !!done.get(key)?.has(ctx.partnerId)
   notifyPartner(async () => ({
-    title: together ? `You finished “${stop.title}” together 💛` : `${await myFirstName()} finished “${stop.title}”`,
-    body: together ? 'Another stop on your map.' : 'It’s on your map whenever you like.',
+    title: bothDone ? `You finished “${stop.title}” together 💛` : `${await myFirstName()} finished “${stop.title}”`,
+    body: bothDone ? 'Another stop on your map.' : 'It’s on your map whenever you like.',
     url: `/grow/lesson/${key}`,
     tag: `lesson-${key}`,
   }))
   revalidatePath('/grow')
-  return { ok: true, together }
+  return { ok: true, together: bothDone, ...(together ? { partnerMissed: true } : {}) }
 }
 
 // Your sealed answers to a stop's prediction: your own pick, and your guess at
