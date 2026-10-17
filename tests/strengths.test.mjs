@@ -1,28 +1,7 @@
-// Trails and "what you're good at". Run with: npm test
+// "What you're good at". Run with: npm test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TRAILS, openDay } from '../src/lib/trails.ts'
 import { readStrengths, strengthsLine, AREAS } from '../src/lib/strengths.ts'
-
-const trail = TRAILS[0]
-const done = (...pairs) => {
-  const m = new Map()
-  for (const [day, who] of pairs) m.set(day, (m.get(day) ?? new Set()).add(who))
-  return m
-}
-
-test('every trail has five days, and keys match the database list', () => {
-  assert.deepEqual(TRAILS.map(t => t.key), ['money', 'love', 'distance', 'home', 'family', 'repair'])
-  for (const t of TRAILS) assert.equal(t.days.length, 5)
-})
-
-test('a day opens only once you have both finished the one before', () => {
-  assert.equal(openDay(trail, done(), 'a', 'b'), 1)
-  assert.equal(openDay(trail, done([1, 'a']), 'a', 'b'), 1)
-  assert.equal(openDay(trail, done([1, 'a'], [1, 'b']), 'a', 'b'), 2)
-  const all = [1, 2, 3, 4, 5].flatMap(d => [[d, 'a'], [d, 'b']])
-  assert.equal(openDay(trail, done(...all), 'a', 'b'), 6)
-})
 
 test('strengths are the top two areas at or above their bar', () => {
   const s = readStrengths({ goodNews: 6, thanks: 3, questions: 1 }, 30)

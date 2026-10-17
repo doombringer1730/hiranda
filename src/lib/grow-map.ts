@@ -1,6 +1,6 @@
-// The Map: Grow's lessons as hand-drawn trails you pick together. It replaces
-// the old Path (lib/path.ts) and Trails (lib/trails.ts); their keys live on
-// here, so progress already made still counts (see stopKeyForTrailDay).
+// The Map: Grow's lessons as hand-drawn trails you pick together. It replaced
+// the old Path and Trails; their lesson keys live on here (Path keys as-is,
+// trail days via stopKeyForTrailDay), so progress already made still counts.
 //
 // Design rules (owner's research + the critic's review):
 //   - No forced order. Base camp routes are suggested, not required; a couple

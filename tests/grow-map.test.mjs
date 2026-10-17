@@ -2,8 +2,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ROUTES, ALL_STOPS, stopByKey, stopKeyForTrailDay, routeState, freeBranch, routeIsFree, withName } from '../src/lib/grow-map.ts'
-import { PATH } from '../src/lib/path.ts'
-import { TRAILS } from '../src/lib/trails.ts'
+
+// What the old Path and Trails had, so their progress keeps counting.
+const OLD_PATH_KEYS = ['maps', 'toward', 'thanks', 'repair', 'new'].flatMap(u => [1, 2, 3, 4].map(n => `${u}_${n}`))
+const OLD_TRAILS = ['money', 'love', 'distance', 'home', 'family', 'repair'] // five days each
 
 const words = s => s.trim().split(/\s+/).length
 
@@ -41,11 +43,11 @@ test('predictions never ask about hurt, satisfaction or conflict', () => {
 })
 
 test('every old Path lesson is still a stop, so progress counts', () => {
-  for (const u of PATH) for (const l of u.lessons) assert.ok(stopByKey(l.key), l.key)
+  for (const k of OLD_PATH_KEYS) assert.ok(stopByKey(k), k)
 })
 
 test('every old Trail day maps onto a stop', () => {
-  for (const t of TRAILS) t.days.forEach((_, i) => assert.ok(stopKeyForTrailDay(t.key, i + 1), `${t.key} day ${i + 1}`))
+  for (const t of OLD_TRAILS) for (let d = 1; d <= 5; d++) assert.ok(stopKeyForTrailDay(t, d), `${t} day ${d}`)
   assert.equal(stopKeyForTrailDay('repair', 1), 'repair_2') // the duplicate lesson
   assert.equal(stopKeyForTrailDay('nope', 1), null)
 })
