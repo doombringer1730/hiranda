@@ -10,7 +10,8 @@ import ProductThumb from '@/components/product-thumb'
 import { isStoreAdmin } from '@/lib/store/server'
 import { supplierFor } from '@/lib/store/fulfil'
 import { VENDORS } from '@/lib/store/vendors'
-import { printFileUrl } from '@/lib/store/print'
+import { printFileUrl, printLinksReady } from '@/lib/store/print'
+import { ADMIN_TTL } from '@/lib/store/print-sign'
 import type { Product } from '@/lib/store/catalog'
 import OrderActions from './order-actions'
 
@@ -86,10 +87,12 @@ export default async function StoreAdminPage() {
               {item?.prints && !o.vendor_order_id && (
                 <p className="text-xs text-stone-400">
                   Print files{item.vendor?.name === 'gelato' && !item.vendor.productUid ? ' — no Gelato product picked yet, so order these by hand' : ''}:{' '}
-                  {item.prints === 'book'
-                    ? <a href={printFileUrl(o.id, 'book', artOf(item))} target="_blank" rel="noopener noreferrer" className="text-amber-400 underline underline-offset-2">the book (PDF) ↗</a>
+                  {!printLinksReady()
+                    ? <span className="text-red-300">set STORE_PRINT_SECRET in Vercel to get links</span>
+                    : item.prints === 'book'
+                    ? <a href={printFileUrl(o.id, 'book', artOf(item), ADMIN_TTL)} target="_blank" rel="noopener noreferrer" className="text-amber-400 underline underline-offset-2">the book (PDF) ↗</a>
                     : ((o.photos as string[] | null) ?? []).map((_, i) => (
-                      <a key={i} href={printFileUrl(o.id, `photo-${i}`, artOf(item))} target="_blank" rel="noopener noreferrer" className="mr-2 text-amber-400 underline underline-offset-2">{i + 1}</a>
+                      <a key={i} href={printFileUrl(o.id, `photo-${i}`, artOf(item), ADMIN_TTL)} target="_blank" rel="noopener noreferrer" className="mr-2 text-amber-400 underline underline-offset-2">{i + 1}</a>
                     ))}
                 </p>
               )}

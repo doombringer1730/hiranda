@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
   const url = new URL(request.url)
   const side = url.searchParams.get('side') ?? ''
   const size = url.searchParams.get('size') ?? ''
-  if (!/^[0-9a-f-]{36}$/i.test(orderId) || !printSignatureOk(orderId, side, size, url.searchParams.get('sig'))) {
+  if (!/^[0-9a-f-]{36}$/i.test(orderId) || !printSignatureOk(orderId, side, size, url.searchParams.get('exp'), url.searchParams.get('sig'))) {
     return new Response('Not found', { status: 404 })
   }
   const [w, h] = size ? size.split('x').map(Number) : [W, H]
