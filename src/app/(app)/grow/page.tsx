@@ -9,7 +9,7 @@ import PageHeader from '@/components/page-header'
 import WhyItWorks from '@/components/why-it-works'
 import { hasPlus } from '@/lib/plus'
 import { awardMilestones, getReviewDeck } from './actions'
-import { loadProgress, routeOpen } from './map-data'
+import { loadProgress, accessOf } from './map-data'
 import TrailMap from './trail-map'
 
 // Grow: the map is the page. Pick any route together; each stop is a few
@@ -24,7 +24,7 @@ export default async function GrowPage() {
   // Stamps still come from the things you do together elsewhere in Hiranda.
   const justStamped = await awardMilestones()
 
-  const [people, plus, { done, firstDoneAt }, review, { data: earned }, { data: progressRows }, { data: coupons }] = await Promise.all([
+  const [people, plus, map, review, { data: earned }, { data: progressRows }, { data: coupons }] = await Promise.all([
     getPeople(),
     hasPlus(),
     loadProgress(ctx),
@@ -76,10 +76,10 @@ export default async function GrowPage() {
       </div>
 
       <TrailMap
-        routes={ROUTES} done={done}
+        routes={ROUTES} done={map.done}
         me={person(me, 'You')} partner={person(partner, 'Them')}
         meId={user.id} partnerId={partnerId}
-        isOpen={r => routeOpen(r.key, firstDoneAt, plus)}
+        accessOf={r => accessOf(r.key, map, plus, user.id)}
       />
       {!plus && (
         <p className="text-stone-500 text-xs mt-3 text-center">

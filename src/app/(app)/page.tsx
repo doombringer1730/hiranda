@@ -17,7 +17,7 @@ import IncomingGiftCard, { type IncomingGift } from '@/components/incoming-gift'
 import FeedbackCard from './feedback/feedback-card'
 import PlusWelcome from './plus/plus-welcome'
 import ClassicHome, { type Waiting } from './home-classic'
-import { loadProgress, routeOpen } from './grow/map-data'
+import { loadProgress, accessOf } from './grow/map-data'
 import { nextOnMap, mapStarted } from '@/lib/grow-map'
 import { hasPlus } from '@/lib/plus'
 
@@ -235,8 +235,9 @@ export default async function HomeHub() {
   // route in progress (you finished one, or you're between routes).
   let mapNext: React.ComponentProps<typeof ClassicHome>['mapNext'] = undefined
   if (couple && partnerId) {
-    const { done, firstDoneAt } = await loadProgress({ supabase, user, couple, partnerId })
-    const n = nextOnMap(done, user.id, partnerId, r => routeOpen(r.key, firstDoneAt, plus))
+    const m = await loadProgress({ supabase, user, couple, partnerId })
+    const done = m.done
+    const n = nextOnMap(done, user.id, partnerId, r => accessOf(r.key, m, plus, user.id) === 'open')
     mapNext = n
       ? { routeTitle: n.route.title, emoji: n.route.emoji, color: n.route.color, stopKey: n.stop.key, stopTitle: n.stop.title, n: n.n, of: n.of }
       : mapStarted(done) ? undefined : null

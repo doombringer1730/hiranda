@@ -3,7 +3,7 @@ import { coupleContext } from '@/lib/couple'
 import { getPeople } from '@/lib/profiles'
 import { stopByKey, routeState, SAFETY_NOTE } from '@/lib/grow-map'
 import { hasPlus } from '@/lib/plus'
-import { loadProgress, routeOpen } from '../../map-data'
+import { loadProgress, accessOf } from '../../map-data'
 import LessonClient from './lesson-client'
 
 export default async function LessonPage({ params }: { params: Promise<{ key: string }> }) {
@@ -13,7 +13,7 @@ export default async function LessonPage({ params }: { params: Promise<{ key: st
   const ctx = await coupleContext()
   if (!ctx) redirect('/')
 
-  const [{ done, notes, firstDoneAt }, people, plus, { data: answers }] = await Promise.all([
+  const [map, people, plus, { data: answers }] = await Promise.all([
     loadProgress(ctx),
     getPeople(),
     hasPlus(),
@@ -21,12 +21,17 @@ export default async function LessonPage({ params }: { params: Promise<{ key: st
       ? ctx.supabase.from('lesson_answers').select('user_id, mine, guess').eq('couple_id', ctx.couple.id).eq('lesson_key', key)
       : Promise.resolve({ data: [] as { user_id: string; mine: number; guess: number }[] }),
   ])
-  if (!routeOpen(stop.route.key, firstDoneAt, plus)) redirect('/plus')
+  const access = accessOf(stop.route.key, map, plus, ctx.user.id)
+  if (access === 'plus') redirect('/plus')
+  // Hard topics open only with a yes from each of you (suggest it on the map).
+  if (access !== 'open') redirect('/grow')
+  const { done, notes } = map
 
   const route = stop.route
-  const minePrev = route.stops[stop.index - 1]
-  // Stops go in order for each of you: finish the one before first.
-  if (minePrev && !done.get(minePrev.key)?.has(ctx.user.id) && !done.get(key)?.has(ctx.user.id)) redirect(`/grow/lesson/${minePrev.key}`)
+  // Stops go in order for each of you: a stop further along than your next one
+  // sends you straight to your next one (one redirect, never a chain).
+  const myNext = routeState(route, done, ctx.user.id, ctx.partnerId).next
+  if (!done.get(key)?.has(ctx.user.id) && myNext && route.stops.indexOf(myNext) < stop.index) redirect(`/grow/lesson/${myNext.key}`)
 
   const iDid = !!done.get(key)?.has(ctx.user.id)
   const theyDid = !!done.get(key)?.has(ctx.partnerId)

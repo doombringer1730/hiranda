@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { type Done, type Route, routeState } from '@/lib/grow-map'
+import { type Access, type Done, type Route, routeState } from '@/lib/grow-map'
+import RouteActions from './route-actions'
 
 // The map: a sheet of paper taped to the page. Base camp's three loops at the
 // top, then a fork of dotted ink trails, one per branch. Each stop is a stamp
@@ -10,14 +11,14 @@ import { type Done, type Route, routeState } from '@/lib/grow-map'
 
 type Person = { first: string; accent: string; avatar: string | null }
 
-export default function TrailMap({ routes, done, me, partner, meId, partnerId, isOpen }: {
+export default function TrailMap({ routes, done, me, partner, meId, partnerId, accessOf }: {
   routes: Route[]
   done: Done
   me: Person
   partner: Person
   meId: string
   partnerId: string
-  isOpen: (route: Route) => boolean
+  accessOf: (route: Route) => Access
 }) {
   const base = routes.filter(r => r.kind === 'base')
   const branches = routes.filter(r => r.kind === 'branch')
@@ -35,7 +36,7 @@ export default function TrailMap({ routes, done, me, partner, meId, partnerId, i
 
       <p className="mt-5 text-[10px] uppercase tracking-[0.22em] text-[var(--paper-muted)]">Base camp · start anywhere</p>
       <div className="mt-2 flex flex-col gap-1">
-        {base.map(r => <RouteRow key={r.key} route={r} {...{ done, me, partner, meId, partnerId }} open={isOpen(r)} />)}
+        {base.map(r => <RouteRow key={r.key} route={r} {...{ done, me, partner, meId, partnerId }} access={accessOf(r)} />)}
       </div>
 
       {/* the fork: ink trails leaving base camp */}
@@ -50,7 +51,7 @@ export default function TrailMap({ routes, done, me, partner, meId, partnerId, i
 
       <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--paper-muted)]">Branches · pick the ones that fit you two</p>
       <div className="mt-2 flex flex-col gap-1">
-        {branches.map(r => <RouteRow key={r.key} route={r} {...{ done, me, partner, meId, partnerId }} open={isOpen(r)} />)}
+        {branches.map(r => <RouteRow key={r.key} route={r} {...{ done, me, partner, meId, partnerId }} access={accessOf(r)} />)}
       </div>
     </div>
   )
@@ -60,19 +61,25 @@ function Dot({ color }: { color: string }) {
   return <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: color }} />
 }
 
-function RouteRow({ route, done, me, partner, meId, partnerId, open }: {
-  route: Route; done: Done; me: Person; partner: Person; meId: string; partnerId: string; open: boolean
+function RouteRow({ route, done, me, partner, meId, partnerId, access }: {
+  route: Route; done: Done; me: Person; partner: Person; meId: string; partnerId: string; access: Access
 }) {
+  const open = access === 'open'
+  // A hard topic waiting on a mutual yes: the row itself isn't a link.
+  const waiting = access === 'suggest' || access === 'you-suggested' || access === 'they-suggested'
   const st = routeState(route, done, meId, partnerId)
   const theirs = routeState(route, done, partnerId, meId)
   const href = open ? `/grow/lesson/${(st.next ?? route.stops[route.stops.length - 1]).key}` : '/plus'
-  const label = !open ? 'with Plus'
+  const label = waiting ? (access === 'they-suggested' ? 'suggested' : 'together, or not at all')
+    : !open ? 'with Plus'
     : st.finished ? 'walked together ✓'
     : st.started ? `${st.both} of ${st.total} together`
     : route.free ? 'always free' : `${st.total} stops`
 
+  const Row = waiting ? 'div' : Link
   return (
-    <Link href={href} className={`group block rounded-xl px-2 py-2.5 -mx-2 transition-colors hover:bg-[rgb(43_38_32/0.05)] ${open ? '' : 'opacity-60'}`}>
+    <div className={`rounded-xl px-2 py-2.5 -mx-2 ${open || waiting ? '' : 'opacity-60'}`}>
+    <Row href={href} className={`group block ${waiting ? '' : 'transition-colors hover:bg-[rgb(43_38_32/0.05)] rounded-lg'}`}>
       <div className="flex items-baseline gap-2">
         <span className="text-lg leading-none" aria-hidden>{route.emoji}</span>
         <span className="font-serif text-[19px] leading-tight text-[var(--paper-ink)]">{route.title}</span>
@@ -110,7 +117,9 @@ function RouteRow({ route, done, me, partner, meId, partnerId, open }: {
           )
         })}
       </div>
-    </Link>
+    </Row>
+    {waiting && <RouteActions routeKey={route.key} access={access} partner={partner.first} />}
+    </div>
   )
 }
 

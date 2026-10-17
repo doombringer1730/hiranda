@@ -98,3 +98,19 @@ test('Home card: the route you are partway along, never a finished or closed one
   const all = new Map(ROUTES.find(r => r.key === 'toward').stops.map(s => [s.key, new Set(['me'])]))
   assert.equal(nextOnMap(all, 'me', 'you', open), null) // finished on your side
 })
+
+test('hard-topic routes open with a yes from each of you', async () => {
+  const { routeAccess } = await import('../src/lib/grow-map.ts')
+  const r = k => ROUTES.find(x => x.key === k)
+  const base = { me: 'me', plus: true, firstDoneAt: new Map(), agreement: undefined }
+  assert.deepEqual(ROUTES.filter(x => x.care).map(x => x.key).sort(), ['family', 'money', 'repair'])
+  assert.equal(routeAccess(r('maps'), base), 'open')
+  assert.equal(routeAccess(r('love'), base), 'open') // not a hard topic
+  assert.equal(routeAccess(r('money'), base), 'suggest')
+  assert.equal(routeAccess(r('money'), { ...base, agreement: { proposed_by: 'me', accepted_by: null } }), 'you-suggested')
+  assert.equal(routeAccess(r('money'), { ...base, agreement: { proposed_by: 'you', accepted_by: null } }), 'they-suggested')
+  assert.equal(routeAccess(r('money'), { ...base, agreement: { proposed_by: 'you', accepted_by: 'me' } }), 'open')
+  assert.equal(routeAccess(r('money'), { ...base, firstDoneAt: new Map([['money', 1]]) }), 'open') // walked before the rule
+  assert.equal(routeAccess(r('repair'), { ...base, plus: false }), 'suggest') // free, but still a mutual yes
+  assert.equal(routeAccess(r('money'), { ...base, plus: false, firstDoneAt: new Map([['love', 1]]) }), 'plus')
+})

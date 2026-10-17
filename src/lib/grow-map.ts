@@ -402,3 +402,23 @@ export function nextOnMap(done: Done, me: string, partner: string, isOpen: (r: R
 
 /** Has either of you finished any stop yet? */
 export const mapStarted = (done: Done) => [...done.values()].some(s => s.size > 0)
+
+// ── Opening a hard-topic route together ──
+// Fighting fair, Money talk and Our people (care: true) open only once one of
+// you suggests it and the other says yes. A route you've already walked part
+// of stays open (progress from before this rule counts as a yes).
+
+export type Agreement = { proposed_by: string; accepted_by: string | null }
+export type Access = 'open' | 'plus' | 'suggest' | 'you-suggested' | 'they-suggested'
+
+export function routeAccess(route: Route, o: {
+  me: string
+  plus: boolean
+  firstDoneAt: Map<string, number>
+  agreement: Agreement | undefined
+}): Access {
+  if (!o.plus && !routeIsFree(route, o.firstDoneAt)) return 'plus'
+  if (!route.care || o.firstDoneAt.has(route.key) || o.agreement?.accepted_by) return 'open'
+  if (!o.agreement) return 'suggest'
+  return o.agreement.proposed_by === o.me ? 'you-suggested' : 'they-suggested'
+}

@@ -7,8 +7,8 @@ import { revalidatePath } from 'next/cache'
 import { coupleContext } from '@/lib/couple'
 import { notifyPartner, myFirstName } from '@/lib/push'
 import { milestoneByKey } from '@/lib/path'
-import { stopByKey } from '@/lib/grow-map'
-import { loadProgress, routeOpen } from './map-data'
+import { routeByKey, stopByKey } from '@/lib/grow-map'
+import { loadProgress, accessOf } from './map-data'
 
 // ── Milestones ──
 
@@ -42,8 +42,11 @@ export async function completeLesson(key: string, note: string) {
   if (!stop) return { error: 'Unknown stop' }
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Not signed in' }
-  const { done, firstDoneAt } = await loadProgress(ctx)
-  if (!routeOpen(stop.route.key, firstDoneAt, await hasPlus())) return { error: 'This route comes with Hiranda Plus.' }
+  const map = await loadProgress(ctx)
+  const { done } = map
+  const access = accessOf(stop.route.key, map, await hasPlus(), ctx.user.id)
+  if (access === 'plus') return { error: 'This route comes with Hiranda Plus.' }
+  if (access !== 'open') return { error: 'This route opens once you’ve both said yes to it.' }
   const text = note.trim().slice(0, 1000) || null
 
   if (done.get(key)?.has(ctx.user.id)) {
@@ -81,6 +84,47 @@ export async function answerPrediction(key: string, mine: number, guess: number)
     notifyPartner({ title: 'Your answers are ready to open 📜', body: `“${stop.title}” on your map`, url: `/grow/lesson/${key}`, tag: `answers-${key}` })
   }
   return { ok: true, theirs: theirs ?? null }
+}
+
+// ── Opening a hard-topic route together (migration 052) ──
+
+export async function suggestRoute(key: string) {
+  const route = routeByKey(key)
+  if (!route?.care) return { error: 'Unknown route' }
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Not signed in' }
+  const { error } = await ctx.supabase.from('grow_routes').insert({ couple_id: ctx.couple.id, route_key: key, proposed_by: ctx.user.id })
+  if (error && error.code !== '23505') return { error: 'Couldn’t save. Try again?' }
+  if (!error) notifyPartner(async () => ({
+    title: `${await myFirstName()} suggested a route: ${route.title} ${route.emoji}`,
+    body: 'It opens if you’d like it to. “Not yet” is always fine.',
+    url: '/grow',
+    tag: `route-${key}`,
+  }))
+  revalidatePath('/grow')
+  return { ok: true }
+}
+
+export async function sayYesToRoute(key: string) {
+  const route = routeByKey(key)
+  if (!route?.care) return { error: 'Unknown route' }
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Not signed in' }
+  const { data } = await ctx.supabase.from('grow_routes').update({ accepted_by: ctx.user.id, accepted_at: new Date().toISOString() })
+    .eq('couple_id', ctx.couple.id).eq('route_key', key).is('accepted_by', null).neq('proposed_by', ctx.user.id).select('route_key')
+  if (!data?.length) return { error: 'Nothing to say yes to.' }
+  notifyPartner({ title: `${route.title} is open for you both ${route.emoji}`, body: 'Start whenever you like.', url: '/grow', tag: `route-${key}` })
+  revalidatePath('/grow')
+  return { ok: true }
+}
+
+/** Withdraw your suggestion, or "not yet" to theirs. No record, no reminder. */
+export async function notYetRoute(key: string) {
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Not signed in' }
+  await ctx.supabase.from('grow_routes').delete().eq('couple_id', ctx.couple.id).eq('route_key', key).is('accepted_by', null)
+  revalidatePath('/grow')
+  return { ok: true }
 }
 
 // ── Coupons ──
