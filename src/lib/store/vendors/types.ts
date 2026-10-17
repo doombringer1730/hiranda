@@ -1,27 +1,17 @@
-// What every gift supplier (Gelato, CJ Dropshipping, Goody) implements.
+// What every gift supplier (Gelato, Printful) implements.
 
 import type { PrintKind } from '../prints'
 
-export type VendorName = 'gelato' | 'cj' | 'goody' | 'printful' | 'printify'
+export type VendorName = 'gelato' | 'printful'
 
 /** How a catalog product is made. Empty ids mean "not picked yet": the
  *  product is then fulfilled by hand from /store/admin. */
 export type VendorSpec =
   // `art`: render size for prints made from the couple's photos.
   | { name: 'gelato'; productUid: string; art?: ArtSize }
-  // `from`: CJ's US warehouse (days) or international, 'CN' (1–2 weeks, far more choice).
-  | { name: 'cj'; items: { vid: string; quantity: number }[]; from?: 'US' | 'CN' }
-  | { name: 'goody'; productId: string; variants?: string[] }
   // Print on demand with the couple's names design (see /api/store/print),
   // rendered at `art` pixels — match the product's print area.
   | { name: 'printful'; variantId: number; placement: string; art: ArtSize }
-  | { name: 'printify'; blueprintId: number; printProviderId: number; variantId: number; position: string; art: ArtSize }
-  // A partner shop (e.g. on Etsy) makes and ships it: paid orders show up in
-  // /store/admin with a link to place the order with them.
-  | { name: 'partner'; partner: string; url?: string }
-  // Bought by hand on AliExpress: paid orders show up in /store/admin with
-  // the listing to order it from (and which color/size to pick).
-  | { name: 'aliexpress'; url: string; pick?: string }
 
 export type ArtSize = { w: number; h: number }
 

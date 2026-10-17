@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# personal Claude Code settings and notes (allowlists stay on your machine),
+# in any folder you might start a session from
+**/.claude/settings.local.json
+CLAUDE.local.md

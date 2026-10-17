@@ -1,14 +1,12 @@
 // The Hiranda Store catalog — edit freely.
 //
 // Gifts are sold by Hiranda through Stripe. A gift with a `vendor` is sent to
-// that supplier automatically once paid (see lib/store/fulfil.ts). The ones
-// here are built in; more are added from /store/admin/catalog (the
-// store_products table, merged in by lib/store/products.ts). A gift without one — or whose
-// ids are still empty — shows up in /store/admin for you to ship by hand.
+// that supplier automatically once paid (see lib/store/fulfil.ts): Printful
+// for keepsakes with your names, Gelato for the card and photo prints. A gift
+// without one, or whose ids are still empty, shows up in /store/admin for you
+// to ship by hand.
 // Prices are in cents, USD. Keep each price above the supplier's cost plus
 // shipping plus Stripe's fee (~3%).
-// 'partner' gifts are affiliate links to other shops (no payment here).
-// 'aliexpress' gifts are bought by hand on AliExpress for each paid order.
 //
 // Nothing can be bought until STORE_ENABLED=1 and Stripe is configured.
 
@@ -40,9 +38,8 @@ export type Product = {
   prints?: PrintKind
 }
 
-/** e.g. { name: 'Size', values: [{ label: 'M', vid: '…' }] } — `vid` picks the
- *  exact CJ variant; for partners the label is passed on with the order. */
-export type ProductOptions = { name: string; kind?: SizeKind; values: { label: string; vid?: string }[] }
+/** e.g. { name: 'Size', values: [{ label: 'M' }] }. The label is passed on with the order. */
+export type ProductOptions = { name: string; kind?: SizeKind; values: { label: string }[] }
 
 /** Which of the recipient's saved sizes a product uses (default 'top'). */
 export type SizeKind = 'top' | 'bottom' | 'shoe'
@@ -56,13 +53,6 @@ export const sameSize = (a: string, b: string) => a.toUpperCase().replace(/^2XL$
 
 export type Category = 'her' | 'him' | 'cuddly' | 'jewelry' | 'cozy' | 'gift' | 'keepsake'
 
-/** Where a gift ships from, as shoppers see it: printed or stocked in the US,
- *  or sent internationally (slower, more choice). */
-export const shipsFrom = (p: Pick<Product, 'vendor'>): 'US' | 'International' =>
-  (p.vendor?.name === 'cj' && p.vendor.from === 'CN') || p.vendor?.name === 'aliexpress' ? 'International' : 'US'
-
-/** The partner shop that makes it, if any — credited on the product. */
-export const madeBy = (p: Pick<Product, 'vendor'>) => p.vendor?.name === 'partner' ? p.vendor.partner : null
 
 /** Store sections, in order. */
 export const CATEGORIES: { key: Category; title: string }[] = [
@@ -75,9 +65,7 @@ export const CATEGORIES: { key: Category; title: string }[] = [
   { key: 'keepsake', title: 'Keepsakes with your names' },
 ]
 
-// Built-in gifts. Most of the Store now comes from /store/admin/catalog.
-// (Sweets via Goody can come back here once Goody approves direct send:
-//   vendor: { name: 'goody', productId: '<id from the Suppliers page>' }.)
+// Every gift in the Store.
 export const PRODUCTS: Product[] = [
   {
     key: 'letter',

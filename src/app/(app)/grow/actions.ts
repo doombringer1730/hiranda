@@ -1,13 +1,14 @@
 'use server'
 
 import { hasPlus } from '@/lib/plus'
-import { isPlusUnit } from '@/lib/plus-config'
 
 import { creditFinishedCoupon } from '@/lib/coupon-credit'
 import { revalidatePath } from 'next/cache'
 import { coupleContext } from '@/lib/couple'
 import { notifyPartner, myFirstName } from '@/lib/push'
-import { lessonByKey, milestoneByKey, PATH } from '@/lib/path'
+import { milestoneByKey } from '@/lib/path'
+import { routeByKey, stopByKey } from '@/lib/grow-map'
+import { loadProgress, accessOf } from './map-data'
 
 // ── Milestones ──
 
@@ -30,36 +31,114 @@ export async function awardMilestones(): Promise<string[]> {
   return keys
 }
 
-// ── Path ──
+// ── The map ──
 
-export async function completeLesson(key: string, note: string) {
-  const lesson = lessonByKey(key)
-  if (!lesson) return { error: 'Unknown lesson' }
-  if (isPlusUnit(PATH.indexOf(lesson.unit)) && !(await hasPlus())) return { error: 'This unit comes with Hiranda Plus.' }
+// Finish a map stop (or update your note on one you've finished). No coupons
+// or stamps for lessons: learning together is its own reward (the critic's
+// "no rewards or scores in Grow"). Your partner gets one quiet note, never a
+// "your turn". `together` is the one-phone mode: it marks the stop done for
+// your partner too (migration 053) and tells them so.
+export async function completeLesson(key: string, note: string, together = false) {
+  const stop = stopByKey(key)
+  if (!stop) return { error: 'Unknown stop' }
   const ctx = await coupleContext()
   if (!ctx) return { error: 'Not signed in' }
+  const map = await loadProgress(ctx)
+  const { done } = map
+  const access = accessOf(stop.route.key, map, await hasPlus(), ctx.user.id)
+  if (access === 'plus') return { error: 'This route comes with Hiranda Plus.' }
+  if (access !== 'open') return { error: 'This route opens once you’ve both said yes to it.' }
   const text = note.trim().slice(0, 1000) || null
-  const { data: already } = await ctx.supabase.from('lesson_progress').select('lesson_key')
-    .eq('user_id', ctx.user.id).eq('lesson_key', key).maybeSingle()
-  if (already) {
-    // Already done — just update the note.
+
+  if (done.get(key)?.has(ctx.user.id)) {
     await ctx.supabase.from('lesson_progress').update({ note: text }).eq('user_id', ctx.user.id).eq('lesson_key', key)
-    return { ok: true, together: false, stamped: [] as string[], updated: true }
+    return { ok: true, together: false, updated: true }
   }
   const { error } = await ctx.supabase.from('lesson_progress')
-    .insert({ couple_id: ctx.couple.id, user_id: ctx.user.id, lesson_key: key, note: text })
-  if (error) return { error: 'Couldn’t save — try again' }
-  const { data: partnerDone } = await ctx.supabase.from('lesson_progress').select('user_id')
-    .eq('lesson_key', key).eq('user_id', ctx.partnerId).maybeSingle()
+    .upsert({ couple_id: ctx.couple.id, user_id: ctx.user.id, lesson_key: key, note: text }, { onConflict: 'user_id,lesson_key' })
+  if (error) return { error: 'Couldn’t save. Try again?' }
+  if (together) {
+    const { data: both } = await ctx.supabase.rpc('finish_together', { p_key: key })
+    if (both) {
+      notifyPartner(async () => ({
+        title: `You finished “${stop.title}” together 💛`,
+        body: `Done for you both on ${await myFirstName()}’s phone. Add your own note any time.`,
+        url: `/grow/lesson/${key}`,
+        tag: `lesson-${key}`,
+      }))
+      revalidatePath('/grow')
+      return { ok: true, together: true }
+    }
+  }
+  const bothDone = !!done.get(key)?.has(ctx.partnerId)
   notifyPartner(async () => ({
-    title: partnerDone ? `You finished “${lesson.title}” together 🎉` : `${await myFirstName()} finished “${lesson.title}”`,
-    body: partnerDone ? 'Another step on your path.' : 'Your turn whenever you’re ready — no rush.',
+    title: bothDone ? `You finished “${stop.title}” together 💛` : `${await myFirstName()} finished “${stop.title}”`,
+    body: bothDone ? 'Another stop on your map.' : 'It’s on your map whenever you like.',
     url: `/grow/lesson/${key}`,
     tag: `lesson-${key}`,
   }))
-  const stamped = await awardMilestones()
   revalidatePath('/grow')
-  return { ok: true, together: !!partnerDone, stamped }
+  return { ok: true, together: bothDone, ...(together ? { partnerMissed: true } : {}) }
+}
+
+// Your sealed answers to a stop's prediction: your own pick, and your guess at
+// theirs. Final once given. Returns theirs if they've already answered.
+export async function answerPrediction(key: string, mine: number, guess: number) {
+  const stop = stopByKey(key)
+  const n = stop?.predict?.options.length ?? 0
+  if (!stop || !n || ![mine, guess].every(x => Number.isInteger(x) && x >= 0 && x < n)) return { error: 'Unknown answer' }
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Not signed in' }
+  const { error } = await ctx.supabase.from('lesson_answers')
+    .insert({ couple_id: ctx.couple.id, user_id: ctx.user.id, lesson_key: key, mine, guess })
+  if (error && error.code !== '23505') return { error: 'Couldn’t save. Try again?' }
+  const { data: theirs } = await ctx.supabase.from('lesson_answers').select('mine, guess')
+    .eq('couple_id', ctx.couple.id).eq('user_id', ctx.partnerId).eq('lesson_key', key).maybeSingle()
+  if (theirs) {
+    notifyPartner({ title: 'Your answers are ready to open 📜', body: `“${stop.title}” on your map`, url: `/grow/lesson/${key}`, tag: `answers-${key}` })
+  }
+  return { ok: true, theirs: theirs ?? null }
+}
+
+// ── Opening a hard-topic route together (migration 052) ──
+
+export async function suggestRoute(key: string) {
+  const route = routeByKey(key)
+  if (!route?.care) return { error: 'Unknown route' }
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Not signed in' }
+  const { error } = await ctx.supabase.from('grow_routes').insert({ couple_id: ctx.couple.id, route_key: key, proposed_by: ctx.user.id })
+  if (error && error.code !== '23505') return { error: 'Couldn’t save. Try again?' }
+  if (!error) notifyPartner(async () => ({
+    title: `${await myFirstName()} suggested a route: ${route.title} ${route.emoji}`,
+    body: 'It opens if you’d like it to. “Not yet” is always fine.',
+    url: '/grow',
+    tag: `route-${key}`,
+  }))
+  revalidatePath('/grow')
+  return { ok: true }
+}
+
+export async function sayYesToRoute(key: string) {
+  const route = routeByKey(key)
+  if (!route?.care) return { error: 'Unknown route' }
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Not signed in' }
+  const { data } = await ctx.supabase.from('grow_routes').update({ accepted_by: ctx.user.id, accepted_at: new Date().toISOString() })
+    .eq('couple_id', ctx.couple.id).eq('route_key', key).is('accepted_by', null).neq('proposed_by', ctx.user.id).select('route_key')
+  if (!data?.length) return { error: 'Nothing to say yes to.' }
+  notifyPartner({ title: `${route.title} is open for you both ${route.emoji}`, body: 'Start whenever you like.', url: '/grow', tag: `route-${key}` })
+  revalidatePath('/grow')
+  return { ok: true }
+}
+
+/** Withdraw your suggestion, or "not yet" to theirs. No record, no reminder. */
+export async function notYetRoute(key: string) {
+  const ctx = await coupleContext()
+  if (!ctx) return { error: 'Not signed in' }
+  await ctx.supabase.from('grow_routes').delete().eq('couple_id', ctx.couple.id).eq('route_key', key).is('accepted_by', null)
+  revalidatePath('/grow')
+  return { ok: true }
 }
 
 // ── Coupons ──

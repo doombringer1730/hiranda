@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, Check, CircleAlert, Search } from 'lucide-react'
+import { ArrowLeft, Check, CircleAlert } from 'lucide-react'
 import PageHeader from '@/components/page-header'
 import { coupleContext } from '@/lib/couple'
 import { isStoreAdmin } from '@/lib/store/server'
@@ -8,13 +8,12 @@ import { supplierFor } from '@/lib/store/fulfil'
 import { storeProducts } from '@/lib/store/products'
 import { VENDORS } from '@/lib/store/vendors'
 import { siteUrl } from '@/lib/store/vendors/contact'
-import { goodyProducts } from '@/lib/store/vendors/goody'
 import { ConnectWebhook } from './connect-webhook'
 
 export const metadata = { title: 'Suppliers' }
 
-// The owner's supplier dashboard: is each one connected, what to set up,
-// and a product finder for the ids that go in lib/store/catalog.ts.
+// The owner's supplier dashboard: is each one connected, and what to set up.
+// Product ids go in lib/store/catalog.ts.
 
 const SETUP: Record<string, { env: string[]; steps: string[] }> = {
   gelato: {
@@ -34,42 +33,12 @@ const SETUP: Record<string, { env: string[]; steps: string[] }> = {
       'Come back here and press “Turn on tracking”.',
     ],
   },
-  printify: {
-    env: ['PRINTIFY_API_TOKEN', 'PRINTIFY_SHOP_ID', 'STORE_WEBHOOK_KEY'],
-    steps: [
-      'Sign up at printify.com (free) and add a card.',
-      'My stores → Add a new store → “API”.',
-      'My Profile → Connections → generate a token (shops, orders, webhooks) → PRINTIFY_API_TOKEN.',
-      'This page then lists your shop ids — put the API store’s in PRINTIFY_SHOP_ID, and press “Turn on tracking”.',
-    ],
-  },
-  cj: {
-    env: ['CJ_API_KEY'],
-    steps: [
-      'Sign up at cjdropshipping.com (free).',
-      'Apps → install “API”, then API → Add API → API Key → copy it into CJ_API_KEY.',
-      'Top up your CJ wallet — orders are paid from it. CJ suspends API access after 30 days with no orders.',
-      'Then open Catalog to add popular gifts — shipped from the US or internationally.',
-    ],
-  },
-  goody: {
-    env: ['GOODY_API_KEY', 'GOODY_WEBHOOK_SECRET', 'STORE_CONTACT_EMAIL'],
-    steps: [
-      'Sign up at ongoody.com and add a card (Account → API Keys page).',
-      'Email support@ongoody.com to be approved for “direct send” — shipping straight to an address.',
-      'Account → API Keys → create a key → GOODY_API_KEY.',
-      'Organization → Automation API → Webhooks → add the URL below (all order events) → copy its signing secret into GOODY_WEBHOOK_SECRET.',
-    ],
-  },
 }
 
 const WEBHOOK: Record<string, string | null> = {
   // The real key (this page is admin-only) so it can be pasted into Gelato.
   gelato: `${siteUrl()}/api/store/webhooks/gelato?key=${encodeURIComponent(process.env.STORE_WEBHOOK_KEY ?? '<set STORE_WEBHOOK_KEY>')}`,
   printful: null,
-  printify: null,
-  cj: null,
-  goody: `${siteUrl()}/api/store/webhooks/goody`,
 }
 
 async function check(name: keyof typeof VENDORS) {
@@ -78,10 +47,9 @@ async function check(name: keyof typeof VENDORS) {
   try { return { ok: true, text: await v.ping() } } catch (e) { return { ok: false, text: e instanceof Error ? e.message : 'Couldn’t reach it.' } }
 }
 
-export default async function SuppliersPage({ searchParams }: { searchParams: Promise<{ v?: string; q?: string }> }) {
+export default async function SuppliersPage() {
   const ctx = await coupleContext()
   if (!ctx || !isStoreAdmin(ctx.user.email)) notFound()
-  const { v, q = '' } = await searchParams
   const names = Object.keys(VENDORS) as (keyof typeof VENDORS)[]
   const status = Object.fromEntries(await Promise.all(names.map(async n => [n, await check(n)] as const)))
   const products = await storeProducts()
@@ -103,8 +71,6 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
                 <span className="text-stone-200 flex-1">{p.title}</span>
                 <span className={s ? 'text-amber-300' : 'text-stone-500'}>
                   {s ? s.vendor.label
-                    : p.vendor?.name === 'partner' ? `${p.vendor.partner} (partner)`
-                    : p.vendor?.name === 'aliexpress' ? 'AliExpress (you order it)'
                     : p.vendor ? `${VENDORS[p.vendor.name].label} — product not picked yet` : 'You ship it'}
                 </span>
               </li>
@@ -126,60 +92,9 @@ export default async function SuppliersPage({ searchParams }: { searchParams: Pr
           <p className="text-xs text-stone-500">Vercel settings: {SETUP[n].env.join(' · ')}</p>
           {VENDORS[n].connectWebhook && status[n].ok && <ConnectWebhook vendor={n} label={VENDORS[n].label} />}
           {WEBHOOK[n] && <p className="text-xs text-stone-500 break-all">Webhook URL (keep it private): <span className="font-mono text-stone-300 select-all">{WEBHOOK[n]}</span></p>}
-          {n === 'cj' && status[n].ok && (
-            <Link href="/store/admin/catalog" className="self-start inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-amber-700 text-amber-50 text-sm">Find popular gifts →</Link>
-          )}
-          {n === 'goody' && status[n].ok && (
-            <form className="flex gap-2" action="/store/admin/suppliers">
-              <input type="hidden" name="v" value={n} />
-              <input name="q" defaultValue={v === n ? q : ''} placeholder="Filter Goody (chocolate, cookies…)"
-                className="flex-1 bg-stone-950 border border-stone-800 rounded-xl px-3 py-2 text-sm text-amber-50 placeholder:text-stone-600" />
-              <button className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-stone-800 text-stone-200 text-sm"><Search size={14} /> Find</button>
-            </form>
-          )}
-          {v === n && status[n].ok && <Results vendor={n} q={q} />}
         </section>
       ))}
     </div>
   )
 }
 
-type Found =
-  | { kind: 'goody'; items: Awaited<ReturnType<typeof goodyProducts>> }
-  | { kind: 'error'; message: string }
-  | null
-
-async function find(vendor: string, q: string): Promise<Found> {
-  try {
-    if (vendor === 'goody') return { kind: 'goody', items: await goodyProducts(q) }
-    return null
-  } catch (e) {
-    return { kind: 'error', message: e instanceof Error ? e.message : 'Search failed.' }
-  }
-}
-
-async function Results({ vendor, q }: { vendor: string; q: string }) {
-  const found = await find(vendor, q)
-  if (!found) return null
-  if (found.kind === 'error') return <p className="text-sm text-red-300">{found.message}</p>
-  if (!found.items.length) return <p className="text-sm text-stone-500">No matches.</p>
-
-  return (
-    <ul className="flex flex-col gap-2">
-      {found.items.map(x => (
-        <li key={x.id} className="flex gap-3 items-center rounded-xl bg-stone-950/60 p-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {x.image && <img src={x.image} alt="" className="size-12 rounded-lg object-cover" />}
-          <div className="min-w-0 flex-1 text-sm">
-            <p className="text-stone-200 truncate">{x.brand} — {x.name}</p>
-            <p className="text-stone-500 text-xs">
-              {x.price != null ? `$${(x.price / 100).toFixed(2)}` : '?'} · id <span className="font-mono text-stone-300 select-all">{x.id}</span>
-              {x.variants.length > 0 && <> · options: {x.variants.join(', ')}</>}
-              {x.restrictedStates.length > 0 && <> · can’t ship to {x.restrictedStates.join(', ')}</>}
-            </p>
-          </div>
-        </li>
-      ))}
-    </ul>
-  )
-}

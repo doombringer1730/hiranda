@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { LayoutGrid, Store, Truck } from 'lucide-react'
+import { Truck } from 'lucide-react'
 import PageHeader from '@/components/page-header'
 import { coupleContext } from '@/lib/couple'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -10,7 +10,8 @@ import ProductThumb from '@/components/product-thumb'
 import { isStoreAdmin } from '@/lib/store/server'
 import { supplierFor } from '@/lib/store/fulfil'
 import { VENDORS } from '@/lib/store/vendors'
-import { printFileUrl } from '@/lib/store/print'
+import { printFileUrl, printLinksReady } from '@/lib/store/print'
+import { ADMIN_TTL } from '@/lib/store/print-sign'
 import type { Product } from '@/lib/store/catalog'
 import OrderActions from './order-actions'
 
@@ -43,8 +44,6 @@ export default async function StoreAdminPage() {
       <div className="flex items-end justify-between gap-3">
         <PageHeader eyebrow="Hiranda Store" title="Orders to ship" />
         <div className="mb-1 flex flex-wrap justify-end gap-2">
-          <Link href="/store/admin/catalog" className="inline-flex items-center gap-1.5 rounded-full bg-amber-700 px-3 h-9 text-xs text-amber-50 hover:bg-amber-600"><LayoutGrid size={14} /> Catalog</Link>
-          <Link href="/store/admin/sellers" className="inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-3 h-9 text-xs text-stone-300 hover:bg-stone-700"><Store size={14} /> Sellers</Link>
           <Link href="/store/admin/suppliers" className="inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-3 h-9 text-xs text-stone-300 hover:bg-stone-700"><Truck size={14} /> Suppliers</Link>
         </div>
       </div>
@@ -55,8 +54,6 @@ export default async function StoreAdminPage() {
           const a = addressOf.get(o.recipient_id)
           const supplier = suppliers.get(o.id)
           const item = product(o.product_key)
-          const partner = item?.vendor?.name === 'partner' ? item.vendor : null
-          const ali = item?.vendor?.name === 'aliexpress' ? item.vendor : null
           return (
             <div key={o.id} className="rounded-2xl border border-stone-800 bg-stone-900/60 p-4 flex flex-col gap-3">
               <div className="flex items-center gap-3">
@@ -71,25 +68,15 @@ export default async function StoreAdminPage() {
                   {o.vendor_order_id ? <>Sent to <span className="text-stone-200">{supplier.label}</span> · {o.vendor_order_id}</> : <>Made by <span className="text-stone-200">{supplier.label}</span> · not sent yet</>}
                 </p>
               )}
-              {partner && (
-                <p className="text-xs text-stone-400">
-                  Made by <span className="text-stone-200">{partner.partner}</span> — place the order with them, using the address below.
-                  {partner.url && <> <a href={partner.url} target="_blank" rel="noopener noreferrer" className="text-amber-400 underline underline-offset-2">Order it there ↗</a></>}
-                </p>
-              )}
-              {ali && (
-                <p className="text-xs text-stone-400">
-                  From AliExpress — order it there{ali.pick && <> (pick <span className="text-stone-200">{ali.pick}</span>)</>}, shipped to the address below, then add the tracking link.
-                  {' '}<a href={ali.url} target="_blank" rel="noopener noreferrer" className="text-amber-400 underline underline-offset-2">Order on AliExpress ↗</a>
-                </p>
-              )}
               {item?.prints && !o.vendor_order_id && (
                 <p className="text-xs text-stone-400">
                   Print files{item.vendor?.name === 'gelato' && !item.vendor.productUid ? ' — no Gelato product picked yet, so order these by hand' : ''}:{' '}
-                  {item.prints === 'book'
-                    ? <a href={printFileUrl(o.id, 'book', artOf(item))} target="_blank" rel="noopener noreferrer" className="text-amber-400 underline underline-offset-2">the book (PDF) ↗</a>
+                  {!printLinksReady()
+                    ? <span className="text-red-300">set STORE_PRINT_SECRET in Vercel to get links</span>
+                    : item.prints === 'book'
+                    ? <a href={printFileUrl(o.id, 'book', artOf(item), ADMIN_TTL)} target="_blank" rel="noopener noreferrer" className="text-amber-400 underline underline-offset-2">the book (PDF) ↗</a>
                     : ((o.photos as string[] | null) ?? []).map((_, i) => (
-                      <a key={i} href={printFileUrl(o.id, `photo-${i}`, artOf(item))} target="_blank" rel="noopener noreferrer" className="mr-2 text-amber-400 underline underline-offset-2">{i + 1}</a>
+                      <a key={i} href={printFileUrl(o.id, `photo-${i}`, artOf(item), ADMIN_TTL)} target="_blank" rel="noopener noreferrer" className="mr-2 text-amber-400 underline underline-offset-2">{i + 1}</a>
                     ))}
                 </p>
               )}

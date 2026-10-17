@@ -1,11 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Plus, X } from 'lucide-react'
+import { ChevronRight, Plus, X } from 'lucide-react'
 import { deleteDate } from './actions'
 import PageHeader from '@/components/page-header'
 import { Scribble } from '@/components/handmade'
 import { EmptyState, primaryButton } from '@/components/ui'
 import SponsorCard from '@/components/sponsor-card'
+import CalendarWidget from '../study/calendar-widget'
+import type { Assignment } from '../study/assignments-panel'
 
 type DateRow = {
   id: string
@@ -128,7 +130,38 @@ export default async function DatesPage() {
           })}
         </div>
       )}
+      {/* Plans and flashcards (from Study; they used to live on Grow) */}
+      <PlansAndCards />
+
       <div className="mt-8"><SponsorCard place="dates" /></div>
     </div>
+  )
+}
+
+async function PlansAndCards() {
+  const supabase = await createClient()
+  const [{ data: assignments }, { data: decks }] = await Promise.all([
+    supabase.from('assignments').select('id, title, due_date, turned_in').order('due_date'),
+    supabase.from('study_decks').select('id, title').order('created_at', { ascending: false }),
+  ])
+  return (
+    <>
+      <section className="mt-12">
+        <h2 className="font-serif text-[32px] leading-none text-amber-50 mb-5">Plans</h2>
+        <CalendarWidget assignments={(assignments ?? []) as Assignment[]} />
+      </section>
+      {(decks?.length ?? 0) > 0 && (
+        <details className="mt-8 tile p-4">
+          <summary className="cursor-pointer text-stone-300 text-sm">Your flashcard sets ({decks!.length})</summary>
+          <div className="flex flex-col mt-3">
+            {decks!.map(d => (
+              <Link key={d.id} href={`/study/${d.id}`} className="flex items-center justify-between py-2 text-amber-50 hover:text-amber-300">
+                <span className="font-serif text-lg">{d.title}</span><ChevronRight size={15} className="text-stone-600" />
+              </Link>
+            ))}
+          </div>
+        </details>
+      )}
+    </>
   )
 }

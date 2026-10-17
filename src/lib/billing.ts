@@ -2,6 +2,7 @@ import 'server-only'
 import Stripe from 'stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isStoreAdmin } from '@/lib/store/server'
+import { storeMayReplace } from '@/lib/plus-grant'
 
 // Where Plus gets recorded. Each store tells us about a couple's
 // subscription (Stripe via its webhook; Apple via RevenueCat's webhook or a
@@ -47,10 +48,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 async function record(row: PlusRow) {
   if (!UUID.test(row.couple_id)) return
   const db = createAdminClient()
-  // A forever grant is never replaced; a grant with an end date gives way to a
-  // real subscription, so a couple that pays after (or during) it gets Plus.
-  const { data: existing } = await db.from('couple_plus').select('source, current_period_end').eq('couple_id', row.couple_id).maybeSingle()
-  if (existing?.source === 'grant' && !existing.current_period_end) return
+  // A grant that's giving Plus is only replaced by a subscription that gives
+  // Plus too, and a forever grant never is (plus-grant.ts).
+  const { data: existing } = await db.from('couple_plus').select('source, status, current_period_end').eq('couple_id', row.couple_id).maybeSingle()
+  if (!storeMayReplace(existing, row, new Date())) return
   await db.from('couple_plus').upsert({ ...row, updated_at: new Date().toISOString() })
 }
 

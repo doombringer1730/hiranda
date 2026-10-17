@@ -7,6 +7,7 @@ import { getDailyPrompt, type DailyPrompt } from './daily-actions'
 import { submitResponse, getPromptState } from './games/actions'
 import { haptic, celebrate } from '@/lib/feel'
 import { Scribble } from '@/components/handmade'
+import { usePartnerTyping, useTypingSignal } from '@/lib/shared-space'
 
 function localDay() {
   const d = new Date()
@@ -32,6 +33,11 @@ export default function DailyQuestion({ myId, partnerId, partnerName }: {
   const waiting = !!(daily?.myResponse && !daily.partnerResponse)
   const promptId = daily?.prompt.id
 
+  // Live "typing…" between the two of you (shared space, nothing saved).
+  const typingItem = promptId ? `question:${promptId}` : null
+  const typing = useTypingSignal(typingItem)
+  const partnerTyping = usePartnerTyping(typingItem ?? '') && !daily?.partnerResponse
+
   // While waiting on the partner, listen for their answer so the reveal
   // appears the moment it lands (realtime, with a slow fallback poll).
   useLive({ table: 'prompt_responses', filter: promptId ? `prompt_id=eq.${promptId}` : undefined, enabled: waiting && !!promptId }, async () => {
@@ -56,6 +62,7 @@ export default function DailyQuestion({ myId, partnerId, partnerName }: {
     const v = value.trim()
     if (!v || !daily) return
     haptic()
+    typing.stop()
     startTransition(async () => {
       await submitResponse(prompt.id, v)
       if (daily.partnerResponse && daily.partnerResponse === v && prompt.type !== 'question') celebrate()
@@ -111,7 +118,8 @@ export default function DailyQuestion({ myId, partnerId, partnerName }: {
           <div className="flex flex-col gap-2">
             <textarea
               value={draft}
-              onChange={e => setDraft(e.target.value)}
+              onChange={e => { setDraft(e.target.value); typing.ping() }}
+              onBlur={typing.stop}
               rows={2}
               placeholder="Write your answer…"
               className={`w-full bg-transparent border-0 border-b border-[rgb(43_38_32/0.2)] px-1 py-1 font-hand text-[24px] leading-[30px] ${ink} placeholder:text-[rgb(43_38_32/0.35)] focus:outline-none focus:border-amber-700 transition-colors resize-none`}
@@ -125,6 +133,12 @@ export default function DailyQuestion({ myId, partnerId, partnerName }: {
             </button>
           </div>
         )
+      )}
+
+      {partnerTyping && (
+        <p className={`${muted} text-xs flex items-center gap-1.5`} role="status">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" /> {partnerName} is writing their answer…
+        </p>
       )}
 
       {!myResponse && partnerResponse && (

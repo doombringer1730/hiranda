@@ -3,8 +3,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { notifyPartner, myFirstName } from '@/lib/push'
 
-// "Thinking of you" — records a tap and pings the partner's phone.
-export async function sendLove() {
+// "Thinking of you" — records a tap and pings the partner's phone. The newest
+// tap is the partner's "thought of you · 2h ago". `sent` says whether this tap
+// was recorded (not rate-limited): only then does the caller float hearts on
+// the partner's screen (lib/shared-space.tsx).
+export async function sendLove(): Promise<{ ok: true; sent: boolean } | { error: string }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not signed in' }
@@ -12,7 +15,7 @@ export async function sendLove() {
   // Gentle rate limit: one tap every 10 seconds is plenty of love.
   const { data: last } = await supabase.from('love_taps').select('created_at')
     .eq('from_user', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
-  if (last && Date.now() - new Date(last.created_at).getTime() < 10_000) return { ok: true }
+  if (last && Date.now() - new Date(last.created_at).getTime() < 10_000) return { ok: true, sent: false }
 
   const { error } = await supabase.from('love_taps').insert({ from_user: user.id })
   if (error) return { error: 'Could not send' }
@@ -23,5 +26,5 @@ export async function sendLove() {
     url: '/',
     tag: 'love',
   }))
-  return { ok: true }
+  return { ok: true, sent: true }
 }

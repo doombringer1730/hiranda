@@ -15,7 +15,7 @@ export const AREAS: Area[] = [
   { key: 'taps', good: 'little signs of affection', tryNext: 'Send a heart from Home, just because', href: '/', per30: 15 },
   { key: 'letters', good: 'putting it in writing', tryNext: 'Write a short letter for later', href: '/letters', per30: 1 },
   { key: 'newThings', good: 'trying new things', tryNext: 'Draw something from the Jar', href: '/games/jar', per30: 1 },
-  { key: 'grow', good: 'growing on purpose', tryNext: 'Start a Trail together', href: '/trails', per30: 2 },
+  { key: 'grow', good: 'growing on purpose', tryNext: 'Walk a route on your Grow map', href: '/grow', per30: 2 },
 ]
 
 export type Strengths = { good: string[]; next: Area | null }

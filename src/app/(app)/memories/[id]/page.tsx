@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { deleteMemory, deletePhoto } from '../actions'
+import { HereTogether } from '@/components/partner-here'
 
 export default async function MemoryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -43,6 +44,7 @@ export default async function MemoryPage({ params }: { params: Promise<{ id: str
         })}
       </p>
       <h1 className="font-serif text-4xl text-amber-100 mb-4">{memory.title}</h1>
+      <div className="mb-4 empty:hidden"><HereTogether room="memories" item={id} label={memory.title} /></div>
 
       {memory.tags?.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-6">

@@ -4,12 +4,15 @@ import Nav from '@/components/nav'
 import HubSwitcher from '@/components/hub-switcher'
 import PageTransition from '@/components/page-transition'
 import { RememberAccount, type RememberedAccount } from '@/components/remember-account'
+import { SharedSpaceProvider } from '@/lib/shared-space'
+import { FloatingHearts } from '@/components/partner-here'
 
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   let remembered: RememberedAccount | null = null
+  let space: { coupleId: string; myId: string; partnerId: string; myName: string } | null = null
 
   if (user) {
     const { data: profile } = await supabase
@@ -27,15 +30,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     // Prefer the paired space; nullsFirst: false sorts a real partner ahead.
     const { data: couples } = await supabase
       .from('couple')
-      .select('user2_id')
+      .select('id, user1_id, user2_id')
       .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
       .order('user2_id', { nullsFirst: false })
       .limit(1)
 
-    if (!couples?.[0]?.user2_id) redirect('/invite-partner')
+    const couple = couples?.[0]
+    if (!couple?.user2_id) redirect('/invite-partner')
+    space = { coupleId: couple.id, myId: user.id, partnerId: couple.user1_id === user.id ? couple.user2_id : couple.user1_id, myName: remembered.name }
   }
 
-  return (
+  const page = (
     <div className="min-h-screen">
       <Nav />
       {remembered && <RememberAccount {...remembered} />}
@@ -43,6 +48,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <HubSwitcher />
         <PageTransition>{children}</PageTransition>
       </main>
+      {space && <FloatingHearts />}
     </div>
   )
+  // Where each of you is in the app, live (lib/shared-space.tsx).
+  return space ? <SharedSpaceProvider {...space}>{page}</SharedSpaceProvider> : page
 }

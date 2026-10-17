@@ -33,8 +33,9 @@ create table couple (
 
 alter table couple enable row level security;
 
+-- A new couple starts empty; only accept_invite() fills user2_id (046).
 create policy "User can create couple"
-  on couple for insert with check (auth.uid() = user1_id);
+  on couple for insert with check (auth.uid() = user1_id and user2_id is null and paired_at is null);
 create policy "Couple members can read their couple"
   on couple for select using ((auth.uid() = user1_id) or (auth.uid() = user2_id));
 create policy "Members can update couple settings"
@@ -52,9 +53,15 @@ set search_path = public
 as $$
 declare
   target_id uuid;
-  claimed   int;
 begin
   if auth.uid() is null or new_user_id is distinct from auth.uid() then
+    return false;
+  end if;
+
+  -- Migration 047: one couple per person — already partnered, no second one.
+  if exists (select 1 from couple
+              where (user1_id = new_user_id or user2_id = new_user_id)
+                and user2_id is not null) then
     return false;
   end if;
 
@@ -82,13 +89,16 @@ begin
      where id = target_id
        and user2_id is null;
 
-    get diagnostics claimed = row_count;
+    -- Migration 047: lost a race for this invite — undo the delete too.
+    if not found then
+      raise exception 'invite already claimed' using errcode = 'HR001';
+    end if;
   exception
-    when unique_violation then
+    when unique_violation or sqlstate 'HR001' then
       return false;
   end;
 
-  return claimed = 1;
+  return true;
 end;
 $$;
 
@@ -730,7 +740,7 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 
 
 -- ─────────────────────────────────────────
--- MIGRATIONS 017–045 (summary — see each file in migrations/ for the full
+-- MIGRATIONS 017–053 (summary — see each file in migrations/ for the full
 -- table, policy and function definitions; every one is safe to re-run)
 -- ─────────────────────────────────────────
 -- Unless noted, new tables are couple-scoped (couple_id or a member's user id),
@@ -793,3 +803,25 @@ create policy "Authors can delete their trivia" on trivia_questions for delete u
 --     an unused invite link; callable signed out, needs the token.
 -- 045 couple.paired_at — when the partner accepted the invite, stamped by
 --     accept_invite(); null for couples that paired before 045.
+-- 046 couple INSERT must leave user2_id and paired_at empty, so nobody can
+--     insert themselves as someone else's partner (only accept_invite() pairs).
+-- 047 accept_invite() refuses anyone already in a paired couple, and a lost
+--     race for the same invite no longer deletes the loser's own space.
+-- 048 avatars / banners: the public read rules are replaced by "signed-in owner
+--     reads own file", so nobody can list the buckets (and collect user ids).
+--     Images still load through the buckets' public URLs.
+-- 049 storage.objects gets 021's restrictive "Require 2FA when enabled" policy,
+--     so a password-only session can't reach files through the storage API.
+-- 050 realtime.messages policies for the private `space:<couple id>` channel
+--     (broadcast + presence, the "where's my partner" hints): only the
+--     couple's two members, after 2FA if they use it. Nothing is stored.
+-- 051 lesson_answers: sealed predictions on the Grow map (your pick and your
+--     guess at theirs); theirs is readable only once yours exists
+--     (answered_lesson()). Final once given; 2FA rule; anon nothing.
+-- 052 grow_routes: a hard-topic Grow route (Fighting fair, Money talk, Our
+--     people) opens when one of you suggests it and the other says yes; only
+--     the other partner can accept, "not yet" deletes the suggestion, and only
+--     accepted_by / accepted_at can be updated.
+-- 053 finish_together(): in the Grow map's one-phone mode, marks a stop done
+--     for your partner too, only within 15 minutes of your own finish, with
+--     no note for them and never over a stop they already finished.
