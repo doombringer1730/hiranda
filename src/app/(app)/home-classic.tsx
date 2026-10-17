@@ -8,12 +8,13 @@ import { WidgetSync } from '@/components/widget-sync'
 import TalkTime from './talk-time'
 import { Polaroid } from '@/components/handmade'
 import CheckinCard from './closeness/checkin-card'
-import type { Waiting } from './home-widget-tiles'
 
 const eyebrow = 'text-stone-400 text-[11px] uppercase tracking-[0.22em]'
 
-// Home as it has always been. Couples without Plus keep this one; the widget
-// Home you arrange yourself comes with Plus.
+/** Something waiting on you: "Your move" on Home. */
+export type Waiting = { href: string; icon: React.ElementType; title: string; sub?: string }
+
+// Home: the same for every couple, Plus or not.
 export default function ClassicHome({
   myId, partnerId, partnerFirst, firstName, hasPartnerProfile, togetherSince, hasCouple,
   waiting, pick, pickPhoto, pickLabel, upcoming, lastLove, flame, watching,
@@ -88,11 +89,6 @@ export default function ClassicHome({
         </div>
       </div>
 
-      {hasCouple && (
-        <p className="mt-8 text-center text-xs text-stone-500">
-          <Link href="/plus" className="hover:text-amber-300 transition-colors">Arrange Home your way with Plus ✨</Link>
-        </p>
-      )}
     </>
   )
 }
